@@ -138,6 +138,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, status: 'ISSUED', email, password });
     }
 
+    // --- 流程 3: 吊销证书 (管理员行为，同步禁用账户) ---
+    if (action === 'revoke_certificate') {
+        const { data: cert, error: certErr } = await supabaseAdmin
+            .from('certificates')
+            .select('*, dealers(*)')
+            .eq('id', certId)
+            .single();
+        
+        if (certErr || !cert) throw new Error("未找到对应证书");
+
+        // 1. 更新数据库状态 (使用现有的 EXPIRED 状态，因为 REVOKED 不在 enum 中)
+        const { error: updateErr } = await supabaseAdmin
+            .from('certificates')
+            .update({ status: 'EXPIRED' })
+            .eq('id', certId);
+        
+        if (updateErr) throw updateErr;
+
+        // 2. 证书已吊销，不封禁账户 (因为管理员可能需要重新核发)
+
+        return NextResponse.json({ success: true, status: 'EXPIRED' });
+    }
+
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (err: any) {
     console.error(err);

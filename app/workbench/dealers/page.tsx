@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Search, UserCircle, Key, FileText, MoreHorizontal, ExternalLink, ShieldCheck, Mail, Building2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, UserCircle, Key, FileText, MoreHorizontal, ExternalLink, ShieldCheck, Mail, Building2, XCircle, RefreshCw, FileImage } from "lucide-react";
+import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 import { supabase } from "@/lib/supabase";
 
 export default function DealersPage() {
@@ -10,6 +11,11 @@ export default function DealersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [selectedDealer, setSelectedDealer] = useState<any>(null);
+  const [dealerCerts, setDealerCerts] = useState<any[]>([]);
+  const [isCertsLoading, setIsCertsLoading] = useState(false);
+  const [viewCertData, setViewCertData] = useState<any>(null);
+  const [isViewVoided, setIsViewVoided] = useState(false);
 
   useEffect(() => {
     fetchUserRole();
@@ -65,10 +71,10 @@ export default function DealersPage() {
 
   const resetDealerPassword = async (username: string) => {
     if (!username) return;
-    if (!window.confirm(`确定要重置经销商账户 [${username}] 的密码吗？\n重置后密码将恢复为该账号名称。`)) return;
+    if (!window.confirm(`确定要重置经销商账号 [${username}] 的密码吗？\n重置后密码将恢复为该账号名称。`)) return;
     
     // logic would go through a secure API
-    alert("重置指令已发送（当前建议通过管理员API实现）");
+    alert("重置指令已发送（当前建议通过管理员 API 实现）");
   };
 
   return (
@@ -162,7 +168,7 @@ export default function DealersPage() {
                           </span>
                        ) : (
                           <span className="inline-flex items-center gap-1 text-slate-300 text-[11px] font-bold uppercase tracking-wider">
-                            待开通
+                            待开启
                           </span>
                        )}
                     </td>
@@ -177,13 +183,23 @@ export default function DealersPage() {
                               <Key className="w-4 h-4" />
                             </button>
                           )}
-                          <a 
-                            href={`/workbench/certificates?q=${dealer.company_name}`}
+                          <button 
+                            onClick={async () => {
+                              setSelectedDealer(dealer);
+                              setIsCertsLoading(true);
+                              const { data } = await supabase
+                                .from('certificates')
+                                .select('*')
+                                .eq('dealer_id', dealer.id)
+                                .order('created_at', { ascending: false });
+                              setDealerCerts(data || []);
+                              setIsCertsLoading(false);
+                            }}
                             title="查看名下证书"
                             className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-blue-500 transition-all"
                           >
                             <FileText className="w-4 h-4" />
-                          </a>
+                          </button>
                        </div>
                     </td>
                   </tr>
@@ -202,6 +218,149 @@ export default function DealersPage() {
           )}
         </div>
       </div>
+      {/* 证书列表弹窗 */}
+      <AnimatePresence>
+        {selectedDealer && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setSelectedDealer(null)}
+               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.98, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.98, y: 10 }}
+               className="relative w-full max-w-3xl bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="flex justify-between items-start mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-500" />
+                    授权历史档案
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">主体名称：{selectedDealer.company_name}</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedDealer(null)}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-auto rounded-2xl border border-slate-100 bg-slate-50/30">
+                {isCertsLoading ? (
+                  <div className="p-20 text-center text-slate-300">
+                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3" />
+                     正在调取云端档案...
+                  </div>
+                ) : dealerCerts.length === 0 ? (
+                  <div className="p-20 text-center space-y-3 text-slate-400">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+                      <ShieldCheck className="w-6 h-6 text-slate-200" />
+                    </div>
+                    <p className="font-bold text-sm">暂无颁发记录</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-y border-slate-100">
+                       <tr>
+                         <th className="px-6 py-4">证书编号</th>
+                         <th className="px-6 py-4">有效期</th>
+                         <th className="px-6 py-4">状态</th>
+                         <th className="px-6 py-4 text-right">预览/存档</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white/50">
+                      {dealerCerts.map(cert => {
+                        const now = new Date();
+                        const endDate = new Date(cert.end_date + 'T23:59:59');
+                        const isExpiredByDate = now > endDate;
+                        const isVoided = cert.status === 'EXPIRED' && !isExpiredByDate;
+
+                        return (
+                          <tr key={cert.id} className="hover:bg-white transition-colors group/row">
+                            <td className="px-6 py-4 font-mono text-[11px] font-bold text-slate-900">{cert.cert_number}</td>
+                            <td className="px-6 py-4 text-[12px] text-slate-500">
+                               {cert.start_date.replace(/-/g, '.')} - {cert.end_date.replace(/-/g, '.')}
+                            </td>
+                            <td className="px-6 py-4">
+                               {isVoided ? (
+                                 <span className="text-rose-500 text-[10px] font-bold bg-rose-50 px-2 py-0.5 rounded italic">已作废</span>
+                               ) : isExpiredByDate || cert.status === 'EXPIRED' ? (
+                                 <span className="text-slate-400 text-[10px] font-bold">已失效</span>
+                               ) : cert.status === 'ISSUED' ? (
+                                 <span className="text-emerald-500 text-[10px] font-bold italic">Active</span>
+                               ) : (
+                                 <span className="text-amber-500 text-[10px] font-bold italic">Pending</span>
+                               )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                               <button 
+                                 onClick={() => {
+                                   const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                                   setViewCertData({
+                                     platformId: scopeParts[0],
+                                     platformLabel: "淘宝ID", 
+                                     shopName: selectedDealer.company_name,
+                                     shopLabel: "店铺名称",
+                                     scopeText: scopeParts[1] || "授权经销资格条款",
+                                     duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
+                                     authorizer: "旎柏（上海）商贸有限公司",
+                                     sealImage: "/default-seal.svg",
+                                     phone: selectedDealer.phone || ""
+                                   });
+                                   setIsViewVoided(isVoided || cert.status === 'EXPIRED');
+                                 }}
+                                 className="inline-flex items-center gap-1.5 text-blue-500 hover:text-blue-700 font-bold text-[11px] transition-all px-2 py-1 hover:bg-blue-50 rounded"
+                               >
+                                 <Search className="w-3.5 h-3.5" />
+                                 调阅
+                               </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className="mt-6 text-center">
+                 <p className="text-[10px] text-slate-300 tracking-tight">NIHPLOD GENOME - 品牌数字化授权保护系统</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 高清预览与下载叠加层 */}
+      <AnimatePresence>
+        {viewCertData && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0, scale: 0.95 }}
+               className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            >
+               <div className="p-8 flex justify-between items-center border-b border-slate-100">
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">调取历史授信档案</h3>
+                  <button onClick={() => setViewCertData(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900">
+                    <XCircle className="w-6 h-6" />
+                  </button>
+               </div>
+               <div className="flex-1 overflow-auto p-10">
+                  <CertificateGenerator 
+                    initialData={viewCertData} 
+                    mode="view" 
+                    isVoided={isViewVoided} 
+                  />
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

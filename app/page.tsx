@@ -42,13 +42,18 @@ export default function VerificationPage() {
       if (error || !data) {
         setError("未查询到相关授权信息。");
       } else {
-        setResult({
-          id: data.cert_number,
-          dealerName: Array.isArray(data.dealers) ? (data.dealers[0] as any)?.company_name : (data.dealers as any)?.company_name,
-          duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
-          scope: data.auth_scope,
-          status: data.status,
-        });
+        // --- 逻辑加固：判定是否过期 ---
+        if (new Date() > new Date(data.end_date + 'T23:59:59')) {
+          setError("查询到该授权编号，但该证书已于 " + data.end_date + " 过期失效。");
+        } else {
+          setResult({
+            id: data.cert_number,
+            dealerName: Array.isArray(data.dealers) ? (data.dealers[0] as any)?.company_name : (data.dealers as any)?.company_name,
+            duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
+            scope: data.auth_scope,
+            status: data.status,
+          });
+        }
       }
     } catch (err) {
       console.error(err);

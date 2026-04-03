@@ -19,7 +19,13 @@ interface CertData {
 
 import QRCode from "qrcode";
 
-export default function CertificateGenerator() {
+interface CertificateGeneratorProps {
+  initialData?: any;
+  mode?: 'create' | 'view';
+  isVoided?: boolean;
+}
+
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false }: CertificateGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
   const platformLabelRef = useRef<HTMLInputElement>(null);
@@ -42,6 +48,8 @@ export default function CertificateGenerator() {
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isIssued, setIsIssued] = useState(false);
+  const [isVoided, setIsVoided] = useState(initialVoided);
   
   const renderRequestId = useRef(0);
 
@@ -68,6 +76,16 @@ export default function CertificateGenerator() {
       setIsFontLoaded(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData);
+      if (mode === 'view') {
+        setIsIssued(true);
+        setIsVoided(initialVoided);
+      }
+    }
+  }, [initialData, mode, initialVoided]);
 
 
   useEffect(() => {
@@ -172,6 +190,7 @@ export default function CertificateGenerator() {
     });
 
     // 6. 有效期格式化与绘制
+    // 6. 有效期格式化与绘制
     const formatDate = (dateStr: string) => {
       if (!dateStr) return "";
       const parts = dateStr.split('.');
@@ -182,13 +201,13 @@ export default function CertificateGenerator() {
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, width / 2, startY + 25 * scale);
 
-    // 7. 落款与公章 (离屏合成)
+    // 7. 落款与公章 (正式件显示公章，预览件不显示)
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     offCtx.fillText(`授权方：${data.authorizer || ""}`, width - 435 * scale, 848 * scale);
     offCtx.fillText("签字/盖章：", width - 435 * scale, 892 * scale);
 
-    if (sealImg) {
+    if (isIssued && sealImg) {
       const maxSealSize = 160 * scale;
       const aspect = sealImg.width / sealImg.height;
       const drawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
@@ -202,23 +221,38 @@ export default function CertificateGenerator() {
       offCtx.restore();
     }
 
-
-    // 9. 全幅平铺水印叠印 (离屏)
-    offCtx.save();
-    offCtx.rotate(-Math.PI / 4); // 旋转全场坐标
-    offCtx.textAlign = "center";
-    offCtx.font = `bold ${18 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillStyle = "rgba(100, 116, 139, 0.15)"; // 加深至 15% 不透明度，更显眼
-    
-    // 平铺范围需要覆盖旋转后的对角线长度
-    const stepX = 220 * scale;
-    const stepY = 160 * scale;
-    for (let x = -width; x < width * 2; x += stepX) {
-      for (let y = -height; y < height * 2; y += stepY) {
-        offCtx.fillText("非生效授权凭证", x, y);
+    // 9. 全幅平铺水印叠印 (预览模式 / 作废模式)
+    if (!isIssued || isVoided) {
+      offCtx.save();
+      offCtx.rotate(-Math.PI / 4); 
+      offCtx.textAlign = "center";
+      
+      if (isVoided) {
+        // --- 强制：红色斜体作废水印 ---
+        offCtx.font = `bold italic ${24 * scale}px "Noto Serif SC", serif`;
+        offCtx.fillStyle = "rgba(239, 68, 68, 0.4)"; // 浓郁的红色
+        const stepX = 240 * scale;
+        const stepY = 180 * scale;
+        for (let x = -width; x < width * 2; x += stepX) {
+          for (let y = -height; y < height * 2; y += stepY) {
+            offCtx.fillText("VOID / 已作废", x, y);
+            offCtx.fillText("EXPIRED / 已失效", x, y + 25 * scale);
+          }
+        }
+      } else {
+        // --- 默认：草稿水印 ---
+        offCtx.font = `bold ${18 * scale}px "Noto Serif SC", serif`;
+        offCtx.fillStyle = "rgba(100, 116, 139, 0.15)"; 
+        const stepX = 220 * scale;
+        const stepY = 160 * scale;
+        for (let x = -width; x < width * 2; x += stepX) {
+          for (let y = -height; y < height * 2; y += stepY) {
+            offCtx.fillText("非生效授权凭证", x, y);
+          }
+        }
       }
+      offCtx.restore();
     }
-    offCtx.restore();
 
     // --- 完工投射：原子级更新，杜绝闪烁 ---
     if (currentId === renderRequestId.current) {
@@ -557,6 +591,7 @@ export default function CertificateGenerator() {
                 if (!response.ok) throw new Error(result.error || "操作请求失败");
 
                 if (actionType === 'approve_issue') {
+                    setIsIssued(true);
                     alert(`✅ 证书已直接核发！\n\n已为经销商开通系统账户：\n账户：${result.email}\n密码：${result.password}`);
                 } else {
                     alert(`📩 提报审核成功！\n请等待项目负责人审核通过并核发。`);
@@ -581,9 +616,18 @@ export default function CertificateGenerator() {
                 正在签发中...
               </>
             ) : (
-                (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') ? '核发授权书' : '提报审核'
+                (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') ? '正式核发并在下方下载' : '提报审核'
             )}
           </button>
+          
+          {isIssued && (
+            <button
+               onClick={handleDownload}
+               className="h-9 px-6 font-bold rounded-lg flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-lg active:scale-[0.98] text-sm animate-bounce"
+            >
+               <Download className="w-4 h-4" /> 下载正式高清授权书
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -628,11 +672,13 @@ export default function CertificateGenerator() {
              >
                 <X className="w-8 h-8" />
              </button>
-             <img 
-               src={previewImageUrl} 
-               alt="授权书高清预览" 
-               className="max-w-full max-h-full object-contain shadow-2xl rounded-sm" 
-             />
+             {previewImageUrl && (
+               <img 
+                 src={previewImageUrl} 
+                 alt="授权书高清预览" 
+                 className="max-w-full max-h-full object-contain shadow-2xl rounded-sm" 
+               />
+             )}
           </motion.div>
         </div>
       )}

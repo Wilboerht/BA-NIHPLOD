@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { Clock, ExternalLink, ShieldCheck, Megaphone } from "lucide-react";
+import { Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function WorkbenchPage() {
   const router = useRouter();
-  const [stats, setStats] = useState({ certs: 0, pendingComplaints: 0 });
+  const [stats, setStats] = useState({ certs: 0, validCerts: 0, pendingComplaints: 0 });
   const [recentComplaints, setRecentComplaints] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,7 +35,19 @@ export default function WorkbenchPage() {
         .order('created_at', { ascending: false })
         .limit(4);
 
-      setStats({ certs: certCount || 0, pendingComplaints: complaintCount || 0 });
+      // Fetch Valid Certs Count (ISSUED and not expired)
+      const today = new Date().toISOString().split('T')[0];
+      const { count: validCount } = await supabase
+        .from('certificates')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'ISSUED')
+        .gte('end_date', today);
+
+      setStats({ 
+        certs: certCount || 0, 
+        validCerts: validCount || 0,
+        pendingComplaints: complaintCount || 0 
+      });
       if (recent) setRecentComplaints(recent);
       setIsLoading(false);
     }
@@ -53,7 +65,7 @@ export default function WorkbenchPage() {
         <p className="text-slate-500 text-[13px]">欢迎来到 NIHPLOD 品牌授权核查系统的管理大盘。</p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -66,6 +78,21 @@ export default function WorkbenchPage() {
           </div>
           <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 transition-colors">
              <ShieldCheck className="w-6 h-6" />
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.08 }}
+          className="notion-card flex items-center justify-between transition-all"
+        >
+          <div>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">当前有效授权</h3>
+            <p className="text-3xl font-bold text-emerald-600 tracking-tight transition-colors">{isLoading ? '-' : stats.validCerts}</p>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 transition-colors">
+             <CheckCircle2 className="w-6 h-6" />
           </div>
         </motion.div>
         

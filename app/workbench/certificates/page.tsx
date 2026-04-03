@@ -10,8 +10,10 @@ export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [showIssueModal, setShowIssueModal] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [selectedCertData, setSelectedCertData] = useState<any>(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
 
   useEffect(() => {
     fetchUserRole();
@@ -47,15 +49,26 @@ export default function CertificatesPage() {
   };
 
   const revokeCertificate = async (id: string, currentStatus: string) => {
-    if (currentStatus === 'REVOKED') return;
-    if (!window.confirm("确定要吊销此证书吗？一旦吊销，防伪系统将显示此证书失效。")) return;
+    if (currentStatus === 'EXPIRED') return;
+    if (!window.confirm("确定要吊销此证书吗？一旦吊销：\n该证书图像在防伪系统中将显示为已失效。如果您需要修正信息，请在吊销后重新签发。")) return;
     
-    // Revoke updating status
-    const { error } = await supabase.from('certificates').update({ status: 'REVOKED' }).eq('id', id);
-    if (!error) {
-      alert("证书已吊销！");
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'revoke_certificate', certId: id })
+      });
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      alert("✅ 证书已吊销，该授权在防伪系统中已失效。");
       fetchCertificates();
-    } else {
+    } catch (err: any) {
+      alert("吊销操作失败：" + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -167,13 +180,13 @@ export default function CertificatesPage() {
                       {new Date(cert.start_date).toLocaleDateString()} - {new Date(cert.end_date).toLocaleDateString()}
                     </td>
                   <td className="px-6 py-4 text-center">
-                      {cert.status === 'ISSUED' ? (
+                      {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide uppercase">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
                         </span>
-                      ) : cert.status === 'REVOKED' ? (
+                      ) : (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && new Date() > new Date(cert.end_date + 'T23:59:59'))) ? (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-500 text-[11px] font-semibold tracking-wide uppercase">
-                          <XCircle className="w-3 h-3" /> 已吊销
+                          <XCircle className="w-3.5 h-3.5" /> 已吊销/已到期
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold tracking-wide uppercase">
@@ -193,6 +206,19 @@ export default function CertificatesPage() {
                           </button>
                         )}
                         {cert.status === 'ISSUED' && (
+                          <button 
+                            onClick={() => {
+                              setSelectedCertData(cert.cert_data);
+                              setIsViewOnly(true);
+                              setShowIssueModal(true);
+                            }}
+                            className="text-blue-500 hover:text-blue-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                          >
+                            <FileImage className="w-3.5 h-3.5" />
+                            下载证书
+                          </button>
+                        )}
+                        {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
                           <button 
                             onClick={() => revokeCertificate(cert.id, cert.status)}
                             className="text-rose-500 hover:text-rose-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
@@ -225,13 +251,22 @@ export default function CertificatesPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl border border-slate-100 relative my-8 overflow-hidden">
              <div className="p-8 pb-4 flex justify-between items-center bg-white border-b border-transparent">
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight">签发授权书</h3>
-                <button onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center">
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                  {isViewOnly ? "查看并下载授权书" : "签发授权书"}
+                </h3>
+                <button 
+                  onClick={() => {
+                    setShowIssueModal(false);
+                    setSelectedCertData(null);
+                    setIsViewOnly(false);
+                  }} 
+                  className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center"
+                >
                    <XCircle className="w-5 h-5" />
                 </button>
              </div>
              <div className="p-8 max-h-[80vh] overflow-y-auto bg-white">
-               <CertificateGenerator />
+               <CertificateGenerator initialData={selectedCertData} mode={isViewOnly ? 'view' : 'create'} />
              </div>
           </div>
         </div>
