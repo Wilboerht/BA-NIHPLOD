@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ShieldAlert, Award, Download, Globe, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Search, ShieldAlert, Award, Download, Globe, RefreshCw, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -33,162 +33,155 @@ export default function VerificationPage() {
       if (found) {
         setResult(found);
       } else {
-        setError("未查询到相关授权信息，请核对编号后重试。");
+        setError("未查询到相关授权信息，请核对。");
       }
       setIsSearching(false);
-    }, 1500);
+    }, 1200);
   };
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center selection:bg-slate-200"
+    <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-slate-200 overflow-hidden"
           style={{ background: "radial-gradient(circle at center, #fffdfa 0%, #f7efe6 100%)" }}>
       
-      {/* 底部光晕装饰 */}
-      <div className="absolute inset-0 pointer-events-none opacity-40" 
-           style={{ background: "radial-gradient(circle at 50% 20%, rgba(139, 69, 19, 0.04) 0%, transparent 60%)" }} />
+      {/* 极轻微的动态背景色斑 */}
+      <div className="absolute inset-0 pointer-events-none opacity-20" 
+           style={{ background: "radial-gradient(circle at 50% 30%, rgba(194, 65, 12, 0.04) 0%, transparent 70%)" }} />
 
-      {/* 顶部导航 - 纯净版 */}
-      <nav className="w-full max-w-7xl px-8 py-10 flex justify-between items-center z-20">
+      {/* 顶部导航 - 更加靠边的精致布局 */}
+      <nav className="w-full max-w-7xl px-12 py-10 flex justify-between items-center z-20 shrink-0">
          <div className="flex items-center gap-4 transition-all hover:opacity-80">
-            <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-9 w-auto" />
-            <div className="w-px h-6 bg-slate-300/40 mx-1" />
-            <span className="text-base font-bold tracking-tight text-slate-800">授权验证系统</span>
+            <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-8 w-auto" />
+            <div className="w-px h-5 bg-slate-300/50 mx-1" />
+            <span className="text-sm font-bold tracking-tight text-slate-700">授权验证系统</span>
          </div>
       </nav>
 
-      {/* 核心内容区 */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-8 relative z-10 -mt-16">
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center space-y-8 mb-14"
-        >
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 bg-white/60 border border-white/80 rounded-full shadow-sm backdrop-blur-sm">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 leading-none">Official Registry · 数据库已同步</span>
-          </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-[#0f253e] leading-[1.1]">
-            品牌授权验证中心
-          </h1>
-          <p className="text-slate-500 text-base md:text-lg max-w-xl mx-auto leading-relaxed font-bold">
-            通过输入授权证书编号，实时核检经销商资质的真实性、<br className="hidden md:block" />合法性及其授权经营范围。
-          </p>
-        </motion.div>
+      {/* 核心内容区 - 垂直居中 */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-8 relative z-10 -mt-10">
+        
+        <div className="w-full flex flex-col items-center">
+          {/* 文案区 */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-4 mb-10"
+          >
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-800 opacity-90">
+              品牌授权验证中心
+            </h1>
+            <p className="text-slate-400 text-sm md:text-base max-w-lg mx-auto leading-relaxed font-medium">
+              实时核检经销商资质的真实性、合法性及经营范围。
+            </p>
+          </motion.div>
 
-        {/* 搜索框 */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-2xl mb-12 group"
-        >
-          <form onSubmit={handleSearch} className="flex gap-4 p-2 bg-white/40 backdrop-blur-md rounded-[24px] border border-white/80 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] transition-all focus-within:shadow-[0_48px_80px_-16px_rgba(0,0,0,0.08)]">
-            <div className="flex-1 relative flex items-center">
-              <Search className="absolute left-6 w-5 h-5 text-slate-300" />
-              <input 
-                type="text" 
-                placeholder="请输入证书编号 (如: BAVP-2024-001)" 
-                className="w-full bg-transparent border-none outline-none pl-14 pr-6 py-5 text-slate-900 text-lg font-medium placeholder:text-slate-200 focus:ring-0 transition-all font-mono"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <button 
-              disabled={isSearching}
-              className="bg-[#0f253e] text-white font-bold px-10 rounded-[18px] hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-blue-900/10"
+          {/* 搜索框 - 极致精简 */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.99 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-lg mb-8"
+          >
+            <form 
+              onSubmit={handleSearch} 
+              className="group relative flex items-center p-1.5 bg-white/40 backdrop-blur-xl border border-white/80 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.04)] focus-within:shadow-[0_40px_70px_-20px_rgba(0,0,0,0.06)] transition-all duration-500"
             >
-              {isSearching ? <RefreshCw className="w-5 h-5 animate-spin" /> : "立即查询"}
-            </button>
-          </form>
-        </motion.div>
-
-        {/* 结果显示 */}
-        <div className="w-full max-w-2xl min-h-[320px]">
-          <AnimatePresence mode="wait">
-            {isSearching && (
-              <motion.div 
-                key="loading" 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex flex-col items-center pt-16 gap-6"
+              <div className="flex-1 relative flex items-center">
+                <Search className="absolute left-6 w-4.5 h-4.5 text-slate-400 group-focus-within:text-slate-500 transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="输入证书编号 ( 示例: BAVP-2024-001 )" 
+                  className="w-full bg-transparent border-none outline-none pl-15 pr-6 py-4 text-slate-900 text-[14px] font-semibold placeholder:text-slate-400/60 placeholder:font-normal focus:ring-0 transition-all tracking-normal"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <button 
+                disabled={isSearching}
+                className="bg-[#c2410c] text-white font-bold h-10 px-7 rounded-xl hover:bg-[#a1360a] active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-orange-900/10 text-[13px]"
               >
-                <div className="w-10 h-10 border-3 border-slate-200 border-t-[#0f253e] rounded-full animate-spin" />
-                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.25em] ml-2">正在同步官方数据库...</span>
-              </motion.div>
-            )}
+                {isSearching ? <RefreshCw className="w-4 h-4 animate-spin mx-2" /> : (
+                  <>
+                     搜索验证
+                     <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </form>
+          </motion.div>
 
-            {error && !isSearching && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50/60 backdrop-blur-sm border border-red-100 p-8 rounded-2xl flex items-start gap-5 text-red-600 shadow-[0_16px_32px_rgba(220,38,38,0.02)]"
-              >
-                <ShieldAlert className="w-6 h-6 shrink-0 mt-1" />
-                <div className="space-y-1">
-                   <p className="text-base font-bold">验证失败</p>
-                   <p className="text-sm opacity-80 leading-relaxed">{error}</p>
-                </div>
-              </motion.div>
-            )}
+          {/* 结果显示容器 - 控制高度 */}
+          <div className="w-full max-w-2xl h-[340px] flex items-start justify-center">
+            <AnimatePresence mode="wait">
+              {isSearching && (
+                <motion.div 
+                  key="loading" 
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="flex flex-col items-center pt-10 gap-6"
+                >
+                  <div className="w-8 h-8 border-2 border-slate-100 border-t-[#c2410c] rounded-full animate-spin" />
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em] ml-4">安全核实中</span>
+                </motion.div>
+              )}
 
-            {result && !isSearching && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="relative overflow-hidden group"
-              >
-                <div className="absolute -inset-0.5 bg-gradient-to-b from-white to-white/0 rounded-[26px] opacity-40 blur-sm" />
-                <div className="relative bg-white/60 backdrop-blur-xl border border-white/80 p-10 md:p-12 rounded-[24px] shadow-[0_40px_80px_-24px_rgba(0,0,0,0.08)]">
+              {error && !isSearching && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/40 backdrop-blur-md border border-red-100 p-8 rounded-[24px] flex flex-col items-center text-center gap-4 shadow-sm"
+                >
+                  <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                     <p className="text-base font-bold text-slate-800">未查询到授权</p>
+                     <p className="text-xs text-slate-400">请核对您输入的编号。若确信无误，请联系品牌官方。</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {result && !isSearching && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.99, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="relative bg-white/60 backdrop-blur-[32px] border border-white/90 p-8 md:p-10 rounded-[28px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] w-full"
+                >
                   <div className="flex flex-col md:flex-row justify-between items-start gap-10">
-                    <div className="flex-1 space-y-8">
-                      <div className="flex items-center gap-3 text-emerald-600 font-bold text-[11px] uppercase tracking-widest bg-emerald-50/80 px-4 py-1.5 rounded-full border border-emerald-100 w-fit">
-                         <CheckCircle2 className="w-4 h-4" /> 官方资质核验通过
+                    <div className="flex-1 space-y-6">
+                      <div className="flex items-center gap-2.5 text-[#c2410c] font-bold text-[9px] uppercase tracking-widest bg-orange-50/60 px-4 py-1 rounded-full border border-orange-100/50 w-fit">
+                         <CheckCircle2 className="w-3.5 h-3.5" /> 身份核实通过
                       </div>
                       <div className="space-y-2">
-                         <h2 className="text-3xl md:text-4xl font-extrabold text-[#0f253e] tracking-tight">{result.dealerName}</h2>
-                         <p className="text-slate-400 text-xs font-bold font-mono tracking-widest uppercase">CERTIFICATE ID: {result.id}</p>
+                         <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">{result.dealerName}</h2>
+                         <p className="text-slate-300 text-[11px] font-bold font-mono tracking-[0.2em] uppercase opacity-70">SN: {result.id}</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-10 pt-8 border-t border-slate-300/20">
-                         <div className="space-y-1.5">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">有效期至</span>
-                            <p className="text-lg font-bold text-[#0f253e] tracking-tight">{result.duration}</p>
+                      <div className="grid grid-cols-2 gap-10 pt-6 border-t border-slate-100">
+                         <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">到期日期</span>
+                            <p className="text-base font-bold text-slate-700 tracking-tight">{result.duration}</p>
                          </div>
-                         <div className="space-y-1.5">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">授权区域</span>
-                            <p className="text-lg font-bold text-[#0f253e] tracking-tight">{result.scope}</p>
+                         <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">授权区域</span>
+                            <p className="text-base font-bold text-slate-700 tracking-tight">{result.scope}</p>
                          </div>
                       </div>
-                      <div className="pt-10 flex flex-wrap gap-4">
-                        <button className="bg-[#0f253e] text-white font-bold h-12 px-8 rounded-xl text-xs flex items-center gap-2.5 hover:bg-slate-800 transition-all shadow-lg shadow-blue-900/10 active:scale-95 uppercase tracking-wide">
-                          <Download className="w-4 h-4" /> 导出授权证书
-                        </button>
-                        <button className="bg-white/60 border border-slate-200 text-slate-600 font-bold h-12 px-8 rounded-xl text-xs flex items-center gap-2.5 hover:bg-white hover:border-slate-300 transition-all active:scale-95 uppercase tracking-wide">
-                          <Globe className="w-4 h-4" /> 访问官方渠道
+                      <div className="pt-6 flex flex-wrap gap-4">
+                        <button className="bg-slate-900 text-white font-bold h-10 px-7 rounded-xl text-[12px] flex items-center gap-2.5 hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 mb-2">
+                          <Download className="w-4 h-4 opacity-70" /> 导出证书
                         </button>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-6 p-8 bg-slate-50/50 rounded-2xl border border-white/60">
-                       <div className="w-28 h-28 bg-white border border-slate-100 rounded-xl shadow-inner flex items-center justify-center p-3">
-                          <img src="/NIHPLOD-logo.svg" alt="SECURE" className="w-full h-auto opacity-10 grayscale" />
-                       </div>
-                       <div className="text-center space-y-1.5">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Digital-Auth Verified</p>
-                          <p className="text-[8px] text-slate-300 tracking-tighter">Powered by NIHLPOD-SECURE</p>
-                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {/* 页脚 - 聚合版入口 */}
-      <footer className="w-full max-w-7xl px-8 py-14 flex flex-col md:flex-row justify-between items-center gap-6 mt-auto border-t border-slate-200/20 text-slate-400">
+      {/* 页脚 - 极简沉在最底 */}
+      <footer className="w-full max-w-7xl px-12 py-10 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 border-t border-slate-100/30">
          <p className="text-[11px] font-normal text-slate-300 tracking-normal antialiased">
            &copy; 2026 NIHPLOD. All rights reserved
          </p>
-         <div className="flex gap-10 text-[11px] font-bold text-slate-400/60 uppercase tracking-[0.1em]">
-            <Link href="/login" className="hover:text-slate-900 transition-colors">管理端登录</Link>
+         <div className="flex gap-12 text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">
+            <Link href="/login" className="hover:text-slate-900 transition-colors">管理登录</Link>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">服务协议</span>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">隐私声明</span>
          </div>
