@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Download, RefreshCw, FileText, CheckCircle2, Type, Move, Printer } from "lucide-react";
+import { Download, RefreshCw, FileText, CheckCircle2, Type, Move, Printer, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
 interface CertData {
   platformId: string;
+  platformLabel: string;
   shopName: string;
+  shopLabel: string;
   scopeText: string;
   duration: string;
   authorizer: string;
@@ -18,9 +20,12 @@ import QRCode from "qrcode";
 
 export default function CertificateGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scopeRef = useRef<HTMLTextAreaElement>(null);
   const [data, setData] = useState<CertData>({
     platformId: "",
+    platformLabel: "淘宝ID",
     shopName: "",
+    shopLabel: "店铺名称",
     scopeText: "拥有我公司代理的品牌 NIHPLOD(旎柏) 全系列产品\n在阿里巴巴集团旗下淘宝商城上的合格经销资格，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
     duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
     authorizer: "旎柏（上海）商贸有限公司",
@@ -28,12 +33,19 @@ export default function CertificateGenerator() {
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isFontLoaded, setIsFontLoaded] = useState(false);
 
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    // 监测字体加载状态
+    document.fonts.ready.then(() => {
+      setIsFontLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (scopeRef.current) {
+      scopeRef.current.style.height = "auto";
+      scopeRef.current.style.height = `${scopeRef.current.scrollHeight}px`;
     }
   }, [data.scopeText]);
 
@@ -80,14 +92,14 @@ export default function CertificateGenerator() {
 
     // --- 只绘制可编辑的动态内容 ---
 
-    // 3. 授权主体 (淘宝ID & 店铺名称)
+    // 3. 授权主体 (动态标签 + 内容)
     ctx.textAlign = "center";
     ctx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     ctx.fillStyle = "#1e293b";
 
-    // 把“标签 + 内容”合并成一个完整字符串，直接在 width / 2 处居中显示
-    const idFullLine = `淘宝ID：${data.platformId || ""}`;
-    const shopFullLine = `店铺名称：${data.shopName || ""}`;
+    // 动态标签组合
+    const idFullLine = `${data.platformLabel || "淘宝ID"}：${data.platformId || ""}`;
+    const shopFullLine = `${data.shopLabel || "店铺名称"}：${data.shopName || ""}`;
 
     // Y 轴垂直坐标：再次精准微调，压缩行间距，追求极致的视觉凝聚力
     ctx.fillText(idFullLine, width / 2, 530 * scale);
@@ -156,10 +168,10 @@ export default function CertificateGenerator() {
     ctx.textAlign = "left";
     ctx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     const authorizerFullLine = `授权方：${data.authorizer || ""}`;
-    ctx.fillText(authorizerFullLine, width - 405 * scale, 848 * scale);
+    ctx.fillText(authorizerFullLine, width - 435 * scale, 848 * scale);
     
     // 6.1 签字/盖章 (重合覆盖底图)
-    ctx.fillText("签字/盖章：", width - 405 * scale, 892 * scale);
+    ctx.fillText("签字/盖章：", width - 435 * scale, 892 * scale);
 
     // 6.5 绘制电子公章/签名图片
     if (data.sealImage) {
@@ -168,11 +180,24 @@ export default function CertificateGenerator() {
         sealImg.src = data.sealImage;
         await new Promise((resolve) => {
           sealImg.onload = () => {
+            // 采用标准 42mm 圆形公章比例 (Standard 42mm Official Seal)
+            const maxSealSize = 160 * scale;
+            let drawWidth, drawHeight;
+            const aspect = sealImg.width / sealImg.height;
+            if (aspect > 1) {
+              drawWidth = maxSealSize;
+              drawHeight = maxSealSize / aspect;
+            } else {
+              drawHeight = maxSealSize;
+              drawWidth = maxSealSize * aspect;
+            }
+
             ctx.save();
-            ctx.translate(width - 210 * scale, height - 165 * scale);
-            ctx.rotate(-0.06);
-            ctx.globalAlpha = 0.88;
-            ctx.drawImage(sealImg, -65 * scale, -65 * scale, 130 * scale, 130 * scale);
+            // 将印章居中“盖”在授权方文字和签名线上 (精准对准落款核心区)
+            ctx.translate(width - 310 * scale, 875 * scale);
+            ctx.rotate(-0.06); // 稍微倾斜，模拟真实盖章感
+            ctx.globalAlpha = 0.88; // 稍微透明，模拟印油叠印效果
+            ctx.drawImage(sealImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
             ctx.restore();
             resolve(true);
           };
@@ -183,34 +208,12 @@ export default function CertificateGenerator() {
       }
     }
 
-    /* 临时移除二维码渲染
-    try {
-      const verifyUrl = `https://ba.nihplod.cn/verify?shop=${encodeURIComponent(data.shopName)}`;
-      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 80 * scale });
-      
-      const qrImage = new Image();
-      qrImage.src = qrDataUrl;
-      await new Promise((resolve) => {
-        qrImage.onload = () => {
-          ctx.drawImage(qrImage, 120 * scale, height - 200 * scale, 75 * scale, 75 * scale);
-          resolve(true);
-        };
-      });
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = `${10 * scale}px sans-serif`;
-      ctx.fillText("扫码核验真伪", 157 * scale, height - 110 * scale);
-    } catch(err) {
-      console.error(err);
-    }
-    */
-
     setIsGenerating(false);
   };
 
   useEffect(() => {
     renderCertificate();
-  }, [data]);
+  }, [data, isFontLoaded]);
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
@@ -230,32 +233,66 @@ export default function CertificateGenerator() {
         className="flex flex-col h-full"
       >
         <div className="space-y-8 mt-2 mb-8">
-          {/* 属性 1：平台ID */}
-          <div className="flex items-center group">
-            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
-              平台账号
+          {/* 属性 1：平台ID/标题 */}
+          <div className="flex items-center gap-3 group">
+            <div className="w-28 relative flex items-center gap-1 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer">
+              <input
+                type="text"
+                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-300"
+                list="platform-labels"
+                value={data.platformLabel}
+                onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
+                placeholder="名称"
+              />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-400 transition-colors shrink-0" />
+              <datalist id="platform-labels">
+                <option value="淘宝ID" />
+                <option value="京东ID" />
+                <option value="拼多多ID" />
+                <option value="抖音号" />
+                <option value="快手ID" />
+                <option value="小红书账号" />
+                <option value="得物账号" />
+              </datalist>
             </div>
             <div className="flex-1">
               <input
-                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all"
+                type="text"
+                placeholder="请输入对应的平台 ID 或账号"
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all placeholder:text-slate-200"
                 value={data.platformId}
                 onChange={(e) => setData({ ...data, platformId: e.target.value })}
-                placeholder="例如：八百头猪竟然"
               />
             </div>
           </div>
 
-          {/* 属性 2：店铺名称 */}
-          <div className="flex items-center group">
-            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
-              店铺名称
+          {/* 属性 2：店铺名称/标题 */}
+          <div className="flex items-center gap-3 group">
+            <div className="w-28 relative flex items-center gap-1 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer">
+              <input
+                type="text"
+                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-300"
+                list="shop-labels"
+                value={data.shopLabel}
+                onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
+                placeholder="名称"
+              />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-400 transition-colors shrink-0" />
+              <datalist id="shop-labels">
+                <option value="店铺名称" />
+                <option value="专柜名称" />
+                <option value="授权店名称" />
+                <option value="直播间名称" />
+                <option value="机构名称" />
+              </datalist>
             </div>
             <div className="flex-1">
               <input
-                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all"
+                type="text"
+                placeholder="请输入被授权的主体名称"
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all placeholder:text-slate-200"
                 value={data.shopName}
                 onChange={(e) => setData({ ...data, shopName: e.target.value })}
-                placeholder="例如：草莓小象 院线护肤"
               />
             </div>
           </div>
@@ -361,12 +398,13 @@ export default function CertificateGenerator() {
             </div>
             <div className="flex-1">
               <textarea
-                ref={textareaRef}
-                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2.5 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all resize-none leading-relaxed overflow-hidden"
-                value={data.scopeText}
-                onChange={(e) => setData({ ...data, scopeText: e.target.value })}
-              />
-            </div>
+              ref={scopeRef}
+              rows={1}
+              className="w-full bg-slate-50/50 hover:bg-slate-100/50 px-3 py-2.5 rounded-xl text-[13px] text-slate-900 leading-relaxed focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all resize-none overflow-hidden"
+              value={data.scopeText}
+              onChange={(e) => setData({ ...data, scopeText: e.target.value })}
+              placeholder="请输入授权范围条款"
+            /></div>
           </div>
         </div>
 
