@@ -40,13 +40,11 @@ export default function LoginPage() {
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="relative z-10 w-full max-w-[460px] px-8 flex flex-col gap-10 items-center"
       >
-        <header className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-4">
-             <div className="w-auto h-11 flex items-center justify-center">
-               <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-10 w-auto" />
-             </div>
-             <div className="w-px h-6 bg-slate-300/60" />
-             <h1 className="text-2xl font-bold text-[#0f253e] tracking-tight">授权核发系统</h1>
+        <header className="flex flex-col items-center">
+          <div className="flex items-center gap-5">
+             <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-8 w-auto" />
+             <div className="w-px h-5 bg-slate-300/60 mx-0.5" />
+             <h1 className="text-[17px] font-extrabold text-[#0f253e] tracking-tight leading-none">授权核发系统</h1>
           </div>
         </header>
 
