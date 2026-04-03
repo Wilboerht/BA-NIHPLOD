@@ -54,6 +54,9 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
         style={{ paddingLeft: isCollapsed ? "80px" : "256px" }}
       >
         {children}
+        <footer className="w-full text-center py-5 text-slate-400 text-xs shrink-0 border-t border-slate-100 bg-white/50 backdrop-blur-sm">
+          &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved.
+        </footer>
       </main>
     </div>
   );

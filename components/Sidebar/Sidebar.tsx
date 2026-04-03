@@ -18,6 +18,8 @@ export default function Sidebar({
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("admin@nihplod.co");
 
+  const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.email) {
@@ -28,8 +30,13 @@ export default function Sidebar({
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+    if (isConfirmingLogout) {
+       await supabase.auth.signOut();
+       window.location.href = "/";
+    } else {
+       setIsConfirmingLogout(true);
+       setTimeout(() => setIsConfirmingLogout(false), 3000);
+    }
   };
 
   const userInitial = userName.charAt(0).toUpperCase();
@@ -88,8 +95,16 @@ export default function Sidebar({
             </div>
           )}
           {!isCollapsed && (
-            <div className={styles.settingsBtn} onClick={(e) => { e.stopPropagation(); handleLogout(); }}>
-              <LogOut size={16} className={styles.settingsIcon} />
+            <div 
+              className={styles.settingsBtn} 
+              onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+              style={{ padding: isConfirmingLogout ? '4px 10px' : '' }}
+            >
+              {isConfirmingLogout ? (
+                <span className="text-[10px] font-bold text-[#eb5757]">再按退出</span>
+              ) : (
+                <LogOut size={16} className={styles.settingsIcon} />
+              )}
             </div>
           )}
         </div>

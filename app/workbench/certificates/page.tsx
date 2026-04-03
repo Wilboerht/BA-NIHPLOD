@@ -102,7 +102,14 @@ export default function CertificatesPage() {
                 </tr>
               ) : filteredCerts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">找不到对应证书记录</td>
+                  <td colSpan={6} className="px-6 py-16">
+                    <div className="flex flex-col items-center justify-center gap-3 text-slate-400 w-full">
+                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                        <Search className="w-6 h-6" />
+                      </div>
+                      <span className="text-sm">暂无匹配的证书记录。</span>
+                    </div>
+                  </td>
                 </tr>
               ) : (
                 filteredCerts.map((cert) => (

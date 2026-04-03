@@ -196,74 +196,63 @@ export default function CertificateGenerator() {
 
           <div className="pt-6 border-t border-slate-50 space-y-4">
              <button 
-               onClick={handleDownload}
-               className="w-full py-4 bg-slate-100 text-slate-800 font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-slate-200 transition-all shadow-sm active:scale-95"
-             >
-               <Download className="w-5 h-5" />
-               导出高清证书图片
-             </button>
-             <div className="grid grid-cols-2 gap-3">
-               <button 
-                 onClick={async () => {
-                   setIsGenerating(true);
-                   try {
-                     // Get user profile first
-                     const { data: { session } } = await supabase.auth.getSession();
-                     
-                     // 1. Insert or find dealer
-                     let dealerId;
-                     const { data: dealers } = await supabase.from('dealers').select('id').eq('company_name', data.dealerName);
-                     if (dealers && dealers.length > 0) {
-                        dealerId = dealers[0].id;
-                     } else {
-                        const { data: newDealer, error: dealerErr } = await supabase.from('dealers').insert({ company_name: data.dealerName }).select('id').single();
-                        if (dealerErr) throw dealerErr;
-                        dealerId = newDealer.id;
-                     }
-                     
-                     // 2. Insert certificate
-                     // Extract dates
-                     const startDate = new Date(data.duration.split(' - ')[0].replace(/\./g, '-'));
-                     const endDate = new Date(data.duration.split(' - ')[1].replace(/\./g, '-'));
-
-                     const { error: certErr } = await supabase.from('certificates').insert({
-                       cert_number: data.certNumber,
-                       dealer_id: dealerId,
-                       auth_scope: data.scope,
-                       start_date: startDate.toISOString().split('T')[0],
-                       end_date: endDate.toISOString().split('T')[0],
-                       status: 'ISSUED',
-                       manager_id: session?.user?.id
-                     });
-                     
-                     if (certErr) throw certErr;
-                     alert("✅ 证书已成功登记并生效上链！访客现可通过首页验证查询此编号。");
-                     
-                   } catch (err: any) {
-                     console.error(err);
-                     alert("登记失败: " + (err.message || "未知错误"));
-                   } finally {
-                     setIsGenerating(false);
+               onClick={async () => {
+                 setIsGenerating(true);
+                 try {
+                   const { data: { session } } = await supabase.auth.getSession();
+                   
+                   let dealerId;
+                   const { data: dealers } = await supabase.from('dealers').select('id').eq('company_name', data.dealerName);
+                   if (dealers && dealers.length > 0) {
+                      dealerId = dealers[0].id;
+                   } else {
+                      const { data: newDealer, error: dealerErr } = await supabase.from('dealers').insert({ company_name: data.dealerName }).select('id').single();
+                      if (dealerErr) throw dealerErr;
+                      dealerId = newDealer.id;
                    }
-                 }}
-                 className="py-3 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all text-xs"
-               >
-                 <CheckCircle2 className="w-4 h-4" /> 确认生效并上链
-               </button>
-               <button 
-                 onClick={renderCertificate}
-                 className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all text-xs"
-               >
-                 <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} /> 重新渲染
-               </button>
-             </div>
+                   
+                   const startDate = new Date(data.duration.split(' - ')[0].replace(/\./g, '-'));
+                   const endDate = new Date(data.duration.split(' - ')[1].replace(/\./g, '-'));
+
+                   const { error: certErr } = await supabase.from('certificates').insert({
+                     cert_number: data.certNumber,
+                     dealer_id: dealerId,
+                     auth_scope: data.scope,
+                     start_date: startDate.toISOString().split('T')[0],
+                     end_date: endDate.toISOString().split('T')[0],
+                     status: 'ISSUED',
+                     manager_id: session?.user?.id
+                   });
+                   
+                   if (certErr) throw certErr;
+                   alert("✅ 证书已成功签发并落库。");
+                   
+                 } catch (err: any) {
+                   console.error(err);
+                   alert("登记失败: " + (err.message || "未知错误"));
+                 } finally {
+                   setIsGenerating(false);
+                 }
+               }}
+               className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-md active:scale-95"
+             >
+               <CheckCircle2 className="w-5 h-5" />
+               确认签发并生效上链
+             </button>
+             
+             <button 
+               onClick={handleDownload}
+               className="w-full py-3 bg-slate-50 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 border border-slate-200 transition-all text-xs active:scale-95"
+             >
+               <Download className="w-4 h-4" /> 导出高清证书源文件
+             </button>
           </div>
         </div>
 
-        <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-100 flex gap-4 shadow-sm">
-           <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
-           <p className="text-[13px] text-emerald-900/70 font-medium leading-relaxed tracking-tight">
-             全高清 Canvas 合成引擎已就绪：支持 300DPI 印刷级输出。点击确认生效后，将永久写入区块链节点数据中心。
+        <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 flex gap-4 shadow-sm">
+           <Printer className="w-6 h-6 text-slate-400 shrink-0" />
+           <p className="text-[12px] text-slate-500 font-medium leading-relaxed tracking-tight">
+             系统已打通全高清 Canvas 渲染引擎，支持 300DPI 印刷级输出输出；每次输入皆会自动无缝重构证书画面。点击签发后将永久同步至核验数据中心。
            </p>
         </div>
       </motion.div>
@@ -274,14 +263,14 @@ export default function CertificateGenerator() {
         animate={{ opacity: 1, scale: 1 }}
         className="relative flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-12 overflow-hidden border border-slate-100"
       >
-        <div className="relative z-10 w-full max-w-[500px] shadow-2xl rounded-lg bg-white p-1 transform rotate-1">
+        <div className="relative z-10 w-full max-w-[500px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] rounded bg-white p-1">
           <canvas 
             ref={canvasRef} 
-            className="w-full h-auto rounded shadow-sm block"
+            className="w-full h-auto rounded-sm block"
             style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
-        <p className="mt-12 text-[11px] font-semibold text-slate-300 uppercase tracking-[0.4em]">品牌官方数字资产保护协议</p>
+        <p className="mt-12 text-[10px] font-bold text-slate-300 uppercase tracking-[0.4em]">品牌防伪 · 权限控制核心</p>
       </motion.div>
     </div>
   );

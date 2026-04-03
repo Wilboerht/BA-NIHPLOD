@@ -9,6 +9,10 @@ export default function ComplaintsPage() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("ALL"); // ALL, PENDING, INVESTIGATING
+  const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
 
   useEffect(() => {
     fetchComplaints();
@@ -27,6 +31,18 @@ export default function ComplaintsPage() {
     setIsLoading(false);
   };
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!activeReviewId) return;
+    const { error } = await supabase.from('complaints').update({ status: newStatus }).eq('id', activeReviewId);
+    if (!error) {
+       alert("工单状态已更新！");
+       setActiveReviewId(null);
+       fetchComplaints();
+    } else {
+       alert("更新失败：" + error.message);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -42,6 +58,19 @@ export default function ComplaintsPage() {
     }
   };
 
+  const filteredComplaints = complaints.filter(c => {
+    // 1. Tab filter
+    if (activeTab === 'PENDING' && c.status !== 'PENDING') return false;
+    if (activeTab === 'INVESTIGATING' && c.status !== 'INVESTIGATING') return false;
+    
+    // 2. Search filter
+    const q = searchQuery.toLowerCase();
+    if (q) {
+      return (c.id.toLowerCase().includes(q) || (c.channel || "").toLowerCase().includes(q));
+    }
+    return true;
+  });
+
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
@@ -54,19 +83,21 @@ export default function ComplaintsPage() {
         </motion.div>
       </div>
 
-      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0 border-t-[3px] border-t-[#eb5757]">
+      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white text-[13px]">
           <div className="flex items-center gap-6 text-slate-500 font-semibold">
-             <span className="text-slate-900 border-b-2 border-slate-900 pb-1 cursor-pointer">全部工单</span>
-             <span className="cursor-pointer hover:text-slate-900 transition-colors">待处理</span>
-             <span className="cursor-pointer hover:text-slate-900 transition-colors">调查中</span>
+             <span onClick={() => setActiveTab("ALL")} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
+             <span onClick={() => setActiveTab("PENDING")} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
+             <span onClick={() => setActiveTab("INVESTIGATING")} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
           </div>
           <div className="relative w-full max-w-[240px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="搜索工单号或涉事店铺..." 
-              className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-4 py-2 text-[13px] outline-none focus:border-[#eb5757] transition-colors"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-4 py-2 text-[13px] outline-none focus:border-slate-400 hover:border-slate-300 transition-colors shadow-sm"
             />
           </div>
         </div>
@@ -89,23 +120,23 @@ export default function ComplaintsPage() {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-400">加载工单中...</td>
                 </tr>
-              ) : complaints.length === 0 ? (
+              ) : filteredComplaints.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-16">
                     <div className="flex flex-col items-center justify-center gap-3 text-slate-400 w-full">
                       <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                         <CheckCircle2 className="w-6 h-6" />
                       </div>
-                      <span className="text-sm">太棒了，目前没有待处理的举报工单。</span>
+                      <span className="text-sm">暂无匹配的举报工单。</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                complaints.map((complaint) => (
+                filteredComplaints.map((complaint) => (
                   <tr key={complaint.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-[10px] text-slate-400">{complaint.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{complaint.channel || "-"}</td>
-                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate">{complaint.description}</td>
+                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={complaint.description}>{complaint.description}</td>
                     <td className="px-6 py-4">
                       {complaint.evidence_image_url ? (
                         <button onClick={() => setSelectedImage(complaint.evidence_image_url)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors">
@@ -122,7 +153,7 @@ export default function ComplaintsPage() {
                       {getStatusBadge(complaint.status)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                       <button className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 justify-end w-full">
+                       <button onClick={() => setActiveReviewId(complaint.id)} className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 justify-end w-full">
                           进入审核 <ExternalLink className="w-3 h-3" />
                        </button>
                     </td>
@@ -142,6 +173,41 @@ export default function ComplaintsPage() {
                  <X className="w-8 h-8" />
                </button>
                <img src={selectedImage} alt="证据截图" className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
+            </div>
+         </div>
+      )}
+
+      {/* 审核面板模态框 */}
+      {activeReviewId && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm" onClick={() => setActiveReviewId(null)}>
+            <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Megaphone className="w-4 h-4 text-[#eb5757]" /> 工单审核操作面板</h3>
+                  <button onClick={() => setActiveReviewId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+               </div>
+               <div className="p-6 space-y-6">
+                 <div>
+                   <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-2">内部审核备注 (可选)</label>
+                   <textarea 
+                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-[13px] outline-none focus:border-blue-500 transition-all font-medium h-24" 
+                     placeholder="请填写调查和处理记录..."
+                     value={reviewNote}
+                     onChange={e => setReviewNote(e.target.value)}
+                   />
+                 </div>
+                 
+                 <div className="grid grid-cols-1 gap-2 pt-2">
+                    <button onClick={() => handleStatusUpdate('INVESTIGATING')} className="py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2 block">
+                       <AlertTriangle className="w-4 h-4" /> 标记为【调查中】
+                    </button>
+                    <button onClick={() => handleStatusUpdate('RESOLVED')} className="py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2 block">
+                       <CheckCircle2 className="w-4 h-4" /> 投诉核实，标记【已解决】
+                    </button>
+                    <button onClick={() => handleStatusUpdate('REJECTED')} className="py-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2 block">
+                       <X className="w-4 h-4" /> 证据不足，直接【驳回】
+                    </button>
+                 </div>
+               </div>
             </div>
          </div>
       )}
