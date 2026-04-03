@@ -5,15 +5,7 @@ import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRig
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
-const MOCK_CERTIFICATES: Record<string, any> = {
-  "BAVP-2024-001": {
-    id: "BAVP-2024-001",
-    dealerName: "上海宜家实业有限公司",
-    duration: "2024.01.01 - 2025.12.31",
-    scope: "华东区 / 全渠道销售",
-    status: "ISSUED",
-  },
-};
+import { supabase } from "@/lib/supabase";
 
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
@@ -29,15 +21,40 @@ export default function VerificationPage() {
     setResult(null);
     setError(null);
     
-    setTimeout(() => {
-      const found = MOCK_CERTIFICATES[query.toUpperCase()];
-      if (found) {
-        setResult(found);
-      } else {
+    try {
+      const { data, error } = await supabase
+        .from('certificates')
+        .select(`
+          cert_number,
+          start_date,
+          end_date,
+          auth_scope,
+          status,
+          dealers (
+            company_name
+          )
+        `)
+        .eq('cert_number', query.toUpperCase())
+        .eq('status', 'ISSUED')
+        .single();
+      
+      if (error || !data) {
         setError("未查询到相关授权信息。");
+      } else {
+        setResult({
+          id: data.cert_number,
+          dealerName: Array.isArray(data.dealers) ? (data.dealers[0] as any)?.company_name : (data.dealers as any)?.company_name,
+          duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
+          scope: data.auth_scope,
+          status: data.status,
+        });
       }
+    } catch (err) {
+      console.error(err);
+      setError("系统查询出错，请稍后再试。");
+    } finally {
       setIsSearching(false);
-    }, 1200);
+    }
   };
 
   return (

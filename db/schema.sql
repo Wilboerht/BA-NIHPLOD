@@ -79,3 +79,28 @@ CREATE POLICY "Public can view issued certificates" ON certificates
 -- 管理员可以查看所有
 CREATE POLICY "Admins can do everything" ON certificates
     FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+
+-- 6. 打假举报投诉表 (Complaints)
+CREATE TYPE complaint_status AS ENUM ('PENDING', 'INVESTIGATING', 'RESOLVED', 'REJECTED');
+
+CREATE TABLE complaints (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    description TEXT NOT NULL, -- 涉嫌侵权描述
+    channel TEXT, -- 涉事渠道/店铺
+    evidence_image_url TEXT, -- 证据图片路径
+    status complaint_status DEFAULT 'PENDING',
+    handler_id UUID REFERENCES profiles(id), -- 处理此举报的法务/审核人
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 举报投诉的 RLS 策略
+ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
+
+-- 允许任何人（包含访客）提交打假投诉
+CREATE POLICY "Public can insert complaints" ON complaints
+    FOR INSERT WITH CHECK (true);
+
+-- 仅管理员可查看和管理打假投诉
+CREATE POLICY "Admins can manage complaints" ON complaints
+    FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
