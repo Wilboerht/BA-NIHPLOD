@@ -21,7 +21,7 @@ export default function CertificateGenerator() {
   const [data, setData] = useState<CertData>({
     platformId: "",
     shopName: "",
-    scopeText: "拥有我公司代理的品牌 NIHPLOD(旋柏)全系列产品\n在阿里巴巴集团旗下淘宝商城上的合格经销资格，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
+    scopeText: "拥有我公司代理的品牌 NIHPLOD(旎柏) 全系列产品\n在阿里巴巴集团旗下淘宝商城上的合格经销资格，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
     duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
     authorizer: "旎柏（上海）商贸有限公司",
     sealImage: "/default-seal.svg",
@@ -82,7 +82,7 @@ export default function CertificateGenerator() {
 
     // 3. 授权主体 (淘宝ID & 店铺名称)
     ctx.textAlign = "center";
-    ctx.font = `bold ${21 * scale}px "Songti SC", "SimSun", serif`;
+    ctx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     ctx.fillStyle = "#1e293b";
 
     // 把“标签 + 内容”合并成一个完整字符串，直接在 width / 2 处居中显示
@@ -93,13 +93,47 @@ export default function CertificateGenerator() {
     ctx.fillText(idFullLine, width / 2, 530 * scale);
     ctx.fillText(shopFullLine, width / 2, 578 * scale);
 
-    // 4. 授权范围 (多行文本)
-    ctx.font = `${15 * scale}px "Songti SC", "SimSun", serif`;
+    // 4. 授权范围 (多行文本 + 品牌加粗逻辑)
+    ctx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     ctx.fillStyle = textPrimary;
-    const lines = (data.scopeText || "").split('\n');
-    let startY = 630 * scale;
-    lines.forEach((line) => {
-      ctx.fillText(line.trim(), width / 2, startY);
+    const scopeLines = (data.scopeText || "").split('\n');
+    let startY = 630 * scale; 
+    
+    scopeLines.forEach((line) => {
+      // 检查当前行是否包含品牌词，如果包含则分段渲染以实现局部加粗
+      const brandKey = "NIHPLOD(旎柏)";
+      if (line.includes(brandKey)) {
+        const parts = line.split(brandKey);
+        
+        // 准确测算整行（包含加粗部分）的总宽度，确保真正的居中
+        ctx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+        const w1 = ctx.measureText(parts[0]).width;
+        const w3 = ctx.measureText(parts[1]).width;
+        ctx.font = `bold ${15 * scale}px "Noto Serif SC", serif`;
+        const w2 = ctx.measureText(brandKey).width;
+        
+        const totalLineWeight = w1 + w2 + w3;
+        let currentX = (width - totalLineWeight) / 2;
+        
+        ctx.textAlign = "left";
+        // 绘制前半部分
+        ctx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+        ctx.fillText(parts[0], currentX, startY);
+        currentX += w1;
+        
+        // 绘制加粗品牌名 (严格保持 15px 字号，仅改变字重)
+        ctx.font = `bold ${15 * scale}px "Noto Serif SC", serif`;
+        ctx.fillText(brandKey, currentX, startY);
+        currentX += w2;
+        
+        // 绘制后半部分
+        ctx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+        ctx.fillText(parts[1], currentX, startY);
+      } else {
+        ctx.textAlign = "center";
+        ctx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+        ctx.fillText(line.trim(), width / 2, startY);
+      }
       startY += 30 * scale;
     });
 
@@ -120,9 +154,12 @@ export default function CertificateGenerator() {
 
     // 6. 落款授权方 (整行复刻，重合覆盖底图原有的抬头)
     ctx.textAlign = "left";
-    ctx.font = `${14 * scale}px "Songti SC", "SimSun", serif`;
+    ctx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     const authorizerFullLine = `授权方：${data.authorizer || ""}`;
-    ctx.fillText(authorizerFullLine, width - 405 * scale, 860 * scale);
+    ctx.fillText(authorizerFullLine, width - 405 * scale, 848 * scale);
+    
+    // 6.1 签字/盖章 (重合覆盖底图)
+    ctx.fillText("签字/盖章：", width - 405 * scale, 892 * scale);
 
     // 6.5 绘制电子公章/签名图片
     if (data.sealImage) {
