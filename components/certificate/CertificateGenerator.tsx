@@ -21,6 +21,8 @@ import QRCode from "qrcode";
 export default function CertificateGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
+  const platformLabelRef = useRef<HTMLInputElement>(null);
+  const shopLabelRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<CertData>({
     platformId: "",
     platformLabel: "淘宝ID",
@@ -234,17 +236,20 @@ export default function CertificateGenerator() {
       >
         <div className="space-y-8 mt-2 mb-8">
           {/* 属性 1：平台ID/标题 */}
-          <div className="flex items-center gap-3 group">
-            <div className="w-28 relative flex items-center gap-1 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer">
+          <div className="flex items-center gap-4 group">
+            <div 
+              className="w-32 relative flex items-center -ml-2 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer group/label"
+            >
               <input
+                ref={platformLabelRef}
                 type="text"
-                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-300"
+                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-400 pr-5"
                 list="platform-labels"
                 value={data.platformLabel}
                 onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
                 placeholder="名称"
               />
-              <ChevronDown className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-400 transition-colors shrink-0" />
+              <ChevronDown className="absolute right-2 w-3.5 h-3.5 text-slate-300 group-hover/label:text-slate-400 transition-colors shrink-0 pointer-events-none" />
               <datalist id="platform-labels">
                 <option value="淘宝ID" />
                 <option value="京东ID" />
@@ -259,7 +264,7 @@ export default function CertificateGenerator() {
               <input
                 type="text"
                 placeholder="请输入对应的平台 ID 或账号"
-                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all placeholder:text-slate-200"
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all placeholder:text-slate-400"
                 value={data.platformId}
                 onChange={(e) => setData({ ...data, platformId: e.target.value })}
               />
@@ -267,17 +272,20 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 2：店铺名称/标题 */}
-          <div className="flex items-center gap-3 group">
-            <div className="w-28 relative flex items-center gap-1 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer">
+          <div className="flex items-center gap-4 group">
+            <div 
+              className="w-32 relative flex items-center -ml-2 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer group/label"
+            >
               <input
+                ref={shopLabelRef}
                 type="text"
-                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-300"
+                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-400 pr-5"
                 list="shop-labels"
                 value={data.shopLabel}
                 onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
                 placeholder="名称"
               />
-              <ChevronDown className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-400 transition-colors shrink-0" />
+              <ChevronDown className="absolute right-2 w-3.5 h-3.5 text-slate-300 group-hover/label:text-slate-400 transition-colors shrink-0 pointer-events-none" />
               <datalist id="shop-labels">
                 <option value="店铺名称" />
                 <option value="专柜名称" />
@@ -290,7 +298,7 @@ export default function CertificateGenerator() {
               <input
                 type="text"
                 placeholder="请输入被授权的主体名称"
-                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all placeholder:text-slate-200"
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all placeholder:text-slate-400"
                 value={data.shopName}
                 onChange={(e) => setData({ ...data, shopName: e.target.value })}
               />
@@ -298,14 +306,14 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 3：有效期 */}
-          <div className="flex items-center group">
-            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+          <div className="flex items-center gap-4 group">
+            <div className="w-32 text-[13px] text-slate-500 font-medium">
               有效期
             </div>
             <div className="flex-1 flex items-center gap-2">
               <input
                 type="date"
-                className="flex-[0.5] min-w-0 bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all cursor-pointer"
+                className="flex-[0.5] min-w-0 bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all cursor-pointer text-center"
                 value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""}
                 onChange={(e) => {
                   const newStart = e.target.value.replace(/-/g, '.');
@@ -313,10 +321,10 @@ export default function CertificateGenerator() {
                   setData({ ...data, duration: `${newStart} - ${currentEnd}` });
                 }}
               />
-              <span className="text-slate-300 font-medium text-[11px]">-</span>
+              <span className="text-slate-300">-</span>
               <input
                 type="date"
-                className="flex-[0.5] min-w-0 bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all cursor-pointer"
+                className="flex-[0.5] min-w-0 bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all cursor-pointer text-center"
                 value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
                 onChange={(e) => {
                   const currentStart = data.duration.split(' - ')[0] || "";
@@ -328,8 +336,8 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 4：授权方主体 */}
-          <div className="flex items-center group">
-            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+          <div className="flex items-center gap-4 group">
+            <div className="w-32 text-[13px] text-slate-500 font-medium">
               授权方主体
             </div>
             <div className="flex-1">
@@ -343,8 +351,8 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 5：印章配置 */}
-          <div className="flex items-center group">
-            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+          <div className="flex items-start gap-4 group">
+            <div className="w-32 text-[13px] text-slate-500 font-medium pt-2.5">
               签字盖章
             </div>
             <div className="flex-1 flex items-center gap-4">
