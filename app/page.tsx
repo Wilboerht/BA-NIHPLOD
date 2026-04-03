@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -20,6 +20,7 @@ export default function VerificationPage() {
   const [result, setResult] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,13 +29,12 @@ export default function VerificationPage() {
     setResult(null);
     setError(null);
     
-    // 模拟查询流程
     setTimeout(() => {
       const found = MOCK_CERTIFICATES[query.toUpperCase()];
       if (found) {
         setResult(found);
       } else {
-        setError("未查询到相关授权信息，请核对编号后重试。");
+        setError("未查询到相关授权信息。");
       }
       setIsSearching(false);
     }, 1200);
@@ -44,7 +44,7 @@ export default function VerificationPage() {
     <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-slate-200 overflow-hidden"
           style={{ background: "radial-gradient(circle at center, #fffdfa 0%, #f7efe6 100%)" }}>
       
-      {/* 底部光晕 */}
+      {/* 装饰渐变 */}
       <div className="absolute inset-0 pointer-events-none opacity-20" 
            style={{ background: "radial-gradient(circle at 50% 35%, rgba(194, 65, 12, 0.05) 0%, transparent 75%)" }} />
 
@@ -57,15 +57,12 @@ export default function VerificationPage() {
          </div>
       </nav>
 
-      {/* 核心内容区 - 基于 Typography Scale 设计最佳实践 */}
+      {/* 核心内容区 */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-8 relative z-10 -mt-20">
-        
         <div className="w-full flex flex-col items-center">
-          {/* 文案区 - 建立绝对视觉层级 */}
           <motion.div 
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="text-center space-y-6 mb-12"
           >
             <div className="space-y-4">
@@ -78,11 +75,10 @@ export default function VerificationPage() {
             </div>
           </motion.div>
 
-          {/* 搜索框 - 增强行动点分量 */}
+          {/* 搜索框 */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.995 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 1 }}
             className="w-full max-w-xl"
           >
             <form 
@@ -120,11 +116,9 @@ export default function VerificationPage() {
         {(result || error) && !isSearching && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 md:p-12">
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setResult(null); setError(null); }}
-              className="absolute inset-0 bg-slate-900/10 backdrop-blur-md"
+              className="absolute inset-0 bg-slate-900/10 backdrop-blur-sm"
             />
             
             <motion.div 
@@ -145,16 +139,18 @@ export default function VerificationPage() {
                   <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500">
                     <ShieldAlert className="w-8 h-8" />
                   </div>
-                  <div className="space-y-2">
-                     <p className="text-2xl font-extrabold text-slate-800">查无此授权编号</p>
-                     <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">请核查您的编号是否正确，若确有其事但无记录，请务必联系品牌官方。</p>
+                  <div className="space-y-4">
+                     <div className="space-y-2">
+                        <p className="text-2xl font-extrabold text-slate-800">查无此授权编号</p>
+                        <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">请核查您的编号。若该经销商坚称获得官方授权，请向我们举报反馈。</p>
+                     </div>
+                     <button 
+                        onClick={() => { setError(null); setShowReportModal(true); }}
+                        className="bg-red-50 text-red-600 px-8 py-3 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2 mx-auto"
+                      >
+                        <AlertTriangle className="w-4 h-4" /> 举报涉嫌侵权经销商
+                      </button>
                   </div>
-                  <button 
-                    onClick={() => { setError(null); }}
-                    className="mt-6 bg-slate-100 hover:bg-slate-200 text-slate-600 px-12 py-3.5 rounded-2xl font-bold text-sm transition-all"
-                  >
-                    返回主页
-                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col md:flex-row justify-between items-start gap-12">
@@ -199,12 +195,74 @@ export default function VerificationPage() {
         )}
       </AnimatePresence>
 
+      {/* 投诉举报模态框 */}
+      <AnimatePresence>
+        {showReportModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setShowReportModal(false)}
+               className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.98, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.98, y: 10 }}
+               className="relative w-full max-w-xl bg-white rounded-[32px] shadow-2xl p-8 md:p-12 overflow-hidden"
+            >
+              <div className="flex justify-between items-center mb-8">
+                 <div className="flex items-center gap-3 text-red-600 font-bold text-sm tracking-tight">
+                    <AlertTriangle className="w-5 h-5" />
+                    品牌打假举报反馈
+                 </div>
+                 <button onClick={() => setShowReportModal(false)} className="text-slate-300 hover:text-slate-500 transition-colors">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+
+              <div className="space-y-6">
+                 <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述</label>
+                    <textarea 
+                       placeholder="请简要描述侵权行为，如假冒授权、贩卖假货、违规低价等..."
+                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all h-32 resize-none"
+                    />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉事渠道/店铺</label>
+                       <input 
+                          type="text" placeholder="如: 天猫 XXX 旗舰店"
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all"
+                       />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">证据图片 (可选)</label>
+                       <div className="w-full aspect-square md:aspect-auto md:h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer">
+                          <Camera className="w-5 h-5" />
+                       </div>
+                    </div>
+                 </div>
+                 <button className="w-full bg-[#0f253e] text-white font-extrabold h-12 rounded-2xl hover:bg-slate-800 active:scale-[0.98] transition-all shadow-xl shadow-blue-900/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase">
+                    <ShieldAlert className="w-4.5 h-4.5 opacity-80" />
+                    提交举报核查
+                 </button>
+                 <p className="text-center text-[10px] text-slate-300 tracking-tight">我们的法务部门将在 3-5 个工作日内核实并采取行动。感谢您的协助。</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* 页脚 */}
       <footer className="w-full max-w-7xl px-12 py-10 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 border-t border-slate-100/30">
          <p className="text-[11px] font-normal text-slate-300 tracking-normal antialiased">
            &copy; 2026 NIHPLOD. All rights reserved
          </p>
          <div className="flex gap-12 text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">
+            <span onClick={() => setShowReportModal(true)} className="text-red-500/60 hover:text-red-600 cursor-pointer transition-colors flex items-center gap-2">
+               <Megaphone className="w-3.5 h-3.5" /> 打假投诉
+            </span>
             <Link href="/login" className="hover:text-slate-900 transition-colors">统一登陆</Link>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">服务协议</span>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">隐私声明</span>
