@@ -6,10 +6,12 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
 interface CertData {
-  dealerName: string;
-  certNumber: string;
+  platformId: string;
+  shopName: string;
+  scopeText: string;
   duration: string;
-  scope: string;
+  authorizer: string;
+  sealImage: string; // URL or DataURL
 }
 
 import QRCode from "qrcode";
@@ -17,13 +19,23 @@ import QRCode from "qrcode";
 export default function CertificateGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [data, setData] = useState<CertData>({
-    dealerName: "上海宜家实业有限公司",
-    certNumber: "BAVP-2024-8888",
-    duration: "2024.01.01 - 2025.12.31",
-    scope: "华东大区 / 全渠道授权",
+    platformId: "",
+    shopName: "",
+    scopeText: "拥有我公司代理的品牌 NIHPLOD(旋柏)全系列产品\n在阿里巴巴集团旗下淘宝商城上的合格经销资格，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
+    duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
+    authorizer: "MOIDAS LTD. / 穆埃达思有限公司",
+    sealImage: "/default-seal.svg", 
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [data.scopeText]);
 
   const renderCertificate = async () => {
     const canvas = canvasRef.current;
@@ -38,89 +50,122 @@ export default function CertificateGenerator() {
     canvas.width = width;
     canvas.height = height;
 
-    // 1. 背景绘制
+    // 1. 底色与模板加载
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
-    // 装饰边框
-    ctx.strokeStyle = "#c2410c"; 
-    ctx.lineWidth = 15 * scale;
-    ctx.strokeRect(40 * scale, 40 * scale, width - 80 * scale, height - 80 * scale);
-    ctx.strokeStyle = "#0f172a"; 
-    ctx.lineWidth = 2 * scale;
-    ctx.strokeRect(60 * scale, 60 * scale, width - 120 * scale, height - 120 * scale);
+    // 加载提供的 SVG 模板作为底层背景
+    try {
+      const bgImage = new Image();
+      bgImage.src = "/cert-template.svg"; 
+      await new Promise((resolve) => {
+        bgImage.onload = () => {
+          ctx.drawImage(bgImage, 0, 0, width, height);
+          resolve(true);
+        };
+        bgImage.onerror = () => {
+          // Fallback if background fails
+          ctx.strokeStyle = "#eab308"; 
+          ctx.lineWidth = 2 * scale;
+          ctx.strokeRect(80 * scale, 80 * scale, width - 160 * scale, height - 160 * scale);
+          resolve(false);
+        };
+      });
+    } catch (e) {
+      console.error("Template loading failed", e);
+    }
 
-    // 2. 核心标题
-    ctx.fillStyle = "#0f172a";
+    const textPrimary = "#334155";
+    const textSecondary = "#475569";
+
+    // --- 只绘制可编辑的动态内容 ---
+    
+    // 3. 授权主体 (淘宝ID & 店铺名称)
     ctx.textAlign = "center";
-    ctx.font = `bold ${48 * scale}px serif`;
-    ctx.fillText("品 牌 授 权 书", width / 2, 250 * scale);
-    ctx.font = `${18 * scale}px sans-serif`;
-    ctx.fillStyle = "#94a3b8";
-    ctx.fillText("官方资质 · 权威认证", width / 2, 300 * scale);
+    ctx.font = `bold ${21 * scale}px "Songti SC", "SimSun", serif`;
+    ctx.fillStyle = "#1e293b";
+    
+    // 把“标签 + 内容”合并成一个完整字符串，直接在 width / 2 处居中显示
+    const idFullLine = `淘宝ID：${data.platformId || ""}`;
+    const shopFullLine = `店铺名称：${data.shopName || ""}`;
+    
+    // Y 轴垂直坐标：再次精准微调，压缩行间距，追求极致的视觉凝聚力
+    ctx.fillText(idFullLine, width / 2, 530 * scale);
+    ctx.fillText(shopFullLine, width / 2, 578 * scale);
 
-    // 3. 经销商信息
-    ctx.fillStyle = "#0f172a";
-    ctx.font = `bold ${32 * scale}px sans-serif`;
-    ctx.fillText(data.dealerName, width / 2, 480 * scale);
-    ctx.font = `${20 * scale}px sans-serif`;
-    ctx.fillStyle = "#64748b";
-    ctx.fillText("兹授权以上单位为我品牌官方合作伙伴", width / 2, 550 * scale);
+    // 4. 授权范围 (多行文本)
+    ctx.font = `${15 * scale}px "Songti SC", "SimSun", serif`;
+    ctx.fillStyle = textPrimary;
+    const lines = (data.scopeText || "").split('\n');
+    let startY = 630 * scale; 
+    lines.forEach((line) => {
+      ctx.fillText(line.trim(), width / 2, startY);
+      startY += 30 * scale;
+    });
 
-    // 详细字段
-    const drawInfo = (label: string, value: string, y: number) => {
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = `${18 * scale}px sans-serif`;
-      ctx.fillText(label, width / 2 - 20 * scale, y);
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#0f172a";
-      ctx.font = `bold ${20 * scale}px sans-serif`;
-      ctx.fillText(value, width / 2 + 20 * scale, y);
+    // 5. 有效期 (转换日期格式为：YYYY年MM月DD日)
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return "";
+      const parts = dateStr.split('.');
+      if (parts.length !== 3) return dateStr;
+      return `${parts[0]}年${parts[1]}月${parts[2]}日`;
     };
 
-    drawInfo("授权编号：", data.certNumber, 680 * scale);
-    drawInfo("有效期限：", data.duration, 740 * scale);
-    drawInfo("授权范围：", data.scope, 800 * scale);
+    const dateRange = data.duration.split(' - ');
+    const startText = formatDate(dateRange[0]);
+    const endText = formatDate(dateRange[1]);
+    const finalDateLine = `授权有效期：${startText}至${endText}`;
+    
+    ctx.fillText(finalDateLine, width / 2, startY + 25 * scale);
 
-    // 4. 公章模拟
-    const sealX = width - 280 * scale;
-    const sealY = height - 280 * scale;
-    ctx.beginPath();
-    ctx.arc(sealX, sealY, 80 * scale, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(194, 65, 12, 0.7)";
-    ctx.lineWidth = 6 * scale;
-    ctx.stroke();
-    ctx.font = `bold ${16 * scale}px sans-serif`;
-    ctx.fillStyle = "rgba(194, 65, 12, 0.7)";
-    ctx.textAlign = "center";
-    ctx.translate(sealX, sealY);
-    ctx.rotate(-Math.PI / 8);
-    ctx.fillText("官方授权中心", 0, -10 * scale);
-    ctx.fillText("品牌核发专用章", 0, 20 * scale);
-    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    // 6. 落款授权方 (补位到模板中部的“授权方：”之后)
+    ctx.textAlign = "left";
+    ctx.font = `${14 * scale}px "Songti SC", "SimSun", serif`;
+    ctx.fillText(data.authorizer || "", width - 240 * scale, 844 * scale);
 
-    // 5. 真实防伪二维码
+    // 6.5 绘制电子公章/签名图片
+    if (data.sealImage) {
+      try {
+        const sealImg = new Image();
+        sealImg.src = data.sealImage;
+        await new Promise((resolve) => {
+          sealImg.onload = () => {
+            ctx.save();
+            ctx.translate(width - 210 * scale, height - 165 * scale);
+            ctx.rotate(-0.06); 
+            ctx.globalAlpha = 0.88; 
+            ctx.drawImage(sealImg, -65 * scale, -65 * scale, 130 * scale, 130 * scale);
+            ctx.restore();
+            resolve(true);
+          };
+          sealImg.onerror = () => resolve(false);
+        });
+      } catch (e) {
+        console.error("Seal loading failed", e);
+      }
+    }
+
+    /* 临时移除二维码渲染
     try {
-      const verifyUrl = `https://ba.nihplod.cn/verify?id=${data.certNumber}`;
-      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 120 * scale });
+      const verifyUrl = `https://ba.nihplod.cn/verify?shop=${encodeURIComponent(data.shopName)}`;
+      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 80 * scale });
       
       const qrImage = new Image();
       qrImage.src = qrDataUrl;
       await new Promise((resolve) => {
         qrImage.onload = () => {
-          ctx.drawImage(qrImage, 80 * scale, height - 220 * scale, 120 * scale, 120 * scale);
+          ctx.drawImage(qrImage, 120 * scale, height - 200 * scale, 75 * scale, 75 * scale);
           resolve(true);
         };
       });
-      
-      ctx.fillStyle = "#64748b";
-      ctx.font = `bold ${12 * scale}px sans-serif`;
       ctx.textAlign = "center";
-      ctx.fillText("扫码核验真伪", 140 * scale, height - 70 * scale);
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = `${10 * scale}px sans-serif`;
+      ctx.fillText("扫码核验真伪", 157 * scale, height - 110 * scale);
     } catch(err) {
       console.error(err);
     }
+    */
 
     setIsGenerating(false);
   };
@@ -133,144 +178,228 @@ export default function CertificateGenerator() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = `授权书_${data.dealerName}.png`;
+    link.download = `授权书_${data.shopName}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   };
 
   return (
-    <div className="grid lg:grid-cols-[400px_1fr] gap-10">
-      {/* 控制面板 */}
+    <div className="grid lg:grid-cols-[380px_1fr] gap-12 items-start h-full pb-10">
+      {/* 控制面板：极简属性检查器 */}
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="space-y-6"
+        className="flex flex-col h-full"
       >
-        <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl space-y-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Type className="w-6 h-6 text-primary" />
+        <div className="space-y-8 mt-2 mb-8">
+          {/* 属性 1：平台ID */}
+          <div className="flex items-center group">
+            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+              平台账号
             </div>
-            <div>
-               <h3 className="font-bold text-slate-800">证书动态填充</h3>
-               <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-widest">实时数据同步渲染</p>
+            <div className="flex-1">
+              <input 
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all"
+                value={data.platformId}
+                onChange={(e) => setData({...data, platformId: e.target.value})}
+                placeholder="例如：八百头猪竟然"
+              />
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">经销商全称</label>
-              <input 
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all shadow-sm"
-                value={data.dealerName}
-                onChange={(e) => setData({...data, dealerName: e.target.value})}
-              />
+          {/* 属性 2：店铺名称 */}
+          <div className="flex items-center group">
+            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+              店铺名称
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">唯一授权编号</label>
+            <div className="flex-1">
               <input 
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all font-mono"
-                value={data.certNumber}
-                onChange={(e) => setData({...data, certNumber: e.target.value})}
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all"
+                value={data.shopName}
+                onChange={(e) => setData({...data, shopName: e.target.value})}
+                placeholder="例如：草莓小象 院线护肤"
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">有效期</label>
-                <input 
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all"
-                  value={data.duration}
-                  onChange={(e) => setData({...data, duration: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">授权范围</label>
-                <input 
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all"
-                  value={data.scope}
-                  onChange={(e) => setData({...data, scope: e.target.value})}
-                />
-              </div>
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-50 space-y-4">
-             <button 
-               onClick={async () => {
-                 setIsGenerating(true);
-                 try {
-                   const { data: { session } } = await supabase.auth.getSession();
-                   
-                   let dealerId;
-                   const { data: dealers } = await supabase.from('dealers').select('id').eq('company_name', data.dealerName);
-                   if (dealers && dealers.length > 0) {
-                      dealerId = dealers[0].id;
-                   } else {
-                      const { data: newDealer, error: dealerErr } = await supabase.from('dealers').insert({ company_name: data.dealerName }).select('id').single();
-                      if (dealerErr) throw dealerErr;
-                      dealerId = newDealer.id;
-                   }
-                   
-                   const startDate = new Date(data.duration.split(' - ')[0].replace(/\./g, '-'));
-                   const endDate = new Date(data.duration.split(' - ')[1].replace(/\./g, '-'));
+          {/* 属性 3：有效期 */}
+          <div className="flex items-center group">
+            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+              有效期
+            </div>
+            <div className="flex-1 flex items-center gap-2">
+              <input 
+                type="date"
+                className="flex-[0.5] min-w-0 bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all cursor-pointer"
+                value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""}
+                onChange={(e) => {
+                  const newStart = e.target.value.replace(/-/g, '.');
+                  const currentEnd = data.duration.split(' - ')[1] || "";
+                  setData({...data, duration: `${newStart} - ${currentEnd}`});
+                }}
+              />
+              <span className="text-slate-300 font-medium text-[11px]">-</span>
+              <input 
+                type="date"
+                className="flex-[0.5] min-w-0 bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all cursor-pointer"
+                value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
+                onChange={(e) => {
+                  const currentStart = data.duration.split(' - ')[0] || "";
+                  const newEnd = e.target.value.replace(/-/g, '.');
+                  setData({...data, duration: `${currentStart} - ${newEnd}`});
+                }}
+              />
+            </div>
+          </div>
 
-                   const { error: certErr } = await supabase.from('certificates').insert({
-                     cert_number: data.certNumber,
-                     dealer_id: dealerId,
-                     auth_scope: data.scope,
-                     start_date: startDate.toISOString().split('T')[0],
-                     end_date: endDate.toISOString().split('T')[0],
-                     status: 'ISSUED',
-                     manager_id: session?.user?.id
-                   });
-                   
-                   if (certErr) throw certErr;
-                   alert("✅ 证书已成功签发并落库。");
-                   
-                 } catch (err: any) {
-                   console.error(err);
-                   alert("登记失败: " + (err.message || "未知错误"));
-                 } finally {
-                   setIsGenerating(false);
-                 }
-               }}
-               className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-md active:scale-95"
-             >
-               <CheckCircle2 className="w-5 h-5" />
-               确认签发并生效上链
-             </button>
-             
-             <button 
-               onClick={handleDownload}
-               className="w-full py-3 bg-slate-50 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 border border-slate-200 transition-all text-xs active:scale-95"
-             >
-               <Download className="w-4 h-4" /> 导出高清证书源文件
-             </button>
+          {/* 属性 4：授权方主体 */}
+          <div className="flex items-center group">
+            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+              授权方主体
+            </div>
+            <div className="flex-1">
+              <input 
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all"
+                value={data.authorizer}
+                onChange={(e) => setData({...data, authorizer: e.target.value})}
+                placeholder="例如：MOIDAS LTD. / 穆埃达思有限公司"
+              />
+            </div>
+          </div>
+
+          {/* 属性 5：印章配置 */}
+          <div className="flex items-center group">
+            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium">
+              签字盖章
+            </div>
+            <div className="flex-1 flex items-center gap-4">
+              <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center overflow-hidden relative group/seal">
+                <img 
+                  src={data.sealImage} 
+                  alt="Seal Preview" 
+                  className="w-10 h-10 object-contain opacity-80"
+                  onError={(e) => {
+                    // Fallback to a placeholder icon if image fails
+                    (e.target as HTMLImageElement).src = "https://img.icons8.com/ios-filled/50/94a3b8/stamp.png";
+                  }}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-slate-900 hover:text-primary transition-colors cursor-pointer uppercase tracking-wider">
+                  更换印章图片
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setData({...data, sealImage: ev.target?.result as string});
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+                <div className="text-[10px] text-slate-400">支持 PNG, SVG (透明底最佳)</div>
+              </div>
+              {data.sealImage !== "/default-seal.svg" && (
+                <button 
+                  onClick={() => setData({...data, sealImage: "/default-seal.svg"})}
+                  className="ml-auto text-[10px] text-slate-400 hover:text-red-500 transition-colors"
+                >
+                  恢复默认
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 属性 6：授权范围区块 */}
+          <div className="flex items-start group">
+            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">
+              授权范围条款
+            </div>
+            <div className="flex-1">
+              <textarea 
+                ref={textareaRef}
+                className="w-full bg-transparent hover:bg-slate-50 px-3 py-2.5 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent hover:border-slate-100 outline-none transition-all resize-none leading-relaxed overflow-hidden"
+                value={data.scopeText}
+                onChange={(e) => setData({...data, scopeText: e.target.value})}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 flex gap-4 shadow-sm">
-           <Printer className="w-6 h-6 text-slate-400 shrink-0" />
-           <p className="text-[12px] text-slate-500 font-medium leading-relaxed tracking-tight">
-             系统已打通全高清 Canvas 渲染引擎，支持 300DPI 印刷级输出输出；每次输入皆会自动无缝重构证书画面。点击签发后将永久同步至核验数据中心。
-           </p>
+        <div className="pt-6 mt-auto flex items-center justify-end gap-3 border-t border-slate-100">
+           <button 
+             onClick={handleDownload}
+             className="h-9 px-4 text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 font-medium flex items-center gap-2 transition-all text-sm rounded-lg shadow-sm active:scale-[0.98]"
+           >
+             <Download className="w-4 h-4 text-slate-400" /> 
+             下载图片
+           </button>
+           
+           <button 
+             onClick={async () => {
+               if (!data.shopName || !data.scopeText || !data.platformId) {
+                 alert("⚠️ 请完整填写带【待填写】标记的核心授权信息才能生成唯一凭证！");
+                 return;
+               }
+
+               setIsGenerating(true);
+               try {
+                 const { data: { session } } = await supabase.auth.getSession();
+                 let dealerId;
+                 const { data: dealers } = await supabase.from('dealers').select('id').eq('company_name', data.shopName);
+                 if (dealers && dealers.length > 0) {
+                    dealerId = dealers[0].id;
+                 } else {
+                    const { data: newDealer, error: dealerErr } = await supabase.from('dealers').insert({ company_name: data.shopName }).select('id').single();
+                    if (dealerErr) throw dealerErr;
+                    dealerId = newDealer.id;
+                 }
+                 const startDate = new Date(data.duration.split(' - ')[0].replace(/\./g, '-'));
+                 const endDate = new Date(data.duration.split(' - ')[1].replace(/\./g, '-'));
+                 const { error: certErr } = await supabase.from('certificates').insert({
+                   cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(Math.random() * 1000)}`,
+                   dealer_id: dealerId,
+                   auth_scope: data.platformId + ' | ' + data.scopeText.substring(0, 50),
+                   start_date: startDate.toISOString().split('T')[0],
+                   end_date: endDate.toISOString().split('T')[0],
+                   status: 'ISSUED',
+                   manager_id: session?.user?.id
+                 });
+                 if (certErr) throw certErr;
+                 alert("✅ 证书已成功签发并落库。");
+               } catch (err: any) {
+                 console.error(err);
+                 alert("登记失败: " + (err.message || "未知错误"));
+               } finally {
+                 setIsGenerating(false);
+               }
+             }}
+             className="h-9 px-6 bg-slate-900 text-white font-medium rounded-lg flex items-center justify-center gap-2 hover:bg-slate-800 hover:shadow-lg transition-all shadow-md active:scale-[0.98] text-sm"
+           >
+             核发授权书
+           </button>
         </div>
       </motion.div>
 
-      {/* 预览区域 */}
+      {/* 预览区域：去除一切杂乱边框 */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-12 overflow-hidden border border-slate-100"
+        className="flex justify-center"
       >
-        <div className="relative z-10 w-full max-w-[500px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] rounded bg-white p-1">
+        <div className="w-full max-w-[460px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] rounded-sm bg-white overflow-hidden ring-1 ring-slate-900/5">
           <canvas 
             ref={canvasRef} 
-            className="w-full h-auto rounded-sm block"
+            className="w-full h-auto block"
             style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
-        <p className="mt-12 text-[10px] font-bold text-slate-300 uppercase tracking-[0.4em]">品牌防伪 · 权限控制核心</p>
       </motion.div>
     </div>
   );

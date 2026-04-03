@@ -157,11 +157,13 @@ export default function CertificatesPage() {
       {showIssueModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-6xl shadow-2xl relative my-8 overflow-hidden">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="text-xl font-extrabold text-slate-800">生成授权证书</h3>
-                <button onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-slate-700 bg-white shadow-sm p-2 rounded-full">关闭面板</button>
+             <div className="p-8 pb-4 flex justify-between items-center bg-white border-b border-transparent">
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight">签发授权书</h3>
+                <button onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center">
+                   <XCircle className="w-5 h-5" />
+                </button>
              </div>
-             <div className="p-8 max-h-[80vh] overflow-y-auto">
+             <div className="p-8 max-h-[80vh] overflow-y-auto bg-white">
                <CertificateGenerator />
              </div>
           </div>
