@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, Phone } from "lucide-react";
+import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
@@ -153,7 +153,7 @@ export default function CertificatesPage() {
               {!isLoading && filteredCerts.map((cert) => (
                   <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs">{cert.cert_number}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-900">{cert.dealers?.company_name || "-"}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900 text-xs">{cert.dealers?.company_name || "-"}</td>
                     <td className="px-6 py-4">
                       {cert.dealers?.phone ? (
                         <a href={`tel:${cert.dealers.phone}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors font-mono tabular-nums text-[12px]">
@@ -181,23 +181,27 @@ export default function CertificatesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                       {cert.status === 'PENDING' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
-                         <button 
-                           onClick={() => approveCertificate(cert.id)}
-                           className="text-[11px] text-blue-600 font-bold hover:underline uppercase tracking-wide"
-                         >
-                           核发授权
-                         </button>
-                       )}
-                       {cert.status === 'ISSUED' && (
-                         <button 
-                           onClick={() => revokeCertificate(cert.id, cert.status)}
-                           className="text-[11px] text-[#eb5757] font-bold hover:underline uppercase tracking-wide"
-                         >
-                           吊销执照
-                         </button>
-                       )}
+                    <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
+                      <div className="flex items-center justify-end gap-5">
+                        {cert.status === 'PENDING' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
+                          <button 
+                            onClick={() => approveCertificate(cert.id)}
+                            className="text-blue-600 hover:text-blue-700 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            核发授权
+                          </button>
+                        )}
+                        {cert.status === 'ISSUED' && (
+                          <button 
+                            onClick={() => revokeCertificate(cert.id, cert.status)}
+                            className="text-rose-500 hover:text-rose-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                          >
+                            <ShieldOff className="w-3.5 h-3.5" />
+                            吊销执照
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
