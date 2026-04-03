@@ -8,12 +8,13 @@ import CertificateGenerator from "@/components/certificate/CertificateGenerator"
 
 export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showIssueModal, setShowIssueModal] = useState(false);
 
   useEffect(() => {
     fetchCertificates();
-  }, []);
+  }, [showIssueModal]); // refetch when modal closes
 
   const fetchCertificates = async () => {
     setIsLoading(true);
@@ -27,6 +28,25 @@ export default function CertificatesPage() {
     }
     setIsLoading(false);
   };
+
+  const revokeCertificate = async (id: string, currentStatus: string) => {
+    if (currentStatus === 'REVOKED') return;
+    if (!window.confirm("确定要吊销此证书吗？一旦吊销，防伪系统将显示此证书失效。")) return;
+    
+    // Revoke updating status
+    const { error } = await supabase.from('certificates').update({ status: 'REVOKED' }).eq('id', id);
+    if (!error) {
+      alert("证书已吊销！");
+      fetchCertificates();
+    } else {
+      alert("吊销失败：" + error.message);
+    }
+  };
+
+  const filteredCerts = certificates.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return c.cert_number.toLowerCase().includes(query) || (c.dealers?.company_name || "").toLowerCase().includes(query);
+  });
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
@@ -56,6 +76,8 @@ export default function CertificatesPage() {
             <input 
               type="text" 
               placeholder="搜索证书编号或经销商名称..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 text-[13px] outline-none focus:border-primary transition-colors"
             />
           </div>
@@ -70,19 +92,20 @@ export default function CertificatesPage() {
                 <th className="px-6 py-4 border-b border-slate-100">授权范围</th>
                 <th className="px-6 py-4 border-b border-slate-100">有效期</th>
                 <th className="px-6 py-4 border-b border-slate-100">当前状态</th>
+                <th className="px-6 py-4 border-b border-slate-100 text-right">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">加载数据中...</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">加载数据中...</td>
                 </tr>
-              ) : certificates.length === 0 ? (
+              ) : filteredCerts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">目前没有任何授权证书记录</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">找不到对应证书记录</td>
                 </tr>
               ) : (
-                certificates.map((cert) => (
+                filteredCerts.map((cert) => (
                   <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs">{cert.cert_number}</td>
                     <td className="px-6 py-4 font-semibold text-slate-900">{cert.dealers?.company_name || "-"}</td>
@@ -95,11 +118,25 @@ export default function CertificatesPage() {
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide uppercase">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
                         </span>
+                      ) : cert.status === 'REVOKED' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-500 text-[11px] font-semibold tracking-wide uppercase">
+                          <XCircle className="w-3 h-3" /> 已吊销
+                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold tracking-wide uppercase">
                            待审核
                         </span>
                       )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                       {cert.status === 'ISSUED' && (
+                         <button 
+                           onClick={() => revokeCertificate(cert.id, cert.status)}
+                           className="text-[11px] text-[#eb5757] font-bold hover:underline uppercase tracking-wide"
+                         >
+                           吊销执照
+                         </button>
+                       )}
                     </td>
                   </tr>
                 ))

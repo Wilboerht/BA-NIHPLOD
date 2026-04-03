@@ -12,6 +12,8 @@ interface CertData {
   scope: string;
 }
 
+import QRCode from "qrcode";
+
 export default function CertificateGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [data, setData] = useState<CertData>({
@@ -23,7 +25,7 @@ export default function CertificateGenerator() {
 
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const renderCertificate = () => {
+  const renderCertificate = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -98,12 +100,27 @@ export default function CertificateGenerator() {
     ctx.fillText("品牌核发专用章", 0, 20 * scale);
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
 
-    // 5. 防伪说明
-    ctx.fillStyle = "#f8fafc";
-    ctx.fillRect(100 * scale, height - 200 * scale, 100 * scale, 100 * scale);
-    ctx.fillStyle = "#cbd5e1";
-    ctx.font = `${12 * scale}px sans-serif`;
-    ctx.fillText("防伪二维码", 150 * scale, height - 80 * scale);
+    // 5. 真实防伪二维码
+    try {
+      const verifyUrl = `https://ba.nihplod.cn/verify?id=${data.certNumber}`;
+      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 120 * scale });
+      
+      const qrImage = new Image();
+      qrImage.src = qrDataUrl;
+      await new Promise((resolve) => {
+        qrImage.onload = () => {
+          ctx.drawImage(qrImage, 80 * scale, height - 220 * scale, 120 * scale, 120 * scale);
+          resolve(true);
+        };
+      });
+      
+      ctx.fillStyle = "#64748b";
+      ctx.font = `bold ${12 * scale}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("扫码核验真伪", 140 * scale, height - 70 * scale);
+    } catch(err) {
+      console.error(err);
+    }
 
     setIsGenerating(false);
   };
