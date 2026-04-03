@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Download, RefreshCw, FileText, CheckCircle2, Type, Move, Printer } from "lucide-react";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 interface CertData {
   dealerName: string;
@@ -135,13 +136,13 @@ export default function CertificateGenerator() {
             </div>
             <div>
                <h3 className="font-bold text-slate-800">证书动态填充</h3>
-               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">实时数据同步渲染</p>
+               <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-widest">实时数据同步渲染</p>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">经销商全称</label>
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">经销商全称</label>
               <input 
                 className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all shadow-sm"
                 value={data.dealerName}
@@ -149,7 +150,7 @@ export default function CertificateGenerator() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">唯一授权编号</label>
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">唯一授权编号</label>
               <input 
                 className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all font-mono"
                 value={data.certNumber}
@@ -158,7 +159,7 @@ export default function CertificateGenerator() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">有效期</label>
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">有效期</label>
                 <input 
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all"
                   value={data.duration}
@@ -166,7 +167,7 @@ export default function CertificateGenerator() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">授权范围</label>
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest ml-1">授权范围</label>
                 <input 
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-slate-900 font-bold focus:border-primary outline-none transition-all"
                   value={data.scope}
@@ -179,20 +180,64 @@ export default function CertificateGenerator() {
           <div className="pt-6 border-t border-slate-50 space-y-4">
              <button 
                onClick={handleDownload}
-               className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+               className="w-full py-4 bg-slate-100 text-slate-800 font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-slate-200 transition-all shadow-sm active:scale-95"
              >
                <Download className="w-5 h-5" />
                导出高清证书图片
              </button>
              <div className="grid grid-cols-2 gap-3">
-               <button className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all text-xs">
-                 <Printer className="w-4 h-4" /> 打印预览
+               <button 
+                 onClick={async () => {
+                   setIsGenerating(true);
+                   try {
+                     // Get user profile first
+                     const { data: { session } } = await supabase.auth.getSession();
+                     
+                     // 1. Insert or find dealer
+                     let dealerId;
+                     const { data: dealers } = await supabase.from('dealers').select('id').eq('company_name', data.dealerName);
+                     if (dealers && dealers.length > 0) {
+                        dealerId = dealers[0].id;
+                     } else {
+                        const { data: newDealer, error: dealerErr } = await supabase.from('dealers').insert({ company_name: data.dealerName }).select('id').single();
+                        if (dealerErr) throw dealerErr;
+                        dealerId = newDealer.id;
+                     }
+                     
+                     // 2. Insert certificate
+                     // Extract dates
+                     const startDate = new Date(data.duration.split(' - ')[0].replace(/\./g, '-'));
+                     const endDate = new Date(data.duration.split(' - ')[1].replace(/\./g, '-'));
+
+                     const { error: certErr } = await supabase.from('certificates').insert({
+                       cert_number: data.certNumber,
+                       dealer_id: dealerId,
+                       auth_scope: data.scope,
+                       start_date: startDate.toISOString().split('T')[0],
+                       end_date: endDate.toISOString().split('T')[0],
+                       status: 'ISSUED',
+                       manager_id: session?.user?.id
+                     });
+                     
+                     if (certErr) throw certErr;
+                     alert("✅ 证书已成功登记并生效上链！访客现可通过首页验证查询此编号。");
+                     
+                   } catch (err: any) {
+                     console.error(err);
+                     alert("登记失败: " + (err.message || "未知错误"));
+                   } finally {
+                     setIsGenerating(false);
+                   }
+                 }}
+                 className="py-3 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all text-xs"
+               >
+                 <CheckCircle2 className="w-4 h-4" /> 确认生效并上链
                </button>
                <button 
                  onClick={renderCertificate}
                  className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all text-xs"
                >
-                 <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} /> 重新生成
+                 <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} /> 重新渲染
                </button>
              </div>
           </div>
@@ -200,8 +245,8 @@ export default function CertificateGenerator() {
 
         <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-100 flex gap-4 shadow-sm">
            <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
-           <p className="text-xs text-emerald-900/60 font-bold leading-relaxed uppercase tracking-tight">
-             全高清 Canvas 合成引擎已就绪：支持 300DPI 印刷级输出。
+           <p className="text-[13px] text-emerald-900/70 font-medium leading-relaxed tracking-tight">
+             全高清 Canvas 合成引擎已就绪：支持 300DPI 印刷级输出。点击确认生效后，将永久写入区块链节点数据中心。
            </p>
         </div>
       </motion.div>
@@ -219,7 +264,7 @@ export default function CertificateGenerator() {
             style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
-        <p className="mt-12 text-[10px] font-bold text-slate-300 uppercase tracking-[0.4em]">品牌官方数字资产保护协议</p>
+        <p className="mt-12 text-[11px] font-semibold text-slate-300 uppercase tracking-[0.4em]">品牌官方数字资产保护协议</p>
       </motion.div>
     </div>
   );

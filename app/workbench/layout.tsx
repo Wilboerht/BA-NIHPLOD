@@ -51,7 +51,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
       <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
       <main 
         className={styles.main}
-        style={{ paddingLeft: isCollapsed ? "80px" : "252px" }}
+        style={{ paddingLeft: isCollapsed ? "80px" : "256px" }}
       >
         {children}
       </main>

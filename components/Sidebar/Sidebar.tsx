@@ -40,10 +40,7 @@ export default function Sidebar({
         <div className={styles.logoGroup}>
           <img src="/NIHPLOD-logo.svg" alt="NIHPLOD Logo" className={styles.logo} />
           {!isCollapsed && (
-            <>
-              <div className={styles.divider}></div>
-              <span className={styles.platformName}>品牌授权管理后台</span>
-            </>
+             <span className={styles.platformName}>品牌授权管理后台</span>
           )}
         </div>
       </header>
