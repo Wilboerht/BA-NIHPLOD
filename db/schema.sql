@@ -1,0 +1,81 @@
+-- 品牌授权及验证平台 (BAVP) - Supabase / PostgreSQL Schema
+
+-- 1. 用户角色与档案
+CREATE TYPE user_role AS ENUM ('SUPER_ADMIN', 'AUDITOR', 'DEALER');
+
+CREATE TABLE profiles (
+    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    username TEXT UNIQUE,
+    full_name TEXT,
+    role user_role DEFAULT 'DEALER',
+    is_first_login BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. 经销商表
+CREATE TABLE dealers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES profiles(id),
+    company_name TEXT NOT NULL,
+    contact_person TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. 证书模板表
+CREATE TABLE templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    background_url TEXT NOT NULL, -- 留白模板图片路径
+    stamp_url TEXT, -- 默认公章图片路径
+    config JSONB, -- 存储文字填充坐标 (name_x, name_y, id_x, id_y, date_x, date_y, stamp_x, stamp_y, etc.)
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. 证书主表
+CREATE TYPE certificate_status AS ENUM ('PENDING', 'AUDITED', 'ISSUED', 'REJECTED', 'EXPIRED');
+
+CREATE TABLE certificates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cert_number TEXT UNIQUE NOT NULL, -- 授权编号 如 BAVP-2024-XXXX
+    dealer_id UUID REFERENCES dealers(id) NOT NULL,
+    template_id UUID REFERENCES templates(id),
+    auth_scope TEXT, -- 授权范围
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status certificate_status DEFAULT 'PENDING',
+    final_image_url TEXT, -- 生成后的证书图片存储路径
+    auditor_id UUID REFERENCES profiles(id), -- 初审人
+    manager_id UUID REFERENCES profiles(id), -- 终审发证人
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. 审核日志
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    certificate_id UUID REFERENCES certificates(id),
+    actor_id UUID REFERENCES profiles(id),
+    action TEXT NOT NULL, -- 'SUBMIT', 'AUDIT_CONFIRM', 'ISSUE', 'REJECT'
+    comment TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS (Row Level Security) 策略示例
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+
+-- 经销商只能看到自己的证书
+CREATE POLICY "Dealers can view own certificates" ON certificates
+    FOR SELECT USING (auth.uid() IN (SELECT profile_id FROM dealers WHERE id = certificates.dealer_id));
+
+-- 所有用户（访客）可以按编号查看到已签发的证书
+CREATE POLICY "Public can view issued certificates" ON certificates
+    FOR SELECT USING (status = 'ISSUED');
+
+-- 管理员可以查看所有
+CREATE POLICY "Admins can do everything" ON certificates
+    FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
