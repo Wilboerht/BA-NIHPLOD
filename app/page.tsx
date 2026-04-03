@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-
 import { supabase } from "@/lib/supabase";
+import LoginModal from "@/components/LoginModal";
 
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
@@ -13,6 +13,7 @@ export default function VerificationPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,11 +281,12 @@ export default function VerificationPage() {
             <span onClick={() => setShowReportModal(true)} className="text-red-500/60 hover:text-red-600 cursor-pointer transition-colors flex items-center gap-2">
                <Megaphone className="w-3.5 h-3.5" /> 打假投诉
             </span>
-            <Link href="/login" className="hover:text-slate-900 transition-colors">统一登陆</Link>
+            <span onClick={() => setShowLoginModal(true)} className="cursor-pointer hover:text-slate-900 transition-colors">统一登陆</span>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">服务协议</span>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">隐私声明</span>
          </div>
       </footer>
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </main>
   );
 }

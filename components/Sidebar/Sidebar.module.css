@@ -1,0 +1,268 @@
+.sidebar {
+  width: 240px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  height: 100vh;
+  background-color: var(--notion-bg-secondary);
+  border-right: 1px solid var(--notion-border);
+  border-radius: 0;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  white-space: nowrap;
+  will-change: width;
+}
+
+.collapsed {
+  width: 68px;
+}
+
+.header {
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoGroup {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.logo {
+  height: 22px;
+  width: auto;
+  object-fit: contain;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsed .logo {
+  height: 20px;
+  max-width: 40px;
+  object-fit: contain;
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background-color: var(--notion-border);
+  margin: 0 10px;
+}
+
+.platformName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--notion-text-light);
+  letter-spacing: 0.8px;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.menuGroups {
+  flex-grow: 1;
+  padding: 0 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.menuGroups::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menuGroups::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.menuGroups::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+}
+
+.menuGroups:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.group {
+  margin-bottom: 8px;
+}
+
+.groupLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--notion-text-light);
+  margin: 22px 16px 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.5;
+}
+
+.menuLink {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  color: var(--notion-text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+  margin-bottom: 2px;
+  opacity: 0.8;
+}
+
+.menuLink:hover {
+  background: var(--notion-hover);
+  opacity: 1;
+}
+
+.active {
+  background: var(--notion-hover);
+  color: var(--notion-text);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  color: var(--notion-text);
+}
+
+.footer {
+  padding: 12px 12px;
+  border-top: 1px solid var(--notion-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.toggleBtn {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--notion-text-light);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.toggleBtn:hover {
+  background: var(--notion-hover);
+  color: var(--notion-text);
+  opacity: 1;
+}
+
+.toggleInner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.userProfile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.1s;
+  cursor: pointer;
+}
+
+.userProfile:hover {
+  background: var(--notion-hover);
+}
+
+.userAvatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: white;
+  border: 1px solid var(--notion-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--notion-text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  overflow: hidden;
+}
+
+.userInfo {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--notion-text);
+}
+
+.userEmail {
+  font-size: 11px;
+  color: var(--notion-text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.settingsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settingsIcon {
+  color: var(--notion-text-light);
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.userProfile:hover .settingsIcon {
+  opacity: 1;
+}
+
+/* Collapsed States Overrides */
+.collapsed .header {
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.collapsed .menuLink {
+  justify-content: center;
+  padding: 10px 0;
+  gap: 0;
+}
+
+.collapsed .userProfile {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.collapsed .toggleBtn {
+  justify-content: center;
+  padding: 10px 0;
+}

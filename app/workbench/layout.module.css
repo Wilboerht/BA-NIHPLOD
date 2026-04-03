@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main {
+  flex-grow: 1;
+  padding-left: 252px; /* 240px sidebar + 12px gap */
+  min-height: 100vh;
+  background-color: var(--notion-bg);
+  transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: padding-left;
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding-left: 0 !important;
+  }
+}

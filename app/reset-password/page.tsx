@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Check, ShieldAlert, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -25,10 +26,31 @@ export default function ResetPasswordPage() {
     if (!canSubmit) return;
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsSuccess(true);
+    
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // 更新 profile 的 is_first_login 状态
+        await supabase
+          .from('profiles')
+          .update({ is_first_login: false })
+          .eq('id', data.user.id);
+          
+        setIsSuccess(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("密码更新失败，请重试");
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   return (
