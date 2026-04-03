@@ -161,6 +161,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, status: 'EXPIRED' });
     }
 
+    // --- 流程 4: 退回/拒绝 审核员提交的申请 ---
+    if (action === 'reject_pending') {
+      if (!certId) throw new Error("缺少证书 ID");
+
+      const { error: updateErr } = await supabaseAdmin
+        .from('certificates')
+        .update({ status: 'REJECTED', manager_id: managerId })
+        .eq('id', certId)
+        .eq('status', 'PENDING'); // 只能退回 PENDING 状态的申请
+
+      if (updateErr) throw updateErr;
+
+      return NextResponse.json({ success: true, status: 'REJECTED' });
+    }
+
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (err: any) {
     console.error(err);
