@@ -17,14 +17,19 @@ export default function Sidebar({
   const pathname = usePathname();
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("admin@nihplod.co");
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user?.email) {
         setUserEmail(session.user.email);
         setUserName(session.user.email.split("@")[0]);
+        
+        // Fetch role
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+        setUserRole(profile?.role);
       }
     });
   }, []);
@@ -71,7 +76,23 @@ export default function Sidebar({
             <span className={styles.icon}><Megaphone size={17} /></span>
             {!isCollapsed && "打假投诉审核"}
           </Link>
+          {(userRole === 'SUPER_ADMIN' || userRole === 'AUDITOR') && (
+            <Link href="/workbench/dealers" className={`${styles.menuLink} ${pathname === "/workbench/dealers" ? styles.active : ""}`}>
+              <span className={styles.icon}><ShieldCheck size={17} /></span>
+              {!isCollapsed && "经销商管理"}
+            </Link>
+          )}
         </div>
+
+        {userRole === 'SUPER_ADMIN' && (
+          <div className={styles.group}>
+            {!isCollapsed && <div className={styles.groupLabel}>权限与系统管理</div>}
+            <Link href="/workbench/users" className={`${styles.menuLink} ${pathname === "/workbench/users" ? styles.active : ""}`}>
+              <span className={styles.icon}><Settings size={17} /></span>
+              {!isCollapsed && "管理员管理"}
+            </Link>
+          </div>
+        )}
       </div>
 
       <footer className={styles.footer}>

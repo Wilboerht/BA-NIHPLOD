@@ -11,10 +11,20 @@ export default function CertificatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchUserRole();
     fetchCertificates();
   }, [showIssueModal]); // refetch when modal closes
+
+  const fetchUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      setUserRole(profile?.role);
+    }
+  };
 
   const fetchCertificates = async () => {
     setIsLoading(true);
@@ -39,7 +49,34 @@ export default function CertificatesPage() {
       alert("证书已吊销！");
       fetchCertificates();
     } else {
-      alert("吊销失败：" + error.message);
+    }
+  };
+
+  const approveCertificate = async (id: string) => {
+    if (!window.confirm("确定审核通过并核发此授权书吗？\n系统将自动为经销商创建登录账户。")) return;
+    
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'approve_issue', 
+          certId: id,
+          managerId: session?.user?.id
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      alert(`✅ 审核通过！授权书已核发。\n经销商账户已开通。`);
+      fetchCertificates();
+    } catch (err: any) {
+      alert("核发失败：" + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -135,7 +172,15 @@ export default function CertificatesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                       {cert.status === 'PENDING' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
+                         <button 
+                           onClick={() => approveCertificate(cert.id)}
+                           className="text-[11px] text-blue-600 font-bold hover:underline uppercase tracking-wide"
+                         >
+                           核发授权
+                         </button>
+                       )}
                        {cert.status === 'ISSUED' && (
                          <button 
                            onClick={() => revokeCertificate(cert.id, cert.status)}

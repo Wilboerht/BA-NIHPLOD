@@ -71,6 +71,6 @@ body {
 }
 
 /* 隐藏 datalist 自带的三角形指示器，使用我们自定义的 ChevronDown */
-input::-webkit-calendar-picker-indicator {
+input[list]::-webkit-calendar-picker-indicator {
   display: none !important;
 }

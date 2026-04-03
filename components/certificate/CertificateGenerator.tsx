@@ -36,6 +36,24 @@ export default function CertificateGenerator() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFontLoaded, setIsFontLoaded] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  const platformOptions = ["淘宝ID", "京东ID", "拼多多ID", "抖音号", "快手ID", "小红书账号", "得物账号"];
+  const shopOptions = ["店铺名称", "专柜名称", "授权店名称", "直播间名称", "机构名称"];
+
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUserRole();
+  }, []);
+
+  const fetchUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      setUserRole(profile?.role || 'AUDITOR');
+    }
+  };
 
   useEffect(() => {
     // 监测字体加载状态
@@ -50,6 +68,10 @@ export default function CertificateGenerator() {
       scopeRef.current.style.height = `${scopeRef.current.scrollHeight}px`;
     }
   }, [data.scopeText]);
+
+  useEffect(() => {
+    renderCertificate();
+  }, [data, isFontLoaded]);
 
   const renderCertificate = async () => {
     const canvas = canvasRef.current;
@@ -236,29 +258,55 @@ export default function CertificateGenerator() {
       >
         <div className="space-y-8 mt-2 mb-8">
           {/* 属性 1：平台ID/标题 */}
-          <div className="flex items-center gap-4 group">
-            <div 
-              className="w-32 relative flex items-center -ml-2 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer group/label"
-            >
-              <input
-                ref={platformLabelRef}
-                type="text"
-                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-400 pr-5"
-                list="platform-labels"
-                value={data.platformLabel}
-                onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
-                placeholder="名称"
-              />
-              <ChevronDown className="absolute right-2 w-3.5 h-3.5 text-slate-300 group-hover/label:text-slate-400 transition-colors shrink-0 pointer-events-none" />
-              <datalist id="platform-labels">
-                <option value="淘宝ID" />
-                <option value="京东ID" />
-                <option value="拼多多ID" />
-                <option value="抖音号" />
-                <option value="快手ID" />
-                <option value="小红书账号" />
-                <option value="得物账号" />
-              </datalist>
+          <div className="flex items-center gap-3 group">
+            <div className="w-24 relative -ml-2 group/label">
+              <div 
+                className="flex items-center gap-1.5 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                onClick={() => setActiveDropdown(activeDropdown === 'platform' ? null : 'platform')}
+              >
+                <span className="text-[13px] text-slate-500 font-medium truncate flex-1">
+                  {data.platformLabel || "名称"}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${activeDropdown === 'platform' ? 'rotate-180 text-blue-500' : 'group-hover/label:text-slate-400'}`} />
+              </div>
+              
+              {activeDropdown === 'platform' && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="absolute left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-20"
+                  >
+                    <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">自定义输入</div>
+                      <input
+                        autoFocus
+                        className="w-full text-[12px] text-slate-700 font-medium outline-none placeholder:text-slate-300 bg-transparent"
+                        placeholder="输入新名称..."
+                        value={data.platformLabel}
+                        onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="py-1.5">
+                      <div className="px-3 py-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">常用预设</div>
+                      {platformOptions.map(opt => (
+                        <button
+                          key={opt}
+                          className={`w-full px-3 py-2 text-left text-[13px] transition-colors ${data.platformLabel === opt ? 'text-blue-600 bg-blue-50/50 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                          onClick={() => {
+                            setData({ ...data, platformLabel: opt });
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </>
+              )}
             </div>
             <div className="flex-1">
               <input
@@ -272,27 +320,55 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 2：店铺名称/标题 */}
-          <div className="flex items-center gap-4 group">
-            <div 
-              className="w-32 relative flex items-center -ml-2 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer group/label"
-            >
-              <input
-                ref={shopLabelRef}
-                type="text"
-                className="w-full bg-transparent text-[13px] text-slate-500 font-medium outline-none cursor-pointer placeholder:text-slate-400 pr-5"
-                list="shop-labels"
-                value={data.shopLabel}
-                onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
-                placeholder="名称"
-              />
-              <ChevronDown className="absolute right-2 w-3.5 h-3.5 text-slate-300 group-hover/label:text-slate-400 transition-colors shrink-0 pointer-events-none" />
-              <datalist id="shop-labels">
-                <option value="店铺名称" />
-                <option value="专柜名称" />
-                <option value="授权店名称" />
-                <option value="直播间名称" />
-                <option value="机构名称" />
-              </datalist>
+          <div className="flex items-center gap-3 group">
+            <div className="w-24 relative -ml-2 group/label">
+              <div 
+                className="flex items-center gap-1.5 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                onClick={() => setActiveDropdown(activeDropdown === 'shop' ? null : 'shop')}
+              >
+                <span className="text-[13px] text-slate-500 font-medium truncate flex-1">
+                  {data.shopLabel || "名称"}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${activeDropdown === 'shop' ? 'rotate-180 text-blue-500' : 'group-hover/label:text-slate-400'}`} />
+              </div>
+              
+              {activeDropdown === 'shop' && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="absolute left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-20"
+                  >
+                    <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">自定义输入</div>
+                      <input
+                        autoFocus
+                        className="w-full text-[12px] text-slate-700 font-medium outline-none placeholder:text-slate-300 bg-transparent"
+                        placeholder="输入新名称..."
+                        value={data.shopLabel}
+                        onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="py-1.5">
+                      <div className="px-3 py-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">常用预设</div>
+                      {shopOptions.map(opt => (
+                        <button
+                          key={opt}
+                          className={`w-full px-3 py-2 text-left text-[13px] transition-colors ${data.shopLabel === opt ? 'text-blue-600 bg-blue-50/50 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                          onClick={() => {
+                            setData({ ...data, shopLabel: opt });
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </>
+              )}
             </div>
             <div className="flex-1">
               <input
@@ -306,8 +382,8 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 3：有效期 */}
-          <div className="flex items-center gap-4 group">
-            <div className="w-32 text-[13px] text-slate-500 font-medium">
+          <div className="flex items-center gap-3 group">
+            <div className="w-24 text-[13px] text-slate-500 font-medium">
               有效期
             </div>
             <div className="flex-1 flex items-center gap-2">
@@ -336,8 +412,8 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 4：授权方主体 */}
-          <div className="flex items-center gap-4 group">
-            <div className="w-32 text-[13px] text-slate-500 font-medium">
+          <div className="flex items-center gap-3 group">
+            <div className="w-24 text-[13px] text-slate-500 font-medium">
               授权方主体
             </div>
             <div className="flex-1">
@@ -351,8 +427,8 @@ export default function CertificateGenerator() {
           </div>
 
           {/* 属性 5：印章配置 */}
-          <div className="flex items-start gap-4 group">
-            <div className="w-32 text-[13px] text-slate-500 font-medium pt-2.5">
+          <div className="flex items-start gap-3 group">
+            <div className="w-24 text-[13px] text-slate-500 font-medium pt-2.5">
               签字盖章
             </div>
             <div className="flex-1 flex items-center gap-4">
@@ -401,7 +477,7 @@ export default function CertificateGenerator() {
 
           {/* 属性 6：授权范围区块 */}
           <div className="flex items-start group">
-            <div className="w-[100px] shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">
               授权范围条款
             </div>
             <div className="flex-1">
@@ -435,38 +511,48 @@ export default function CertificateGenerator() {
               setIsGenerating(true);
               try {
                 const { data: { session } } = await supabase.auth.getSession();
-                let dealerId;
-                const { data: dealers } = await supabase.from('dealers').select('id').eq('company_name', data.shopName);
-                if (dealers && dealers.length > 0) {
-                  dealerId = dealers[0].id;
-                } else {
-                  const { data: newDealer, error: dealerErr } = await supabase.from('dealers').insert({ company_name: data.shopName }).select('id').single();
-                  if (dealerErr) throw dealerErr;
-                  dealerId = newDealer.id;
+                if (!session) {
+                    alert("请先登录系统");
+                    return;
                 }
-                const startDate = new Date(data.duration.split(' - ')[0].replace(/\./g, '-'));
-                const endDate = new Date(data.duration.split(' - ')[1].replace(/\./g, '-'));
-                const { error: certErr } = await supabase.from('certificates').insert({
-                  cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(Math.random() * 1000)}`,
-                  dealer_id: dealerId,
-                  auth_scope: data.platformId + ' | ' + data.scopeText.substring(0, 50),
-                  start_date: startDate.toISOString().split('T')[0],
-                  end_date: endDate.toISOString().split('T')[0],
-                  status: 'ISSUED',
-                  manager_id: session?.user?.id
+
+                const actionType = (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') 
+                    ? 'approve_issue'   // 已具备核发权限，由于是新建，实际逻辑应为一键PENDING并APPROVE
+                    : 'create_pending'; // 仅具备提报权限
+
+                // 注意：新建页面如果直接核发，后台需要特殊处理。
+                // 简化逻辑：不论角色，新建统一走提报 PENDING，或者管理员直接 ISSUED。
+                // 我们在此处根据角色决定是 PENDING 还是同步开号。
+                
+                const response = await fetch('/api/certificates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: actionType === 'approve_issue' ? 'approve_issue' : 'create_pending',
+                        certData: data, 
+                        managerId: session?.user?.id 
+                    })
                 });
-                if (certErr) throw certErr;
-                alert("✅ 证书已成功签发并落库。");
+
+                const result = await response.json();
+                
+                if (!response.ok) throw new Error(result.error || "操作请求失败");
+
+                if (actionType === 'approve_issue') {
+                    alert(`✅ 证书已直接核发！\n\n已为经销商开通系统账户：\n账户：${result.email}\n密码：${result.password}`);
+                } else {
+                    alert(`📩 提报审核成功！\n请等待项目负责人审核通过并核发。`);
+                }
               } catch (err: any) {
                 console.error(err);
-                alert("登记失败: " + (err.message || "未知错误"));
+                alert("操作失败: " + (err.message || "未知错误"));
               } finally {
                 setIsGenerating(false);
               }
             }}
             className="h-9 px-6 bg-slate-900 text-white font-medium rounded-lg flex items-center justify-center gap-2 hover:bg-slate-800 hover:shadow-lg transition-all shadow-md active:scale-[0.98] text-sm"
           >
-            核发授权书
+            {(userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') ? '核发授权书' : '提报审核'}
           </button>
         </div>
       </motion.div>
