@@ -21,7 +21,10 @@ export async function POST(req: Request) {
       // 创建或获取经销商 (不在此处创建 Auth 账户)
       const { data: dealer, error: queryErr } = await supabaseAdmin
         .from('dealers')
-        .upsert({ company_name: certData.shopName }, { onConflict: 'company_name' })
+        .upsert({ 
+          company_name: certData.shopName,
+          phone: certData.phone 
+        }, { onConflict: 'company_name' })
         .select('id')
         .single();
       
@@ -43,13 +46,60 @@ export async function POST(req: Request) {
 
     // --- 流程 2: 项目负责人审核通过并核发 (创建账户 + 状态转为 ISSUED) ---
     if (action === 'approve_issue') {
-      const { data: certDataDb, error: getCertErr } = await supabaseAdmin
-        .from('certificates')
-        .select('*, dealers(*)')
-        .eq('id', certId)
-        .single();
+      let certDataDb;
       
-      if (getCertErr || !certDataDb) throw new Error("未找到待审核证书");
+      if (certId) {
+        // A. 系统流程：处理已有的待审核记录 (通过 ID)
+        const { data: dbData, error: getCertErr } = await supabaseAdmin
+          .from('certificates')
+          .select('*, dealers(*)')
+          .eq('id', certId)
+          .single();
+        if (getCertErr || !dbData) throw new Error("未找到待审核证书 (ID: " + certId + ")");
+        certDataDb = dbData;
+      } else if (certData) {
+        // B. 管理员直发：直接根据新提交的数据开号 (无 ID)
+        // 1. 先查找是否已有该经销商名 (回避 upsert 对 Unique 索引的强一致性要求)
+        const { data: existingDealer } = await supabaseAdmin
+            .from('dealers')
+            .select('id')
+            .eq('company_name', certData.shopName)
+            .maybeSingle();
+
+        let dealerId;
+        if (existingDealer) {
+            dealerId = existingDealer.id;
+            // 同步更新电话
+            await supabaseAdmin.from('dealers').update({ phone: certData.phone }).eq('id', dealerId);
+        } else {
+            const { data: newDealer, error: insErr } = await supabaseAdmin
+                .from('dealers')
+                .insert({ 
+                    company_name: certData.shopName,
+                    phone: certData.phone 
+                })
+                .select('id')
+                .single();
+            
+            if (insErr || !newDealer) throw new Error(`经销商（${certData.shopName}）基础档案录入失败: ${insErr?.message}`);
+            dealerId = newDealer.id;
+        }
+
+        const { data: newCert, error: certErr } = await supabaseAdmin.from('certificates').insert({
+            cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            dealer_id: dealerId,
+            auth_scope: certData.platformId + ' | ' + certData.scopeText.substring(0, 50),
+            start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
+            end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
+            status: 'ISSUED', 
+            manager_id: managerId
+        }).select('*, dealers(*)').single();
+
+        if (certErr) throw certErr;
+        certDataDb = newCert;
+      } else {
+        throw new Error("缺少核发数据");
+      }
 
       const platformId = certDataDb.auth_scope.split(' | ')[0];
       const email = `${platformId}@ba.nihplod.cn`;

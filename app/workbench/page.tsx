@@ -58,14 +58,13 @@ export default function WorkbenchPage() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.05 }}
-          onClick={() => router.push('/workbench/certificates')}
-          className="notion-card flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-sm transition-all group"
+          className="notion-card flex items-center justify-between transition-all"
         >
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">累计核发证书</h3>
-            <p className="text-3xl font-bold text-slate-900 tracking-tight group-hover:text-primary transition-colors">{isLoading ? '-' : stats.certs}</p>
+            <p className="text-3xl font-bold text-slate-900 tracking-tight transition-colors">{isLoading ? '-' : stats.certs}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-orange-50 group-hover:text-primary transition-colors">
+          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 transition-colors">
              <ShieldCheck className="w-6 h-6" />
           </div>
         </motion.div>
@@ -74,14 +73,13 @@ export default function WorkbenchPage() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          onClick={() => router.push('/workbench/complaints')}
-          className="notion-card flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-sm transition-all group"
+          className="notion-card flex items-center justify-between transition-all"
         >
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">待审投诉工单</h3>
-            <p className="text-3xl font-bold text-red-600 tracking-tight group-hover:text-[#eb5757] transition-colors">{isLoading ? '-' : stats.pendingComplaints}</p>
+            <p className="text-3xl font-bold text-red-600 tracking-tight transition-colors">{isLoading ? '-' : stats.pendingComplaints}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-300 group-hover:bg-red-100 group-hover:text-[#eb5757] transition-colors">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-300 transition-colors">
              <Megaphone className="w-6 h-6" />
           </div>
         </motion.div>

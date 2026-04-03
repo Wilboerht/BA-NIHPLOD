@@ -121,7 +121,7 @@ export default function ComplaintsPage() {
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">侵权描述</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证据图片</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提交时间</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">状态</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">状态</th>
                 <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
@@ -143,7 +143,7 @@ export default function ComplaintsPage() {
                     <td className="px-6 py-4 text-xs tabular-nums text-slate-500">
                       {new Date(complaint.created_at).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       {getStatusBadge(complaint.status)}
                     </td>
                     <td className="px-6 py-4 text-right">

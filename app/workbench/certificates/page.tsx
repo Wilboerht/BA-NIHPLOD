@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck } from "lucide-react";
+import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
@@ -37,7 +37,7 @@ export default function CertificatesPage() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('certificates')
-      .select('*, dealers(company_name)')
+      .select('*, dealers(company_name, phone)')
       .order('created_at', { ascending: false });
       
     if (!error && data) {
@@ -143,7 +143,7 @@ export default function CertificatesPage() {
               <tr>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证书编号</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商名称</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">授权范围</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">联系方式</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">当前状态</th>
                 <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
@@ -154,7 +154,15 @@ export default function CertificatesPage() {
                   <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs">{cert.cert_number}</td>
                     <td className="px-6 py-4 font-semibold text-slate-900">{cert.dealers?.company_name || "-"}</td>
-                    <td className="px-6 py-4 text-slate-600 text-[13px]">{cert.auth_scope || "-"}</td>
+                    <td className="px-6 py-4">
+                      {cert.dealers?.phone ? (
+                        <a href={`tel:${cert.dealers.phone}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors font-mono tabular-nums text-[12px]">
+                          <Phone className="w-3 h-3 text-slate-300" /> {cert.dealers.phone}
+                        </a>
+                      ) : (
+                        <span className="text-slate-300 text-xs">未录入</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-xs text-slate-500">
                       {new Date(cert.start_date).toLocaleDateString()} - {new Date(cert.end_date).toLocaleDateString()}
                     </td>
@@ -211,7 +219,7 @@ export default function CertificatesPage() {
       {/* 新建模态框复用原有的证书生成器（为了快速实现）*/}
       {showIssueModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-6xl border border-slate-100 relative my-8 overflow-hidden">
+          <div className="bg-white rounded-3xl w-full max-w-4xl border border-slate-100 relative my-8 overflow-hidden">
              <div className="p-8 pb-4 flex justify-between items-center bg-white border-b border-transparent">
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">签发授权书</h3>
                 <button onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center">
