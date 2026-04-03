@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       const { data: cert, error: certErr } = await supabaseAdmin.from('certificates').insert({
         cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
         dealer_id: dealer.id,
-        auth_scope: certData.platformId + ' | ' + certData.scopeText.substring(0, 50),
+        auth_scope: certData.platformId + ' | ' + certData.scopeText,
         start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
         end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
         status: 'PENDING', // 待审核
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         const { data: newCert, error: certErr } = await supabaseAdmin.from('certificates').insert({
             cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
             dealer_id: dealerId,
-            auth_scope: certData.platformId + ' | ' + certData.scopeText.substring(0, 50),
+            auth_scope: certData.platformId + ' | ' + certData.scopeText,
             start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 

@@ -14,6 +14,7 @@ export default function CertificatesPage() {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<any>(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
+  const [isViewVoided, setIsViewVoided] = useState(false);
 
   useEffect(() => {
     fetchUserRole();
@@ -119,7 +120,12 @@ export default function CertificatesPage() {
         <motion.button 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          onClick={() => setShowIssueModal(true)}
+          onClick={() => {
+            setSelectedCertData(null);
+            setIsViewOnly(false);
+            setIsViewVoided(false);
+            setShowIssueModal(true);
+          }}
           className="bg-blue-600 text-white font-semibold h-10 px-6 rounded-lg shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2 active:scale-95 text-[13px]"
         >
           <Plus className="w-4 h-4" /> 新建核发证书
@@ -181,15 +187,15 @@ export default function CertificatesPage() {
                     </td>
                   <td className="px-6 py-4 text-center">
                       {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide uppercase">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-wider uppercase">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
                         </span>
                       ) : (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && new Date() > new Date(cert.end_date + 'T23:59:59'))) ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-500 text-[11px] font-semibold tracking-wide uppercase">
-                          <XCircle className="w-3.5 h-3.5" /> 已吊销/已到期
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-bold tracking-wider uppercase">
+                          <XCircle className="w-3.5 h-3.5" /> 已失效
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold tracking-wide uppercase">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-600 text-[10px] font-bold tracking-wider uppercase">
                            待审核
                         </span>
                       )}
@@ -208,14 +214,51 @@ export default function CertificatesPage() {
                         {cert.status === 'ISSUED' && (
                           <button 
                             onClick={() => {
-                              setSelectedCertData(cert.cert_data);
+                              const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                              setSelectedCertData({
+                                platformId: scopeParts[0],
+                                platformLabel: "淘宝ID", 
+                                shopName: cert.dealers?.company_name,
+                                shopLabel: "店铺名称",
+                                scopeText: scopeParts[1] || "授权经销资格条款",
+                                duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+                                authorizer: "旎柏（上海）商贸有限公司",
+                                sealImage: "/default-seal.svg",
+                                phone: cert.dealers?.phone || ""
+                              });
+                              setIsViewVoided(false);
                               setIsViewOnly(true);
                               setShowIssueModal(true);
                             }}
-                            className="text-blue-500 hover:text-blue-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                            className="text-blue-600 hover:text-blue-700 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
                           >
                             <FileImage className="w-3.5 h-3.5" />
                             下载证书
+                          </button>
+                        )}
+                        {cert.status === 'EXPIRED' && (
+                          <button 
+                            onClick={() => {
+                              const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                              setSelectedCertData({
+                                platformId: scopeParts[0],
+                                platformLabel: "淘宝ID", 
+                                shopName: cert.dealers?.company_name,
+                                shopLabel: "店铺名称",
+                                scopeText: scopeParts[1] || "授权经销资格条款",
+                                duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+                                authorizer: "旎柏（上海）商贸有限公司",
+                                sealImage: "/default-seal.svg",
+                                phone: cert.dealers?.phone || ""
+                              });
+                              setIsViewVoided(true);
+                              setIsViewOnly(true);
+                              setShowIssueModal(true);
+                            }}
+                            className="text-slate-400 hover:text-slate-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                          >
+                            <FileImage className="w-3.5 h-3.5" />
+                            调阅档案
                           </button>
                         )}
                         {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
@@ -252,13 +295,14 @@ export default function CertificatesPage() {
           <div className="bg-white rounded-3xl w-full max-w-4xl border border-slate-100 relative my-8 overflow-hidden">
              <div className="p-8 pb-4 flex justify-between items-center bg-white border-b border-transparent">
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                  {isViewOnly ? "查看并下载授权书" : "签发授权书"}
+                  {isViewVoided ? "调取历史授信档案" : isViewOnly ? "查看并下载授权书" : "签发授权书"}
                 </h3>
                 <button 
                   onClick={() => {
                     setShowIssueModal(false);
                     setSelectedCertData(null);
                     setIsViewOnly(false);
+                    setIsViewVoided(false);
                   }} 
                   className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center"
                 >
@@ -266,8 +310,12 @@ export default function CertificatesPage() {
                 </button>
              </div>
              <div className="p-8 max-h-[80vh] overflow-y-auto bg-white">
-               <CertificateGenerator initialData={selectedCertData} mode={isViewOnly ? 'view' : 'create'} />
-             </div>
+                <CertificateGenerator 
+                  initialData={selectedCertData} 
+                  mode={isViewOnly ? 'view' : 'create'} 
+                  isVoided={isViewVoided}
+                />
+              </div>
           </div>
         </div>
       )}

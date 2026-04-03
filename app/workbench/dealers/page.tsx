@@ -287,13 +287,13 @@ export default function DealersPage() {
                             </td>
                             <td className="px-6 py-4">
                                {isVoided ? (
-                                 <span className="text-rose-500 text-[10px] font-bold bg-rose-50 px-2 py-0.5 rounded italic">已作废</span>
+                                 <span className="text-rose-500 text-[10px] font-bold bg-rose-50 px-2 py-0.5 rounded">已作废</span>
                                ) : isExpiredByDate || cert.status === 'EXPIRED' ? (
                                  <span className="text-slate-400 text-[10px] font-bold">已失效</span>
                                ) : cert.status === 'ISSUED' ? (
-                                 <span className="text-emerald-500 text-[10px] font-bold italic">Active</span>
+                                 <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wider">Active</span>
                                ) : (
-                                 <span className="text-amber-500 text-[10px] font-bold italic">Pending</span>
+                                 <span className="text-amber-500 text-[10px] font-bold uppercase tracking-wider">Pending</span>
                                )}
                             </td>
                             <td className="px-6 py-4 text-right">
