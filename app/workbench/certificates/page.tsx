@@ -139,14 +139,14 @@ export default function CertificatesPage() {
              </div>
           )}
           <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
-            <thead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-slate-50/50">
+            <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
-                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证书编号</th>
-                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商名称</th>
-                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">授权范围</th>
-                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
-                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">当前状态</th>
-                <th className="px-6 py-5 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证书编号</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商名称</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">授权范围</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">当前状态</th>
+                <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
@@ -158,7 +158,7 @@ export default function CertificatesPage() {
                     <td className="px-6 py-4 text-xs text-slate-500">
                       {new Date(cert.start_date).toLocaleDateString()} - {new Date(cert.end_date).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-center">
                       {cert.status === 'ISSUED' ? (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide uppercase">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
