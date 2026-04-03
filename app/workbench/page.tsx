@@ -94,9 +94,16 @@ export default function WorkbenchPage() {
             进入处理中心 →
           </Link>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto bg-slate-50/30 p-2">
+        <div className="flex-1 min-h-0 overflow-auto bg-slate-50/30 p-2 relative">
            {isLoading ? (
-             <div className="p-8 text-center text-xs text-slate-400 font-medium">加载数据中...</div>
+             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 pointer-events-none">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
+                </div>
+                <span className="text-[12px] font-medium tracking-widest uppercase">拉取最新业务档案...</span>
+             </div>
            ) : recentComplaints.length === 0 ? (
              <div className="p-8 text-center flex flex-col items-center justify-center h-full">
                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-3">

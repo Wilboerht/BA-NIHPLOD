@@ -19,10 +19,17 @@ export default function CertificatesPage() {
   }, [showIssueModal]); // refetch when modal closes
 
   const fetchUserRole = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-      setUserRole(profile?.role);
+    try {
+      // 避免与侧边栏/父组件同时发起 getUser 导致锁竞争
+      await new Promise(r => setTimeout(r, 100)); 
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        setUserRole(profile?.role);
+      }
+    } catch (err) {
+      console.warn("Auth Lock warning (recovered)", err);
     }
   };
 
@@ -100,14 +107,14 @@ export default function CertificatesPage() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => setShowIssueModal(true)}
-          className="bg-slate-900 text-white font-medium h-10 px-6 rounded-lg shadow-md shadow-slate-200 hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 text-[13px]"
+          className="bg-blue-600 text-white font-semibold h-10 px-6 rounded-lg shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2 active:scale-95 text-[13px]"
         >
           <Plus className="w-4 h-4" /> 新建核发证书
         </motion.button>
       </div>
 
-      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0 border-slate-100 bg-white">
+        <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
           <div className="relative w-full max-w-sm">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
@@ -115,41 +122,35 @@ export default function CertificatesPage() {
               placeholder="搜索证书编号或经销商名称..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 text-[13px] outline-none focus:border-primary transition-colors"
+              className="w-full bg-white border border-slate-200/60 rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none focus:border-blue-400 transition-all focus:ring-4 focus:ring-blue-50/50 shadow-sm"
             />
           </div>
         </div>
 
-        <div className="overflow-auto flex-1 min-h-0">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider text-xs">
+        <div className="overflow-auto flex-1 min-h-0 relative">
+          {isLoading && (
+             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
+                </div>
+                <span className="text-[12px] font-medium tracking-widest uppercase">同步中心数据中...</span>
+             </div>
+          )}
+          <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
+            <thead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] bg-slate-50/50">
               <tr>
-                <th className="px-6 py-4 border-b border-slate-100">证书编号</th>
-                <th className="px-6 py-4 border-b border-slate-100">经销商名称</th>
-                <th className="px-6 py-4 border-b border-slate-100">授权范围</th>
-                <th className="px-6 py-4 border-b border-slate-100">有效期</th>
-                <th className="px-6 py-4 border-b border-slate-100">当前状态</th>
-                <th className="px-6 py-4 border-b border-slate-100 text-right">操作</th>
+                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证书编号</th>
+                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商名称</th>
+                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">授权范围</th>
+                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
+                <th className="px-6 py-5 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">当前状态</th>
+                <th className="px-6 py-5 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">加载数据中...</td>
-                </tr>
-              ) : filteredCerts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16">
-                    <div className="flex flex-col items-center justify-center gap-3 text-slate-400 w-full">
-                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-                        <Search className="w-6 h-6" />
-                      </div>
-                      <span className="text-sm">暂无匹配的证书记录。</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredCerts.map((cert) => (
+              {!isLoading && filteredCerts.map((cert) => (
                   <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs">{cert.cert_number}</td>
                     <td className="px-6 py-4 font-semibold text-slate-900">{cert.dealers?.company_name || "-"}</td>
@@ -192,16 +193,25 @@ export default function CertificatesPage() {
                     </td>
                   </tr>
                 ))
-              )}
+              }
             </tbody>
           </table>
+
+          {!isLoading && filteredCerts.length === 0 && (
+            <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+                <Search className="w-6 h-6" />
+              </div>
+              <span className="text-[13px] font-medium tracking-tight">暂无匹配的证书记录</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 新建模态框复用原有的证书生成器（为了快速实现）*/}
       {showIssueModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-6xl shadow-2xl relative my-8 overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-6xl border border-slate-100 relative my-8 overflow-hidden">
              <div className="p-8 pb-4 flex justify-between items-center bg-white border-b border-transparent">
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">签发授权书</h3>
                 <button onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center">

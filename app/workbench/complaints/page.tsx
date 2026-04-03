@@ -102,37 +102,31 @@ export default function ComplaintsPage() {
           </div>
         </div>
 
-        <div className="overflow-auto flex-1 min-h-0">
-          <table className="w-full text-left text-[13px] whitespace-nowrap">
-            <thead className="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider text-xs">
+        <div className="overflow-auto flex-1 min-h-0 relative text-center">
+          {isLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
+              <div className="flex items-center gap-2 justify-center">
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
+              </div>
+              <span className="text-[12px] font-medium tracking-widest uppercase">接入打假举报实时链路...</span>
+            </div>
+          )}
+          <table className="w-full text-left text-[13px] whitespace-nowrap table-auto border-separate border-spacing-0">
+            <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
-                <th className="px-6 py-4 border-b border-slate-100">工单号 (ID)</th>
-                <th className="px-6 py-4 border-b border-slate-100">涉事店铺/渠道</th>
-                <th className="px-6 py-4 border-b border-slate-100">侵权描述</th>
-                <th className="px-6 py-4 border-b border-slate-100">证据图片</th>
-                <th className="px-6 py-4 border-b border-slate-100">提交时间</th>
-                <th className="px-6 py-4 border-b border-slate-100">状态</th>
-                <th className="px-6 py-4 border-b border-slate-100 text-right">操作</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">工单号 (ID)</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">涉事店铺/渠道</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">侵权描述</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证据图片</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提交时间</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">状态</th>
+                <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">加载工单中...</td>
-                </tr>
-              ) : filteredComplaints.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16">
-                    <div className="flex flex-col items-center justify-center gap-3 text-slate-400 w-full">
-                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                      <span className="text-sm">暂无匹配的举报工单。</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredComplaints.map((complaint) => (
+              {!isLoading && filteredComplaints.map((complaint) => (
                   <tr key={complaint.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-[10px] text-slate-400">{complaint.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{complaint.channel || "-"}</td>
@@ -153,15 +147,24 @@ export default function ComplaintsPage() {
                       {getStatusBadge(complaint.status)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                       <button onClick={() => setActiveReviewId(complaint.id)} className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 justify-end w-full">
+                       <button onClick={() => setActiveReviewId(complaint.id)} className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 justify-end w-full uppercase tracking-wide">
                           进入审核 <ExternalLink className="w-3 h-3" />
                        </button>
                     </td>
                   </tr>
                 ))
-              )}
+              }
             </tbody>
           </table>
+
+          {!isLoading && filteredComplaints.length === 0 && (
+            <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <span className="text-[13px] font-medium tracking-tight">暂无匹配的举报工单记录</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -7,12 +7,12 @@ import { supabase } from "@/lib/supabase";
 import styles from "./Sidebar.module.css";
 import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Settings } from "lucide-react";
 
-export default function Sidebar({ 
-  isCollapsed, 
-  onToggle 
-}: { 
-  isCollapsed: boolean; 
-  onToggle: () => void; 
+export default function Sidebar({
+  isCollapsed,
+  onToggle
+}: {
+  isCollapsed: boolean;
+  onToggle: () => void;
 }) {
   const pathname = usePathname();
   const [userName, setUserName] = useState("User");
@@ -22,25 +22,45 @@ export default function Sidebar({
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // 监听 Auth 状态变化（包括初始加载、登录、登出）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("🛡️ Auth State Change:", event, session?.user?.email);
+      
       if (session?.user?.email) {
         setUserEmail(session.user.email);
         setUserName(session.user.email.split("@")[0]);
+
+        // 获取角色
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
         
-        // Fetch role
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-        setUserRole(profile?.role);
+        if (error) {
+          console.error("❌ Failed to fetch user role:", error.message);
+          setUserRole(null);
+        } else {
+          console.log("✅ Success! Identified user role:", profile?.role);
+          setUserRole(profile?.role);
+        }
+      } else {
+        setUserRole(null);
       }
     });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
     if (isConfirmingLogout) {
-       await supabase.auth.signOut();
-       window.location.href = "/";
+      await supabase.auth.signOut();
+      window.location.href = "/";
     } else {
-       setIsConfirmingLogout(true);
-       setTimeout(() => setIsConfirmingLogout(false), 3000);
+      setIsConfirmingLogout(true);
+      setTimeout(() => setIsConfirmingLogout(false), 3000);
     }
   };
 
@@ -52,7 +72,7 @@ export default function Sidebar({
         <div className={styles.logoGroup}>
           <img src="/NIHPLOD-logo.svg" alt="NIHPLOD Logo" className={styles.logo} />
           {!isCollapsed && (
-             <span className={styles.platformName}>品牌授权管理后台</span>
+            <span className={styles.platformName}>品牌授权管理后台</span>
           )}
         </div>
       </header>
@@ -105,7 +125,7 @@ export default function Sidebar({
           )}
         </button>
 
-        <div className={styles.userProfile} onClick={() => {}} style={{ cursor: 'pointer' }}>
+        <div className={styles.userProfile} onClick={() => { }} style={{ cursor: 'pointer' }}>
           <div className={styles.userAvatar}>
             {userInitial}
           </div>
@@ -116,8 +136,8 @@ export default function Sidebar({
             </div>
           )}
           {!isCollapsed && (
-            <div 
-              className={styles.settingsBtn} 
+            <div
+              className={styles.settingsBtn}
               onClick={(e) => { e.stopPropagation(); handleLogout(); }}
               style={{ padding: isConfirmingLogout ? '4px 10px' : '' }}
             >
