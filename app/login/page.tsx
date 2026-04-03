@@ -134,7 +134,7 @@ export default function LoginPage() {
              &larr; 返回前台核验中心
           </Link>
           <div className="h-px w-8 bg-slate-200 mx-auto" />
-          <p className="text-xs font-medium text-slate-400">© 2026 NIHPLOD · All rights reserved</p>
+          <p className="text-[11px] font-normal text-slate-300 tracking-normal antialiased">© 2026 NIHPLOD. All rights reserved</p>
         </footer>
       </motion.div>
     </main>

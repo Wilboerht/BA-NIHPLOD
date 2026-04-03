@@ -174,7 +174,7 @@ export default function VerificationPage() {
 
       {/* 页脚装饰 - 最终修正版 */}
       <footer className="w-full max-w-6xl px-6 py-12 flex flex-col md:flex-row justify-between items-center gap-6 border-t border-slate-50 mt-auto text-slate-400">
-         <p className="text-xs font-normal text-slate-400 tracking-normal antialiased">
+         <p className="text-[11px] font-normal text-slate-300 tracking-normal antialiased">
            &copy; 2026 BA.NIHPLOD.CN. All rights reserved
          </p>
          <div className="flex gap-8 text-[11px] font-medium tracking-tight">
