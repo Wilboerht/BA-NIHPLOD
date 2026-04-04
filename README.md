@@ -1,11 +1,11 @@
-# NIHPLOD 品牌授权及验证平台 (Brand Authorization & Verification Platform)
+# NIHPLOD Brand Authorization & Verification Platform
 
-## 项目简介
-本项目是为 **NIHPLOD (内普罗得)** 品牌量身定制的数字化授权管理与防伪验证平台。
+## Project Overview
+This project is a dedicated digital authorization management and anti-counterfeiting verification platform tailored for the **NIHPLOD** brand.
 
-平台旨在通过规范化的线上流程，确立品牌授权的权威性与安全性。其核心功能涵盖了从经销商账号分配、多级授权审核、自动化高清证书合成（集成电子公章与动态二维码），到面向公众的实时防伪查询系统。
+The platform aims to establish the authority and security of brand authorization through standardized online workflows. Its core functionalities range from dealer account allocation and multi-level authorization auditing to automated high-definition certificate synthesis (integrating electronic seals and dynamic QR codes), and a real-time public-facing anti-counterfeiting query system.
 
-视觉上，平台深度延续了 **nihplod.cn** 的品牌美学，采用 **Neo-Lux (新奢感)** 玻璃拟态视觉风格与 **Bento Grid (便签盒)** 布局，为管理者与经销商提供直观、高效且极具专业感的交互体验。
+Visually, the platform extends the brand aesthetics of **nihplod.cn**, utilizing a **Neo-Lux** glassmorphism visual style combined with a **Bento Grid** layout. It provides managers and dealers with an intuitive, efficient, and highly professional interactive experience.
 
 ---
-© 2024-2026 NIHPLOD. 保留所有权利。
+© 2024-2026 NIHPLOD. All rights reserved.
