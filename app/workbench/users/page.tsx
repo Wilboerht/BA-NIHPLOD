@@ -313,7 +313,7 @@ export default function AdminsManagementPage() {
       {/* ── 创建新管理用户弹窗 ── */}
       <AnimatePresence>
         {showCreate && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 md:p-12">
             {/* 背景蒙层 */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -325,50 +325,50 @@ export default function AdminsManagementPage() {
 
             {/* 弹窗主体 */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
+              initial={{ opacity: 0, scale: 0.98, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="relative bg-white rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.1)] w-full max-w-md overflow-hidden border border-slate-100/60"
+              exit={{ opacity: 0, scale: 0.98, y: 15 }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100/80"
             >
               {/* 弹窗头部 */}
-              <div className="px-8 pt-8 pb-4">
+              <div className="px-10 pt-12 pb-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 tracking-tight">创建新管理账号</h2>
-                    <p className="text-[12px] text-slate-400 mt-1">配置新成员的访问凭标与职权范围</p>
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-black text-slate-900 tracking-[0.05em]">开通管理权限</h2>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">配置新成员的访问凭标与职裁范围</p>
                   </div>
                   <button
                     onClick={closeCreate}
                     disabled={isSubmitting}
-                    className="p-1 px-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-300 hover:text-slate-600"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
                   >
-                    <X className="w-5 h-5" />
+                    <X size={18} strokeWidth={2.5} />
                   </button>
                 </div>
               </div>
 
               {/* 表单 */}
-              <form onSubmit={handleCreate} className="px-8 pb-8 space-y-6">
-                <div className="space-y-4">
+              <form onSubmit={handleCreate} className="px-10 pb-12 space-y-7">
+                <div className="space-y-5">
                   {/* 姓名 */}
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-semibold text-slate-500 ml-0.5">真实姓名</label>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">真实姓名</label>
                     <input
                       ref={fullNameRef}
                       type="text"
                       required
-                      placeholder="例：张三"
+                      placeholder="后台识别名"
                       value={form.fullName}
                       onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
                       disabled={isSubmitting || !!createSuccess}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-[14px] outline-none focus:border-blue-500 transition-all text-slate-900 placeholder:text-slate-300"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-200"
                     />
                   </div>
 
                   {/* 用户名 */}
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-semibold text-slate-500 ml-0.5">账号 ID (系统识别名)</label>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">系统识别号 (USERNAME)</label>
                     <div className="flex items-center">
                       <input
                         type="text"
@@ -377,32 +377,32 @@ export default function AdminsManagementPage() {
                         value={form.username}
                         onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "") }))}
                         disabled={isSubmitting || !!createSuccess}
-                        className="flex-1 bg-white border border-slate-200 rounded-l-xl px-4 py-2.5 text-[14px] outline-none focus:border-blue-500 transition-all font-mono text-slate-900"
+                        className="flex-1 bg-slate-50 border border-slate-100 rounded-l-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all font-mono text-slate-900 placeholder:text-slate-200"
                       />
-                      <span className="px-3 py-2.5 bg-slate-50 border border-slate-200 border-l-0 rounded-r-xl text-[12px] text-slate-400">
+                      <span className="px-4 py-3 bg-slate-100/50 border border-slate-100 border-l-0 rounded-r-xl text-[11px] font-bold text-slate-400 tracking-wider">
                         @admin.nihplod.cn
                       </span>
                     </div>
                   </div>
 
                   {/* 密码 */}
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-semibold text-slate-500 ml-0.5">初始登录密码</label>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">初始登录密码</label>
                     <div className="relative">
                       <input
                         type={showPwd ? "text" : "password"}
                         required
                         minLength={6}
-                        placeholder="至少 6 位密码"
+                        placeholder="设置初始安全密码"
                         value={form.password}
                         onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                         disabled={isSubmitting || !!createSuccess}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-[14px] outline-none focus:border-blue-500 transition-all text-slate-900"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 font-mono placeholder:text-slate-200"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPwd(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 p-1"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
                       >
                         {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -410,29 +410,29 @@ export default function AdminsManagementPage() {
                   </div>
 
                   {/* 角色 */}
-                  <div className="space-y-2 pt-1">
-                    <label className="text-[12px] font-semibold text-slate-500 ml-0.5">授予角色级别</label>
-                    <div className="space-y-2">
+                  <div className="space-y-2.5 pt-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">角色权限分配</label>
+                    <div className="space-y-2.5">
                       {ROLE_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
                           type="button"
                           onClick={() => setForm(f => ({ ...f, role: opt.value }))}
                           disabled={isSubmitting || !!createSuccess}
-                          className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
+                          className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left ${
                             form.role === opt.value
-                              ? "border-blue-500 bg-blue-50/30"
-                              : "border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200"
+                              ? "border-slate-900 bg-slate-900/5 shadow-sm"
+                              : "border-slate-50 bg-slate-50/50 hover:bg-white hover:border-slate-200 opacity-60"
                           }`}
                         >
-                          <div>
-                            <span className={`text-[13px] font-bold block ${form.role === opt.value ? "text-blue-700" : "text-slate-700"}`}>
+                          <div className="space-y-1">
+                            <span className={`text-[13px] font-bold block ${form.role === opt.value ? "text-slate-900" : "text-slate-400"}`}>
                               {opt.label}
                             </span>
-                            <span className="text-[11px] text-slate-400 mt-0.5 block">{opt.desc}</span>
+                            <span className="text-[10px] text-slate-500 font-medium leading-relaxed block">{opt.desc}</span>
                           </div>
-                          <div className={`w-4 h-4 rounded-full border transition-all flex items-center justify-center ${
-                            form.role === opt.value ? "border-blue-500 bg-blue-500" : "border-slate-300 bg-white"
+                          <div className={`w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center ${
+                            form.role === opt.value ? "border-slate-900 bg-slate-900" : "border-slate-200 bg-white"
                           }`}>
                             {form.role === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                           </div>
@@ -445,37 +445,37 @@ export default function AdminsManagementPage() {
                 {/* 状态反馈 */}
                 <AnimatePresence>
                   {createError && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                      <p className="text-rose-500 text-[12px] font-bold">{createError}</p>
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-center pt-2">
+                       <p className="text-rose-500 text-[12px] font-bold bg-rose-50 py-3 rounded-xl border border-rose-100">{createError}</p>
                     </motion.div>
                   )}
                   {createSuccess && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 bg-emerald-50 rounded-xl flex items-center gap-2 justify-center">
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="p-4 bg-emerald-50 rounded-2xl flex items-center gap-2 justify-center border border-emerald-100">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span className="text-[12px] text-emerald-600 font-bold">账号已成功部署</span>
+                      <span className="text-[12px] text-emerald-600 font-bold tracking-widest">管理账号已成功部署</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 {/* 提交按钮 */}
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-4 pt-3">
                   <button
                     type="button"
                     onClick={closeCreate}
                     disabled={isSubmitting}
-                    className="flex-1 h-11 text-slate-400 font-bold text-[14px] hover:bg-slate-50 rounded-xl transition-all"
+                    className="flex-1 h-12 text-slate-400 font-bold text-[13px] hover:bg-slate-50 rounded-2xl transition-all tracking-[0.1em]"
                   >
                     取消
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting || !!createSuccess || !form.fullName || !form.username || !form.password}
-                    className="flex-[2] h-11 bg-blue-600 text-white font-bold text-[14px] rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100/50 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
+                    className="flex-[2.5] h-12 bg-[#2C2A29] text-white font-bold text-[13px] rounded-2xl hover:bg-black shadow-xl shadow-slate-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none active:scale-95 tracking-[0.1em]"
                   >
                     {isSubmitting ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> 处理中</>
                     ) : (
-                      "确认创建账号"
+                      "确认并创建账户"
                     )}
                   </button>
                 </div>

@@ -76,12 +76,12 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
               </button>
             </div>
 
-            <div className="p-10 pt-12 text-center pb-8 border-b border-slate-50">
-              <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-9 mx-auto mb-5" />
-              <h2 className="text-[22px] font-black text-slate-900 tracking-tight">管理登入口</h2>
+            <div className="p-10 pt-14 text-center pb-10">
+              <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-[34px] mx-auto mb-7" />
+              <h2 className="text-xl font-bold text-slate-900 tracking-[0.14em]">管理登入口</h2>
             </div>
-
-            <form onSubmit={handleLogin} className="p-8 pt-6 flex flex-col gap-5">
+            
+            <form onSubmit={handleLogin} className="px-10 pb-10 pt-2 flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <input 
                   type="email" 

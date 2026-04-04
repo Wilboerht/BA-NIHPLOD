@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone } from "lucide-react";
+import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
@@ -108,13 +108,13 @@ export default function CertificatesPage() {
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-             <ShieldCheck className="w-7 h-7 text-primary" />
+          <h1 className="text-2xl font-black text-slate-900 tracking-[0.05em] flex items-center gap-3">
+             <ShieldCheck className="w-7 h-7 text-slate-800" />
              授权核发中心
           </h1>
-          <p className="text-slate-500 text-[13px]">管理与监控所有的品牌官方合作授权书，一键生成带有防伪标签的高清大图。</p>
+          <p className="text-slate-500 text-[13px] font-medium tracking-wide">管理与监控品牌官方合作授权书，一键生成防伪溯源大图。</p>
         </motion.div>
         
         <motion.button 
@@ -126,22 +126,22 @@ export default function CertificatesPage() {
             setIsViewVoided(false);
             setShowIssueModal(true);
           }}
-          className="bg-blue-600 text-white font-semibold h-10 px-6 rounded-lg shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2 active:scale-95 text-[13px]"
+          className="bg-[#2C2A29] text-white font-bold h-10 px-8 rounded-xl shadow-lg shadow-[#2C2A29]/10 hover:bg-black transition-all flex items-center gap-2.5 active:scale-95 text-[12px] tracking-[0.1em]"
         >
           <Plus className="w-4 h-4" /> 新建核发证书
         </motion.button>
       </div>
 
       <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0 border-slate-100 bg-white">
-        <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-          <div className="relative w-full max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="px-0 py-4 border-b border-slate-50 flex justify-between items-center bg-white">
+          <div className="relative w-full max-w-sm ml-2">
+            <Search className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="搜索证书编号或经销商名称..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200/60 rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none focus:border-blue-400 transition-all focus:ring-4 focus:ring-blue-50/50 shadow-sm"
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-200"
             />
           </div>
         </div>
@@ -171,44 +171,46 @@ export default function CertificatesPage() {
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
               {!isLoading && filteredCerts.map((cert) => (
                   <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs">{cert.cert_number}</td>
-                    <td className="px-6 py-4 font-bold text-slate-900 text-xs">{cert.dealers?.company_name || "-"}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
+                    <td className="px-6 py-5">
+                       <span className="font-bold text-slate-900 text-[13px] tracking-tight">{cert.dealers?.company_name || "-"}</span>
+                    </td>
+                    <td className="px-6 py-5">
                       {cert.dealers?.phone ? (
-                        <a href={`tel:${cert.dealers.phone}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors font-mono tabular-nums text-[12px]">
-                          <Phone className="w-3 h-3 text-slate-300" /> {cert.dealers.phone}
+                        <a href={`tel:${cert.dealers.phone}`} className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors font-mono tabular-nums text-[12px]">
+                          <Phone className="w-3 h-3 opacity-50" /> {cert.dealers.phone}
                         </a>
                       ) : (
-                        <span className="text-slate-300 text-xs">未录入</span>
+                        <span className="text-slate-200 text-xs">未录入</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-xs text-slate-500">
-                      {new Date(cert.start_date).toLocaleDateString()} - {new Date(cert.end_date).toLocaleDateString()}
+                    <td className="px-6 py-5 text-[11px] text-slate-400 font-medium tabular-nums px-x uppercase tracking-wide">
+                      {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
                     </td>
-                  <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-5 text-center">
                       {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-wider uppercase">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase border border-emerald-100">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
                         </span>
                       ) : (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && new Date() > new Date(cert.end_date + 'T23:59:59'))) ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-500 text-[10px] font-bold tracking-wider uppercase">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
                           <XCircle className="w-3.5 h-3.5" /> 已失效
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-600 text-[10px] font-bold tracking-wider uppercase">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-amber-50 text-amber-600 text-[10px] font-bold tracking-widest uppercase border border-amber-100">
                            待审核
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
-                      <div className="flex items-center justify-end gap-5">
+                      <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                         {cert.status === 'PENDING' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
                           <button 
                             onClick={() => approveCertificate(cert.id)}
-                            className="text-blue-600 hover:text-blue-700 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                            className="bg-slate-900 text-white h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all hover:bg-black active:scale-95 tracking-wide leading-none"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
-                            核发授权
+                            核查准入
                           </button>
                         )}
                         {cert.status === 'ISSUED' && (
@@ -217,10 +219,10 @@ export default function CertificatesPage() {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
                                 platformId: scopeParts[0],
-                                platformLabel: "淘宝ID", 
+                                platformLabel: "识别码", 
                                 shopName: cert.dealers?.company_name,
-                                shopLabel: "店铺名称",
-                                scopeText: scopeParts[1] || "授权经销资格条款",
+                                shopLabel: "授权主体",
+                                scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
                                 sealImage: "/default-seal.svg",
@@ -230,10 +232,10 @@ export default function CertificatesPage() {
                               setIsViewOnly(true);
                               setShowIssueModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-700 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                            className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none"
                           >
-                            <FileImage className="w-3.5 h-3.5" />
-                            下载证书
+                            <FileImage className="w-3.5 h-3.5 opacity-60" />
+                            查看证书
                           </button>
                         )}
                         {cert.status === 'EXPIRED' && (
@@ -242,10 +244,10 @@ export default function CertificatesPage() {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
                                 platformId: scopeParts[0],
-                                platformLabel: "淘宝ID", 
+                                platformLabel: "识别码", 
                                 shopName: cert.dealers?.company_name,
-                                shopLabel: "店铺名称",
-                                scopeText: scopeParts[1] || "授权经销资格条款",
+                                shopLabel: "授权主体",
+                                scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
                                 sealImage: "/default-seal.svg",
@@ -255,19 +257,19 @@ export default function CertificatesPage() {
                               setIsViewOnly(true);
                               setShowIssueModal(true);
                             }}
-                            className="text-slate-400 hover:text-slate-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                            className="text-slate-400 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none"
                           >
-                            <FileImage className="w-3.5 h-3.5" />
+                            <FileImage className="w-3.5 h-3.5 opacity-40" />
                             调阅档案
                           </button>
                         )}
                         {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
                           <button 
                             onClick={() => revokeCertificate(cert.id, cert.status)}
-                            className="text-rose-500 hover:text-rose-600 font-bold text-[11px] inline-flex items-center gap-1.5 transition-all hover:underline leading-none"
+                            className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
+                            title="吊销授权"
                           >
-                            <ShieldOff className="w-3.5 h-3.5" />
-                            吊销执照
+                            <ShieldOff className="w-4 h-4" />
                           </button>
                         )}
                       </div>
@@ -289,36 +291,64 @@ export default function CertificatesPage() {
         </div>
       </div>
 
-      {/* 新建模态框复用原有的证书生成器（为了快速实现）*/}
-      {showIssueModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-4xl border border-slate-100 relative my-8 overflow-hidden">
-             <div className="p-8 pb-4 flex justify-between items-center bg-white border-b border-transparent">
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                  {isViewVoided ? "调取历史授信档案" : isViewOnly ? "查看并下载授权书" : "签发授权书"}
-                </h3>
-                <button 
-                  onClick={() => {
-                    setShowIssueModal(false);
-                    setSelectedCertData(null);
-                    setIsViewOnly(false);
-                    setIsViewVoided(false);
-                  }} 
-                  className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors p-2 rounded-full flex items-center justify-center"
-                >
-                   <XCircle className="w-5 h-5" />
-                </button>
-             </div>
-             <div className="p-8 max-h-[80vh] overflow-y-auto bg-white">
-                <CertificateGenerator 
-                  initialData={selectedCertData} 
-                  mode={isViewOnly ? 'view' : 'create'} 
-                  isVoided={isViewVoided}
-                />
+      {/* ── 签发/调阅模态框 ── */}
+      <AnimatePresence>
+        {showIssueModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
+            {/* 背景蒙层 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowIssueModal(false);
+                setSelectedCertData(null);
+                setIsViewOnly(false);
+                setIsViewVoided(false);
+              }}
+              className="absolute inset-0 bg-white/60 backdrop-blur-md"
+            />
+
+            {/* 弹窗主体 */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 15 }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-100/80"
+            >
+              <div className="px-10 pt-10 pb-6 flex justify-between items-center bg-white shrink-0">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
+                      {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : "官方授权资质签发"}
+                    </h3>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">核实经销商主体资质，签发受防伪协议保护的电子证书</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowIssueModal(false);
+                      setSelectedCertData(null);
+                      setIsViewOnly(false);
+                      setIsViewVoided(false);
+                    }} 
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
+                  >
+                    <X size={18} strokeWidth={2.5} />
+                  </button>
               </div>
+              <div className="flex-1 overflow-y-auto px-10 pb-12 custom-scrollbar bg-slate-50/10">
+                <div className="py-4">
+                  <CertificateGenerator 
+                    initialData={selectedCertData} 
+                    mode={isViewOnly ? 'view' : 'create'} 
+                    isVoided={isViewVoided}
+                  />
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

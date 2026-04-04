@@ -5,6 +5,7 @@ import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRig
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
+import LegalModal from "@/components/LegalModal";
 import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
 
 export default function VerificationPage() {
@@ -14,6 +15,7 @@ export default function VerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,11 +138,11 @@ export default function VerificationPage() {
             className="text-center space-y-6 mb-12"
           >
             <div className="space-y-6">
-              <h1 className="text-4xl md:text-[44px] tracking-[0.05em] text-[#2C2A29] leading-tight">
-                NIHPLOD 品牌授权核验中心
+              <h1 className="text-3xl md:text-[44px] font-black tracking-[0.12em] text-[#2C2A29] leading-tight">
+                授权资质官方核查
               </h1>
-              <p className="text-[#8B7355] text-sm md:text-base max-w-lg mx-auto leading-loose opacity-90 tracking-[0.02em]">
-                请输入授权证书编号或经销主体主体名称，验证经营资质。
+              <p className="text-[#8B7355] text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-80 tracking-[0.05em] font-medium">
+                输入授权证书编号 (SN) 或经销主体名称，<br className="hidden md:block" /> 核实官方资质及合法经营区域。
               </p>
             </div>
           </motion.div>
@@ -195,14 +197,16 @@ export default function VerificationPage() {
               initial={{ opacity: 0, scale: 0.96, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
-              className="relative w-full max-w-2xl bg-white/90 backdrop-blur-3xl border border-white/60 rounded-[36px] shadow-[0_40px_80px_-20px_rgba(44,42,41,0.08)] p-12 md:p-16 overflow-hidden"
+              className="relative w-full max-w-2xl bg-white border border-white/60 rounded-[32px] shadow-2xl p-10 md:p-14 overflow-hidden"
             >
-              <button 
-                 onClick={() => { setResult(null); setError(null); }}
-                 className="absolute top-10 right-10 text-slate-300 hover:text-slate-500 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="absolute top-6 right-6">
+                <button 
+                  onClick={() => { setResult(null); setError(null); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
 
               {error ? (
                 <div className="flex flex-col items-center text-center py-10 gap-8">
@@ -219,22 +223,22 @@ export default function VerificationPage() {
                      </div>
                      <button 
                         onClick={() => { setError(null); setShowReportModal(true); }}
-                        className="bg-[#2C2A29]/5 text-[#2C2A29] border border-[#2C2A29]/10 px-8 py-3 rounded-xl text-sm hover:bg-[#2C2A29]/10 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-8"
+                        className="bg-[#2C2A29]/5 text-[#2C2A29] border border-[#2C2A29]/10 px-8 py-3 rounded-xl text-sm hover:bg-[#2C2A29]/10 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-8 font-medium"
                       >
-                        <AlertTriangle className="w-4 h-4" /> 举报涉嫌侵权经销商
+                        <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
                       </button>
                   </div>
                 </div>
               ) : result ? (
                 <div className="flex flex-col md:flex-row justify-between items-start gap-12">
-                  <div className="flex-1 space-y-12">
-                    <div className="flex items-center gap-3 text-[#8B7355] text-[10px] uppercase tracking-[0.2em] bg-[#8B7355]/10 px-5 py-2 rounded-full border border-[#8B7355]/20 w-fit">
-                       <CheckCircle2 className="w-4 h-4" /> Official Certified
+                  <div className="flex-1 space-y-10">
+                    <div className="flex items-center gap-3 text-[#8B7355] text-[10px] font-bold tracking-[0.2em] bg-[#8B7355]/5 px-4 py-1.5 rounded-full border border-[#8B7355]/10 w-fit">
+                       <CheckCircle2 className="w-3.5 h-3.5" /> 官方授权核验结果
                     </div>
                     
-                    <div className="space-y-3">
-                       <h2 className="text-3xl md:text-4xl text-[#2C2A29] tracking-[0.05em] leading-tight">{result.dealerName}</h2>
-                       <p className="text-[#8B7355]/70 text-xs font-mono tracking-[0.3em] uppercase">SN: {result.id}</p>
+                    <div className="space-y-4">
+                       <h2 className="text-3xl md:text-[38px] font-black text-[#2C2A29] tracking-[0.05em] leading-tight">{result.dealerName}</h2>
+                       <p className="text-[#8B7355]/70 text-[11px] font-bold tracking-[0.3em]">授权编号：{result.id}</p>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-16 pt-12 border-t border-[#8B7355]/10">
@@ -255,11 +259,11 @@ export default function VerificationPage() {
                     </div>
                   </div>
 
-                  <div className="hidden md:flex flex-col items-center gap-10 p-14 bg-[#FAFAFA]/50 rounded-[48px] border border-white/60 self-stretch justify-center">
-                     <div className="w-28 h-28 bg-white/80 border border-white/90 rounded-3xl shadow-sm flex items-center justify-center p-6 grayscale opacity-40">
+                  <div className="hidden md:flex flex-col items-center gap-6 p-10 bg-slate-50/80 rounded-[40px] border border-slate-100 self-stretch justify-center">
+                     <div className="w-24 h-24 bg-white/80 border border-white/90 rounded-[28px] shadow-sm flex items-center justify-center p-6 grayscale opacity-30">
                         <img src="/NIHPLOD-logo.svg" alt="LOGO" className="w-full h-auto" />
                      </div>
-                     <p className="text-[9px] text-[#8B7355]/50 uppercase tracking-[0.4em] text-center leading-loose">SECURED BY<br />NIHPLOD GENOME</p>
+                     <p className="text-[9px] text-[#8B7355]/40 font-bold tracking-[0.4em] text-center leading-loose">品牌安全认证</p>
                   </div>
                 </div>
               ) : null}
@@ -281,29 +285,35 @@ export default function VerificationPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full max-w-xl bg-white rounded-[32px] shadow-2xl p-8 md:p-12 overflow-hidden"
+               className="relative w-full max-w-xl bg-white rounded-[32px] shadow-2xl p-10 md:p-14 overflow-hidden"
             >
-              <div className="flex justify-between items-center mb-8">
-                 <div className="flex items-center gap-3 text-red-600 font-bold text-sm tracking-tight">
-                    <AlertTriangle className="w-5 h-5" />
-                    品牌打假举报反馈
+              <div className="absolute top-6 right-6">
+                <button 
+                  onClick={() => setShowReportModal(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              <div className="text-center mb-10 pt-2">
+                 <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
+                    <AlertTriangle size={24} />
                  </div>
-                 <button onClick={() => setShowReportModal(false)} className="text-slate-300 hover:text-slate-500 transition-colors">
-                    <X className="w-5 h-5" />
-                 </button>
+                 <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">官方维权申诉与核查</h2>
               </div>
 
               <div className="space-y-6">
                  <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述</label>
                     <textarea 
-                       placeholder="请简要描述侵权行为，如假冒授权、贩卖假货、违规低价等..."
+                       placeholder="请简要描述您的维权申诉内容，我们将进行后台核查..."
                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all h-32 resize-none"
                     />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉事渠道/店铺</label>
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌违规渠道/商铺</label>
                        <input 
                           type="text" placeholder="如: 天猫 XXX 旗舰店"
                           className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all"
@@ -318,9 +328,8 @@ export default function VerificationPage() {
                  </div>
                  <button className="w-full bg-[#2C2A29] text-white h-12 rounded-2xl hover:bg-[#1A1918] active:scale-[0.98] transition-all shadow-lg shadow-[#2C2A29]/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase">
                     <ShieldAlert className="w-4.5 h-4.5 opacity-80" />
-                    提交举报核查
+                    提交核查请求
                  </button>
-                 <p className="text-center text-[10px] text-slate-300 tracking-tight">我们的法务部门将在 3-5 个工作日内核实并采取行动。感谢您的协助。</p>
               </div>
             </motion.div>
           </div>
@@ -334,14 +343,15 @@ export default function VerificationPage() {
          </p>
          <div className="flex gap-12 text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">
             <span onClick={() => setShowReportModal(true)} className="text-red-500/60 hover:text-red-600 cursor-pointer transition-colors flex items-center gap-2">
-               <Megaphone className="w-3.5 h-3.5" /> 打假投诉
+               <Megaphone className="w-3.5 h-3.5" /> 官方维权申诉
             </span>
             <span onClick={() => setShowLoginModal(true)} className="cursor-pointer hover:text-slate-900 transition-colors">统一登陆</span>
-            <span className="hover:text-slate-900 cursor-pointer transition-colors">服务协议</span>
-            <span className="hover:text-slate-900 cursor-pointer transition-colors">隐私声明</span>
+            <span onClick={() => setShowLegalModal({ isOpen: true, type: "service" })} className="hover:text-slate-900 cursor-pointer transition-colors">服务协议</span>
+            <span onClick={() => setShowLegalModal({ isOpen: true, type: "privacy" })} className="hover:text-slate-900 cursor-pointer transition-colors">隐私声明</span>
          </div>
       </footer>
       <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      <LegalModal isOpen={showLegalModal.isOpen} type={showLegalModal.type} onClose={() => setShowLegalModal({ ...showLegalModal, isOpen: false })} />
     </main>
   );
 }
