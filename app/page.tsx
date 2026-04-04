@@ -4,12 +4,12 @@ import { useState } from "react";
 import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import LoginModal from "@/components/LoginModal";
+import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
 
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<CertificateVerifyResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -17,43 +17,39 @@ export default function VerificationPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query) return;
+    
+    // 1. 防护机制：防止重复提交 (Double-click prevention / basic debounce)
+    if (isSearching) return; 
+
+    // 2. 清洗数据
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
+
+    // 3. 客户端正则和长度过滤，直接拦截恶意或明显错误的输入，节约服务器资源
+    if (cleanQuery.length < 5 || cleanQuery.length > 50) {
+      setError("无效的证书编号格式（长度错误）。");
+      setResult(null);
+      return;
+    }
+
+    const validPattern = /^[A-Za-z0-9-]+$/;
+    if (!validPattern.test(cleanQuery)) {
+      setError("证书编号格式不正确（仅限字母、数字和连字符）。");
+      setResult(null);
+      return;
+    }
+
     setIsSearching(true);
     setResult(null);
     setError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('certificates')
-        .select(`
-          cert_number,
-          start_date,
-          end_date,
-          auth_scope,
-          status,
-          dealers (
-            company_name
-          )
-        `)
-        .eq('cert_number', query.toUpperCase())
-        .eq('status', 'ISSUED')
-        .single();
-      
-      if (error || !data) {
-        setError("未查询到相关授权信息。");
+      // 传入清洗后的 query 数据
+      const res = await verifyCertificateAction(cleanQuery);
+      if (res.success && res.data) {
+        setResult(res.data);
       } else {
-        // --- 逻辑加固：判定是否过期 ---
-        if (new Date() > new Date(data.end_date + 'T23:59:59')) {
-          setError("查询到该授权编号，但该证书已于 " + data.end_date + " 过期失效。");
-        } else {
-          setResult({
-            id: data.cert_number,
-            dealerName: Array.isArray(data.dealers) ? (data.dealers[0] as any)?.company_name : (data.dealers as any)?.company_name,
-            duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
-            scope: data.auth_scope,
-            status: data.status,
-          });
-        }
+        setError(res.error || "未查询到相关授权信息。");
       }
     } catch (err) {
       console.error(err);
@@ -175,7 +171,7 @@ export default function VerificationPage() {
                       </button>
                   </div>
                 </div>
-              ) : (
+              ) : result ? (
                 <div className="flex flex-col md:flex-row justify-between items-start gap-12">
                   <div className="flex-1 space-y-12">
                     <div className="flex items-center gap-3 text-[#c2410c] font-bold text-[10px] uppercase tracking-widest bg-orange-50/60 px-5 py-2 rounded-full border border-orange-200/50 w-fit">
@@ -212,7 +208,7 @@ export default function VerificationPage() {
                      <p className="text-[9px] font-extrabold text-slate-200 uppercase tracking-[0.4em] text-center leading-relaxed">SECURED BY<br />NIHPLOD GENOME</p>
                   </div>
                 </div>
-              )}
+              ) : null}
             </motion.div>
           </div>
         )}
