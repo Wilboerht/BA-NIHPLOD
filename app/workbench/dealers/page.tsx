@@ -160,8 +160,8 @@ export default function DealersPage() {
         </motion.div>
       </div>
 
-      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="px-0 py-6 flex justify-between items-center bg-white shadow-sm ring-1 ring-black/[0.02]">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
+        <div className="px-0 py-6 flex justify-between items-center bg-transparent border-b border-slate-100/50">
           <div className="relative w-full max-w-sm ml-2">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input
@@ -169,7 +169,7 @@ export default function DealersPage() {
               placeholder="搜索经销商名称、登录账号..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
+              className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
             />
           </div>
         </div>

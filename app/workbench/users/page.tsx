@@ -199,16 +199,16 @@ export default function AdminsManagementPage() {
       </div>
 
       {/* 用户列表 */}
-      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-          <div className="relative w-full max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
+        <div className="px-0 py-6 flex justify-between items-center bg-transparent border-b border-slate-100/50">
+          <div className="relative w-full max-w-sm ml-2">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="搜索管理员姓名或账户名称..."
+              placeholder="搜索姓名、邮箱或账号..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-4 py-2 text-[13px] outline-none focus:border-primary transition-colors focus:ring-2 focus:ring-primary/5"
+              className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
             />
           </div>
         </div>
