@@ -60,20 +60,31 @@ export default function VerificationPage() {
   };
 
   return (
-    <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-slate-200 overflow-hidden"
-          style={{ background: "radial-gradient(circle at center, #fffdfa 0%, #f7efe6 100%)" }}>
+    <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
+          style={{ background: "#FAFAFA" }}>
       
-      {/* 装饰渐变 */}
-      <div className="absolute inset-0 pointer-events-none opacity-20" 
-           style={{ background: "radial-gradient(circle at 50% 35%, rgba(194, 65, 12, 0.05) 0%, transparent 75%)" }} />
+      {/* 装饰渐变 & 矿物纹理叠加 */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} />
+      <div className="absolute inset-0 pointer-events-none opacity-40" 
+           style={{ background: "radial-gradient(circle at 50% -20%, rgba(139, 115, 85, 0.12) 0%, transparent 70%)" }} />
 
       {/* 顶部导航 */}
       <nav className="w-full max-w-7xl px-12 py-10 flex justify-between items-center z-20 shrink-0">
          <div className="flex items-center gap-5 transition-all hover:opacity-80">
             <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-8 w-auto" />
             <div className="w-px h-5 bg-slate-300/60 mx-0.5" />
-            <span className="text-[17px] font-extrabold tracking-tight text-slate-700 leading-none">授权验证系统</span>
+            <span className="text-[17px] font-medium tracking-[0.2em] uppercase text-[#2C2A29] leading-none">授权核验中心</span>
          </div>
+         
+         <Link 
+            href="https://nihplod.cn"
+            target="_blank"
+            className="flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] uppercase text-[#8B7355] hover:text-[#2C2A29] transition-colors"
+         >
+            <Globe className="w-4 h-4" />
+            返回品牌官网
+         </Link>
       </nav>
 
       {/* 核心内容区 */}
@@ -84,11 +95,11 @@ export default function VerificationPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center space-y-6 mb-12"
           >
-            <div className="space-y-4">
-              <h1 className="text-4xl md:text-[42px] font-extrabold tracking-[-0.02em] text-slate-800 leading-none">
+            <div className="space-y-6">
+              <h1 className="text-4xl md:text-[44px] tracking-[0.05em] text-[#2C2A29] leading-tight">
                 NIHPLOD 品牌授权核验中心
               </h1>
-              <p className="text-slate-400 text-sm md:text-base max-w-lg mx-auto leading-[1.8] font-medium opacity-80">
+              <p className="text-[#8B7355] text-sm md:text-base max-w-lg mx-auto leading-loose opacity-90 tracking-[0.02em]">
                 请输入授权证书编号，以验证经销商经营资质。
               </p>
             </div>
@@ -109,14 +120,14 @@ export default function VerificationPage() {
                 <input 
                   type="text" 
                   placeholder="输入证书编号 ( 示例: BAVP-2024-001 )" 
-                  className="w-full bg-transparent border-none outline-none pl-15 pr-6 py-4 text-slate-900 text-[15px] font-bold placeholder:text-slate-300 placeholder:font-normal focus:ring-0 transition-all font-sans"
+                  className="w-full bg-transparent border-none outline-none pl-15 pr-6 py-4 text-[#2C2A29] text-[15px] placeholder:text-[#8B7355]/50 focus:ring-0 transition-all font-sans tracking-wide"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
               <button 
                 disabled={isSearching}
-                className="bg-[#c2410c] text-white font-extrabold h-11 px-9 rounded-[14px] hover:bg-[#a1360a] active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-2.5 shadow-xl shadow-orange-900/10 text-sm tracking-wide"
+                className="bg-[#2C2A29] text-white h-11 px-9 rounded-[14px] hover:bg-[#1A1918] active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-2.5 shadow-lg shadow-[#2C2A29]/10 text-sm tracking-[0.1em]"
               >
                 {isSearching ? <RefreshCw className="w-4 h-4 animate-spin mx-3" /> : (
                   <>
@@ -144,7 +155,7 @@ export default function VerificationPage() {
               initial={{ opacity: 0, scale: 0.96, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
-              className="relative w-full max-w-2xl bg-white border border-white/80 rounded-[36px] shadow-[0_60px_120px_-20px_rgba(0,0,0,0.15)] p-12 md:p-16 overflow-hidden"
+              className="relative w-full max-w-2xl bg-white/90 backdrop-blur-3xl border border-white/60 rounded-[36px] shadow-[0_40px_80px_-20px_rgba(44,42,41,0.08)] p-12 md:p-16 overflow-hidden"
             >
               <button 
                  onClick={() => { setResult(null); setError(null); }}
@@ -155,17 +166,17 @@ export default function VerificationPage() {
 
               {error ? (
                 <div className="flex flex-col items-center text-center py-10 gap-8">
-                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+                  <div className="flex bg-[#8B7355]/5 border border-[#8B7355]/20 rounded-full items-center justify-center text-[#8B7355] h-16 w-16 mb-6 mx-auto">
                     <ShieldAlert className="w-8 h-8" />
                   </div>
-                  <div className="space-y-4">
-                     <div className="space-y-2">
-                        <p className="text-2xl font-extrabold text-slate-800">查无此授权编号</p>
-                        <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">请核查您的编号。若该经销商坚称获得官方授权，请向我们举报反馈。</p>
+                  <div className="space-y-4 text-center">
+                     <div className="space-y-3">
+                        <p className="text-2xl text-[#2C2A29] tracking-widest">查无此授权信息</p>
+                        <p className="text-sm text-[#8B7355]/70 leading-relaxed max-w-xs mx-auto">请核查您的编号。若该经销商坚称获得官方授权，请向我们举报反馈。</p>
                      </div>
                      <button 
                         onClick={() => { setError(null); setShowReportModal(true); }}
-                        className="bg-red-50 text-red-600 px-8 py-3 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2 mx-auto"
+                        className="bg-[#2C2A29]/5 text-[#2C2A29] border border-[#2C2A29]/10 px-8 py-3 rounded-xl text-sm hover:bg-[#2C2A29]/10 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-8"
                       >
                         <AlertTriangle className="w-4 h-4" /> 举报涉嫌侵权经销商
                       </button>
@@ -174,38 +185,38 @@ export default function VerificationPage() {
               ) : result ? (
                 <div className="flex flex-col md:flex-row justify-between items-start gap-12">
                   <div className="flex-1 space-y-12">
-                    <div className="flex items-center gap-3 text-[#c2410c] font-bold text-[10px] uppercase tracking-widest bg-orange-50/60 px-5 py-2 rounded-full border border-orange-200/50 w-fit">
+                    <div className="flex items-center gap-3 text-[#8B7355] text-[10px] uppercase tracking-[0.2em] bg-[#8B7355]/10 px-5 py-2 rounded-full border border-[#8B7355]/20 w-fit">
                        <CheckCircle2 className="w-4 h-4" /> Official Certified
                     </div>
                     
                     <div className="space-y-3">
-                       <h2 className="text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight leading-tight">{result.dealerName}</h2>
-                       <p className="text-slate-300 text-xs font-bold font-mono tracking-[0.3em] uppercase opacity-60">SN: {result.id}</p>
+                       <h2 className="text-3xl md:text-4xl text-[#2C2A29] tracking-[0.05em] leading-tight">{result.dealerName}</h2>
+                       <p className="text-[#8B7355]/70 text-xs font-mono tracking-[0.3em] uppercase">SN: {result.id}</p>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-16 pt-12 border-t border-slate-100">
+                    <div className="grid grid-cols-2 gap-16 pt-12 border-t border-[#8B7355]/10">
                        <div className="space-y-2">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">截止日期</span>
-                          <p className="text-xl font-bold text-slate-700 tracking-tight italic">{result.duration}</p>
+                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none">截止日期</span>
+                          <p className="text-lg text-[#2C2A29] tracking-widest">{result.duration}</p>
                        </div>
                        <div className="space-y-2">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">授权区域</span>
-                          <p className="text-xl font-bold text-slate-700 tracking-tight">{result.scope}</p>
+                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none">授权区域</span>
+                          <p className="text-lg text-[#2C2A29] tracking-widest">{result.scope}</p>
                        </div>
                     </div>
 
                     <div className="pt-10 flex flex-wrap gap-5">
-                      <button className="bg-slate-900 text-white font-bold h-13 px-10 rounded-2xl text-xs flex items-center gap-3 hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/10 active:scale-95">
-                        <Download className="w-5 h-5 opacity-60" /> 保存防伪证书
+                      <button className="bg-[#2C2A29] text-white h-12 px-10 rounded-2xl text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-[#1A1918] transition-all shadow-xl shadow-[#2C2A29]/10 active:scale-95">
+                        <Download className="w-4 h-4 opacity-70" /> 保存防伪证书
                       </button>
                     </div>
                   </div>
 
-                  <div className="hidden md:flex flex-col items-center gap-10 p-14 bg-slate-50/40 rounded-[48px] border border-white/40 self-stretch justify-center">
-                     <div className="w-28 h-28 bg-white/80 border border-white/90 rounded-3xl shadow-sm flex items-center justify-center p-6 grayscale opacity-20">
+                  <div className="hidden md:flex flex-col items-center gap-10 p-14 bg-[#FAFAFA]/50 rounded-[48px] border border-white/60 self-stretch justify-center">
+                     <div className="w-28 h-28 bg-white/80 border border-white/90 rounded-3xl shadow-sm flex items-center justify-center p-6 grayscale opacity-40">
                         <img src="/NIHPLOD-logo.svg" alt="LOGO" className="w-full h-auto" />
                      </div>
-                     <p className="text-[9px] font-extrabold text-slate-200 uppercase tracking-[0.4em] text-center leading-relaxed">SECURED BY<br />NIHPLOD GENOME</p>
+                     <p className="text-[9px] text-[#8B7355]/50 uppercase tracking-[0.4em] text-center leading-loose">SECURED BY<br />NIHPLOD GENOME</p>
                   </div>
                 </div>
               ) : null}
@@ -262,7 +273,7 @@ export default function VerificationPage() {
                        </div>
                     </div>
                  </div>
-                 <button className="w-full bg-[#0f253e] text-white font-extrabold h-12 rounded-2xl hover:bg-slate-800 active:scale-[0.98] transition-all shadow-xl shadow-blue-900/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase">
+                 <button className="w-full bg-[#2C2A29] text-white h-12 rounded-2xl hover:bg-[#1A1918] active:scale-[0.98] transition-all shadow-lg shadow-[#2C2A29]/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase">
                     <ShieldAlert className="w-4.5 h-4.5 opacity-80" />
                     提交举报核查
                  </button>
