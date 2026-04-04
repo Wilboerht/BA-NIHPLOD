@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, Building2, Ticket, QrCode } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
 import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
 
-type SearchMode = 'sn' | 'company';
-
 export default function VerificationPage() {
-  const [searchMode, setSearchMode] = useState<SearchMode>('sn');
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<CertificateVerifyResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -28,24 +25,16 @@ export default function VerificationPage() {
     const cleanQuery = query.trim();
     if (!cleanQuery) return;
 
-    if (searchMode === 'sn') {
-      if (cleanQuery.length < 5 || cleanQuery.length > 50) {
-        setError("无效的证书编号格式（长度错误）。");
-        setResult(null);
-        return;
-      }
-      const validPattern = /^[A-Za-z0-9-]+$/;
-      if (!validPattern.test(cleanQuery)) {
-        setError("证书编号格式不正确（仅限字母、数字和连字符）。");
-        setResult(null);
-        return;
-      }
-    } else if (searchMode === 'company') {
-      if (cleanQuery.length < 2 || cleanQuery.length > 50) {
-        setError("无效的公司名称。");
-        setResult(null);
-        return;
-      }
+    if (cleanQuery.length < 2) {
+      setError("输入内容过短。");
+      setResult(null);
+      return;
+    }
+    
+    if (cleanQuery.length > 50) {
+      setError("输入内容过长。");
+      setResult(null);
+      return;
     }
 
     setIsSearching(true);
@@ -53,8 +42,8 @@ export default function VerificationPage() {
     setError(null);
     
     try {
-      // 传入清洗后的 query 数据与搜索模式
-      const res = await verifyCertificateAction(cleanQuery, searchMode);
+      // 传入清洗后的 query 数据
+      const res = await verifyCertificateAction(cleanQuery);
       if (res.success && res.data) {
         setResult(res.data);
       } else {
@@ -76,20 +65,48 @@ export default function VerificationPage() {
       <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0" 
            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} />
       
-      {/* 动态光晕 (Hardware Accelerated Breathing Glow) */}
+      {/* 动态流体全屏流转 (Sophisticated Balanced Full-screen Glows) */}
+      {/* 1. 琥珀色 - 主色调 (Amber - Primary Flow) */}
       <motion.div 
-           className="absolute top-[35%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] md:w-[600px] md:h-[600px] rounded-full pointer-events-none blur-[80px] md:blur-[120px] z-0" 
-           style={{ background: "#8B7355" }}
+           className="absolute w-[600px] h-[600px] md:w-[1000px] md:h-[1000px] rounded-full pointer-events-none blur-[120px] md:blur-[160px] z-0" 
+           style={{ background: "radial-gradient(circle, #8B7355 0%, #8B7355 8%, transparent 65%)" }}
            animate={{
-              scale: [0.8, 1.2, 0.8],
-              opacity: [0.05, 0.18, 0.05],
-              y: [0, 40, 0],
+              x: ['-10vw', '60vw', '10vw', '85vw', '-10vw'],
+              y: ['-10vh', '40vh', '85vh', '15vh', '-10vh'],
+              scale: [1, 1.25, 0.85, 1.15, 1],
+              opacity: [0.1, 0.22, 0.15, 0.25, 0.1],
+              scaleX: [1, 1.4, 0.7, 1.2, 1],
+              scaleY: [1, 0.6, 1.3, 0.8, 1],
            }}
-           transition={{
-              duration: 7,
-              repeat: Infinity,
-              ease: "easeInOut"
+           transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+      />
+      {/* 2. 暖亚麻 - 逆向漂移 (Warm Linen - Inverse Flow) */}
+      <motion.div 
+           className="absolute w-[500px] h-[500px] md:w-[900px] md:h-[900px] rounded-full pointer-events-none blur-[110px] md:blur-[150px] z-0" 
+           style={{ background: "radial-gradient(circle, #E5DED4 0%, #D4BC9B 10%, transparent 68%)" }}
+           animate={{
+              x: ['85vw', '15vw', '75vw', '-10vw', '85vw'],
+              y: ['10vh', '80vh', '20vh', '65vh', '10vh'],
+              scale: [0.9, 1.15, 1.05, 0.8, 0.9],
+              opacity: [0.12, 0.28, 0.2, 0.32, 0.12],
+              scaleX: [1.1, 0.8, 1.3, 0.9, 1.1],
+              scaleY: [0.8, 1.2, 0.75, 1.15, 0.8],
            }}
+           transition={{ duration: 65, repeat: Infinity, ease: "linear" }}
+      />
+      {/* 3. 香槟金 - 交叉扰动 (Champagne Gold - Cross-current Flow) */}
+      <motion.div 
+           className="absolute w-[400px] h-[400px] md:w-[800px] md:h-[800px] rounded-full pointer-events-none blur-[80px] md:blur-[130px] z-0" 
+           style={{ background: "radial-gradient(circle, #F7E7CE 0%, #F1E5AC 12%, transparent 65%)" }}
+           animate={{
+              x: ['20vw', '85vw', '-15vw', '50vw', '20vw'],
+              y: ['85vh', '5vh', '45vh', '-10vh', '85vh'],
+              scale: [0.85, 1.25, 0.9, 1.2, 0.85],
+              opacity: [0.15, 0.3, 0.2, 0.35, 0.15],
+              scaleX: [1.2, 0.85, 1.1, 0.75, 1.2],
+              scaleY: [0.75, 1.2, 0.9, 1.25, 0.75],
+           }}
+           transition={{ duration: 42, repeat: Infinity, ease: "linear" }}
       />
 
       {/* 顶部导航 */}
@@ -123,29 +140,11 @@ export default function VerificationPage() {
                 NIHPLOD 品牌授权核验中心
               </h1>
               <p className="text-[#8B7355] text-sm md:text-base max-w-lg mx-auto leading-loose opacity-90 tracking-[0.02em]">
-                请输入授权证书编号，以验证经销商经营资质。
+                请输入授权证书编号或经销主体主体名称，验证经营资质。
               </p>
             </div>
           </motion.div>
 
-          {/* 搜索模式切换 */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="flex bg-white/40 backdrop-blur-md p-1.5 rounded-2xl mb-8 w-fit mx-auto border border-black/5 shadow-sm"
-          >
-            <button 
-              type="button" onClick={() => { setSearchMode('sn'); setQuery(''); setError(null); }} 
-              className={`px-6 py-2.5 rounded-xl text-xs font-bold tracking-[0.1em] transition-all flex items-center gap-2 ${searchMode === 'sn' ? 'bg-white shadow-sm text-[#2C2A29]' : 'text-[#8B7355]/70 hover:text-[#2C2A29]'}`}
-            >
-              <Ticket className="w-4 h-4" /> 证书编号
-            </button>
-            <button 
-              type="button" onClick={() => { setSearchMode('company'); setQuery(''); setError(null); }} 
-              className={`px-6 py-2.5 rounded-xl text-xs font-bold tracking-[0.1em] transition-all flex items-center gap-2 ${searchMode === 'company' ? 'bg-white shadow-sm text-[#2C2A29]' : 'text-[#8B7355]/70 hover:text-[#2C2A29]'}`}
-            >
-              <Building2 className="w-4 h-4" /> 经销主体
-            </button>
-          </motion.div>
 
           {/* 搜索框区 */}
           <motion.div 
@@ -160,7 +159,7 @@ export default function VerificationPage() {
                 <Search className="absolute left-6 w-4.5 h-4.5 text-slate-400 group-focus-within:text-slate-500 transition-colors" />
                 <input 
                   type="text" 
-                  placeholder={searchMode === 'sn' ? "输入证书编号 ( 示例: BAVP-2024-001 )" : "输入经销商企业全称或简称"} 
+                  placeholder="输入证书编号 (SN) 或 经销商企业名称" 
                   className="w-full bg-transparent border-none outline-none pl-15 pr-6 py-4 text-[#2C2A29] text-[15px] placeholder:text-[#8B7355]/50 focus:ring-0 transition-all font-sans tracking-wide"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -211,9 +210,12 @@ export default function VerificationPage() {
                     <ShieldAlert className="w-8 h-8" />
                   </div>
                   <div className="space-y-4 text-center">
-                     <div className="space-y-3">
-                        <p className="text-2xl text-[#2C2A29] tracking-widest">查无此授权信息</p>
-                        <p className="text-sm text-[#8B7355]/70 leading-relaxed max-w-xs mx-auto">请核查您的编号。若该经销商坚称获得官方授权，请向我们举报反馈。</p>
+                     <div className="space-y-5">
+                        <p className="text-[22px] text-[#2C2A29] tracking-wide leading-snug px-4">{error}</p>
+                        <p className="text-[13px] md:text-sm text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-4">
+                          请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
+                          为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
+                        </p>
                      </div>
                      <button 
                         onClick={() => { setError(null); setShowReportModal(true); }}

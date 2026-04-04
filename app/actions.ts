@@ -1,6 +1,13 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { createClient } from '@supabase/supabase-js';
+
+// Create a service-role client strictly for server actions to bypass RLS
+// ensuring we can retrieve revoked/expired certificates for granular error reporting.
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export interface CertificateVerifyResult {
   id: string;
@@ -16,19 +23,20 @@ export interface VerifyActionResponse {
   error?: string;
 }
 
-export async function verifyCertificateAction(query: string, searchMode: 'sn' | 'company' = 'sn'): Promise<VerifyActionResponse> {
-  const cleanQuery = query?.trim(); // preserve case for company names
+export async function verifyCertificateAction(query: string): Promise<VerifyActionResponse> {
+  const cleanQuery = query?.trim();
   
   if (!cleanQuery) {
-    return { success: false, error: "请输入查询内容。" };
+    return { success: false, error: "请输入需要核验的证书编号或主体名称。" };
   }
 
   if (cleanQuery.length > 50) {
-    return { success: false, error: "输入内容过长，请精简。" };
+    return { success: false, error: "输入内容过长，请检查后重试。" };
   }
 
   try {
-    let queryBuilder = supabase
+    // 1. First, attempt to match the certificate number exactly (it's the most common and precise lookup)
+    const { data: certMatch, error: certError } = await supabaseAdmin
       .from('certificates')
       .select(`
         cert_number,
@@ -36,30 +44,61 @@ export async function verifyCertificateAction(query: string, searchMode: 'sn' | 
         end_date,
         auth_scope,
         status,
-        dealers!inner (
-          company_name
-        )
+        dealers ( company_name )
       `)
-      .eq('status', 'ISSUED');
+      .eq('cert_number', cleanQuery.toUpperCase())
+      .limit(1)
+      .maybeSingle();
 
-    if (searchMode === 'sn') {
-      queryBuilder = queryBuilder.eq('cert_number', cleanQuery.toUpperCase());
-    } else if (searchMode === 'company') {
-      queryBuilder = queryBuilder.like('dealers.company_name', `%${cleanQuery}%`);
+    let data = certMatch;
+
+    // 2. If no exact certificate match, attempt to search by company name (fuzzy match)
+    if (!data) {
+      const { data: companyMatch, error: companyError } = await supabaseAdmin
+        .from('certificates')
+        .select(`
+          cert_number,
+          start_date,
+          end_date,
+          auth_scope,
+          status,
+          dealers!inner ( company_name )
+        `)
+        .ilike('dealers.company_name', `%${cleanQuery}%`)
+        .order('end_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      data = companyMatch;
     }
-
-    const { data: results, error } = await queryBuilder.order('end_date', { ascending: false }).limit(1);
-    const data = results?.[0]; // take the most recent valid one if multiple exist
     
-    if (error || !data) {
-      return { success: false, error: "未查询到相关授权信息。" };
+    if (!data) {
+      return { success: false, error: "未检索到相关的官方授权记录" };
     }
 
-    // --- 逻辑加固：判定是否过期 ---
-    if (new Date() > new Date(data.end_date + 'T23:59:59')) {
+    // --- 异常风控拦截：提供极其细颗粒度的警报 ---
+    const rawStatus = data.status?.toUpperCase() || '';
+    
+    if (rawStatus === 'REVOKED' || rawStatus === '已撤销') {
       return { 
         success: false, 
-        error: `查询到该授权编号，但该证书已于 ${data.end_date} 过期失效。` 
+        error: "该主体的商业授权已被品牌官方撤销终止" 
+      };
+    }
+
+    const isExpired = rawStatus === 'EXPIRED' || rawStatus === '已失效' || new Date() > new Date((data.end_date || '') + 'T23:59:59');
+    if (isExpired) {
+      return { 
+        success: false, 
+        error: `曾有授权，但该证书已于 ${data.end_date} 过期失效` 
+      };
+    }
+
+    // 如果状态为非正常或非过期/撤销（可能有的其他异常，兜底拦截）
+    if (rawStatus !== 'ISSUED' && rawStatus !== '已生效' && rawStatus !== 'ISSUING') {
+      return {
+        success: false,
+        error: "该授权状态异常，请核查资质"
       };
     }
     

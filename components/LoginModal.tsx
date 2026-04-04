@@ -77,9 +77,8 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
             </div>
 
             <div className="p-10 pt-12 text-center pb-8 border-b border-slate-50">
-              <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-6 mx-auto mb-6 opacity-80" />
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">管理登入口</h2>
-              <p className="text-slate-400 text-xs mt-2 font-medium">Please sign in to continue</p>
+              <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-9 mx-auto mb-5" />
+              <h2 className="text-[22px] font-black text-slate-900 tracking-tight">管理登入口</h2>
             </div>
 
             <form onSubmit={handleLogin} className="p-8 pt-6 flex flex-col gap-5">
