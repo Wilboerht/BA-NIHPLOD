@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import styles from "./Sidebar.module.css";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Settings } from "lucide-react";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog } from "lucide-react";
 
 export default function Sidebar({
   isCollapsed,
@@ -98,7 +98,7 @@ export default function Sidebar({
           </Link>
           {(userRole === 'SUPER_ADMIN' || userRole === 'AUDITOR') && (
             <Link href="/workbench/dealers" className={`${styles.menuLink} ${pathname === "/workbench/dealers" ? styles.active : ""}`}>
-              <span className={styles.icon}><ShieldCheck size={17} /></span>
+              <span className={styles.icon}><Building2 size={17} /></span>
               {!isCollapsed && "经销商管理"}
             </Link>
           )}
@@ -108,7 +108,7 @@ export default function Sidebar({
           <div className={styles.group}>
             {!isCollapsed && <div className={styles.groupLabel}>权限与系统管理</div>}
             <Link href="/workbench/users" className={`${styles.menuLink} ${pathname === "/workbench/users" ? styles.active : ""}`}>
-              <span className={styles.icon}><Settings size={17} /></span>
+              <span className={styles.icon}><UserCog size={17} /></span>
               {!isCollapsed && "管理员管理"}
             </Link>
           </div>

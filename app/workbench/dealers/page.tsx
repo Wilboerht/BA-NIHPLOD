@@ -153,8 +153,8 @@ export default function DealersPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-            <Building2 className="w-7 h-7 text-primary" />
-            经销商账户管理
+            <Building2 className="w-7 h-7 text-slate-900" />
+            经销商管理
           </h1>
           <p className="text-slate-500 text-[13px]">查看并管理所有已授权经销商的系统登录权限、资料完整度及证书活跃状态。</p>
         </motion.div>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import {
-  Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
+  Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
   ShieldOff, XCircle, AlertCircle, ChevronRight, User, Calendar,
   Loader2
 } from "lucide-react";
@@ -152,7 +152,10 @@ export default function WorkbenchPage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">工作台首页</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+          <Home className="w-7 h-7 text-slate-900" />
+          工作台首页
+        </h1>
         <p className="text-slate-500 text-[13px]">欢迎来到 NIHPLOD 品牌授权核查系统的管理大盘。</p>
       </motion.div>
 
@@ -223,57 +226,53 @@ export default function WorkbenchPage() {
         )}
       </div>
 
-      {/* 待核发审批面板（仅管理员可见） */}
-      <AnimatePresence>
+      {/* 双向待办工作台 (并排对齐且垂直撑满) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch flex-1 min-h-0">
+        {/* 待核发审批面板（仅管理员可见） */}
         {isAdmin && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ delay: 0.15 }}
-            className="notion-card flex flex-col p-0 overflow-hidden"
+            className="notion-card flex flex-col p-0 overflow-hidden h-full flex-1 bg-white border border-slate-100 shadow-sm"
           >
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white">
+            <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
                   <ShieldCheck className="w-4 h-4 text-amber-600" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-800">审核员提交 · 待核发授权</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">以下申请由审核员初审提报，等待您的最终核发批准</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 font-medium tracking-tight">以下申请由审核员初审提报</p>
                 </div>
               </div>
-              {!isLoading && stats.pendingCerts > 0 && (
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full tracking-wider">
-                  {stats.pendingCerts} 项待处理
-                </span>
-              )}
               <Link
                 href="/workbench/certificates"
-                className="ml-4 text-[11px] font-bold text-slate-400 hover:text-slate-700 transition-colors uppercase tracking-widest flex items-center gap-1"
+                className="text-[11px] font-bold text-slate-400 hover:text-slate-700 transition-colors uppercase tracking-widest flex items-center gap-1"
               >
                 全部 <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
 
-            <div className="bg-slate-50/30 p-3 min-h-[120px] relative">
+            <div className="flex-1 bg-slate-50/20 px-2 py-4 relative overflow-auto min-h-0">
               {isLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 pointer-events-none">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
-                  </div>
-                  <span className="text-[12px] font-medium tracking-widest uppercase">同步申请队列...</span>
+                  <Loader2 className="w-6 h-6 animate-spin text-slate-200" />
+                  <span className="text-[11px] font-bold tracking-widest uppercase text-slate-400">同步申请队列...</span>
                 </div>
               ) : pendingCerts.length === 0 ? (
-                <div className="py-10 flex flex-col items-center justify-center gap-2 text-slate-400">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-200" />
-                  <p className="text-[13px] font-semibold text-slate-500">审核队列已清空</p>
-                  <p className="text-xs text-slate-400">目前没有等待核发的授权申请。</p>
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+                    <CheckCircle2 className="w-7 h-7 text-emerald-200" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[13px] font-bold text-slate-600">审核队列已清空</p>
+                    <p className="text-[11px] text-slate-400 mt-1">目前没有等待核发的授权申请。</p>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 pb-4">
                   <AnimatePresence>
                     {pendingCerts.map((cert) => {
                       const scopeParts = cert.auth_scope?.split(' | ') || ['', ''];
@@ -289,61 +288,37 @@ export default function WorkbenchPage() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 8, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
                           transition={{ duration: 0.2 }}
-                          className={`bg-white rounded-xl border transition-all flex items-center gap-4 px-5 py-4 ${isBusy ? 'border-slate-100 opacity-70' : 'border-slate-100 hover:border-amber-100 hover:shadow-sm'}`}
+                          className={`bg-white rounded-xl border transition-all flex flex-col gap-4 p-4 ${isBusy ? 'border-slate-100 opacity-70' : 'border-slate-100 hover:border-amber-100 hover:shadow-sm'}`}
                         >
-                          {/* 序号标 */}
-                          <div className="w-8 h-8 rounded-lg bg-amber-50 flex-shrink-0 flex items-center justify-center">
-                            <span className="text-[11px] font-black text-amber-600 font-mono">{cert.cert_number.slice(-4)}</span>
+                          <div className="flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-lg bg-amber-50 flex-shrink-0 flex items-center justify-center">
+                               <span className="text-[11px] font-black text-amber-600 font-mono">{cert.cert_number.slice(-4)}</span>
+                             </div>
+                             <div className="flex-1 min-w-0">
+                               <p className="text-[13px] font-bold text-slate-900 truncate">{cert.dealers?.company_name || '未知经销商'}</p>
+                               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{platformId}</p>
+                             </div>
                           </div>
 
-                          {/* 主信息 */}
-                          <div className="flex-1 min-w-0 grid grid-cols-3 gap-x-4 items-center">
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-bold text-slate-900 truncate">{cert.dealers?.company_name || '未知经销商'}</p>
-                              <p className="text-[11px] text-slate-400 font-mono mt-0.5 truncate">{platformId}</p>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-slate-400">
-                              <Calendar className="w-3 h-3 flex-shrink-0" />
-                              <span className="text-[11px] tabular-nums">
-                                {cert.start_date.replace(/-/g, '.')} – {cert.end_date.replace(/-/g, '.')}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-slate-400">
-                              <User className="w-3 h-3 flex-shrink-0" />
-                              <span className="text-[11px] truncate">
-                                由 <span className="font-semibold text-slate-600">
-                                  {cert.auditor_profile?.full_name || cert.auditor_profile?.username || '审核员'}
-                                </span> 提报
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* 操作按钮 */}
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <button
-                              onClick={() => handleReject(cert)}
-                              disabled={isBusy}
-                              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                            >
-                              {isRejecting ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <XCircle className="w-3.5 h-3.5" />
-                              )}
-                              退回
-                            </button>
-                            <button
-                              onClick={() => handleApprove(cert)}
-                              disabled={isBusy}
-                              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all px-3.5 py-1.5 rounded-lg shadow-sm shadow-blue-100 disabled:opacity-40 disabled:pointer-events-none"
-                            >
-                              {isApproving ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <ShieldCheck className="w-3.5 h-3.5" />
-                              )}
-                              核发授权
-                            </button>
+                          <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-1">
+                             <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1 text-slate-400">
+                                  <Calendar className="w-3 h-3" />
+                                  <span className="text-[10px] tabular-nums">{cert.start_date.replace(/-/g, '.')} – {cert.end_date.replace(/-/g, '.')}</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-slate-400">
+                                  <User className="w-3 h-3" />
+                                  <span className="text-[10px] truncate max-w-[80px]">{cert.auditor_profile?.full_name || '审核员'}</span>
+                                </div>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
+                                  {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                </button>
+                                <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold hover:bg-black transition-all active:scale-95 shadow-sm">
+                                  {isApproving ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "核发授权"}
+                                </button>
+                             </div>
                           </div>
                         </motion.div>
                       );
@@ -354,52 +329,59 @@ export default function WorkbenchPage() {
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* 最新待处理举报 */}
-      <div className="flex-1 notion-card flex flex-col p-0 overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white">
-          <h3 className="text-sm font-bold text-slate-800">最新待处理举报</h3>
-          <Link href="/workbench/complaints" className="text-[11px] font-bold text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-widest">
-            进入处理中心 →
-          </Link>
-        </div>
-        <div className="flex-1 min-h-0 overflow-auto bg-slate-50/30 p-2 relative">
-          {isLoading ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 pointer-events-none">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
-              </div>
-              <span className="text-[12px] font-medium tracking-widest uppercase">拉取最新业务档案...</span>
+        {/* 最新待处理举报 */}
+        <div className="flex-1 notion-card flex flex-col p-0 overflow-hidden h-full bg-white border border-slate-100 shadow-sm transition-all">
+          <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center">
+                 <Megaphone className="w-4 h-4 text-rose-500" />
+               </div>
+               <div>
+                 <h3 className="text-sm font-bold text-slate-800">最新待处理举报</h3>
+                 <p className="text-[11px] text-slate-400 mt-0.5 font-medium tracking-tight">来自官网访客的侵权反馈</p>
+               </div>
             </div>
-          ) : recentComplaints.length === 0 ? (
-            <div className="p-8 text-center flex flex-col items-center justify-center h-full">
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-3">
-                <Clock className="w-5 h-5" />
+            <Link href="/workbench/complaints" className="text-[11px] font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest flex items-center gap-1">
+              处理中心 <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="flex-1 bg-slate-50/20 px-2 py-4 relative overflow-auto min-h-0">
+            {isLoading ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 pointer-events-none">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-200" />
+                <span className="text-[11px] font-bold tracking-widest uppercase text-slate-400">拉取最新业务档案...</span>
               </div>
-              <p className="text-sm font-semibold text-slate-600">一切井然有序</p>
-              <p className="text-xs text-slate-400 mt-1">目前没有任何积压的待处理工单。</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recentComplaints.map(complaint => (
-                <div key={complaint.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between hover:shadow-sm transition-shadow">
-                  <div>
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{complaint.id.split('-')[0]}</span>
-                      <span className="text-xs font-bold text-slate-900">{complaint.channel}</span>
-                    </div>
-                    <p className="text-[13px] text-slate-500 line-clamp-1">{complaint.description}</p>
-                  </div>
-                  <Link href={`/workbench/complaints?id=${complaint.id}`} className="shrink-0 p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors">
-                    <ExternalLink className="w-4 h-4" />
-                  </Link>
+            ) : recentComplaints.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+                  <Clock className="w-7 h-7 text-blue-200" />
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="text-center">
+                  <p className="text-[13px] font-bold text-slate-600">一切井然有序</p>
+                  <p className="text-[11px] text-slate-400 mt-1">目前没有任何积压的待处理工单。</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 pb-4">
+                {recentComplaints.map(complaint => (
+                  <div key={complaint.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between hover:border-blue-100 hover:shadow-sm transition-all group">
+                    <div className="min-w-0 pr-4">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded uppercase">{complaint.id.split('-')[0]}</span>
+                        <span className="text-xs font-bold text-slate-900">{complaint.channel}</span>
+                      </div>
+                      <p className="text-[12px] text-slate-500 line-clamp-1 font-medium italic">“{complaint.description}”</p>
+                    </div>
+                    <Link href={`/workbench/complaints?id=${complaint.id}`} className="shrink-0 p-2 text-slate-300 group-hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all active:scale-90">
+                      <ExternalLink className="w-4 h-4" />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

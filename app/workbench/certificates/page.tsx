@@ -111,7 +111,7 @@ export default function CertificatesPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
           <h1 className="text-2xl font-black text-slate-900 tracking-[0.05em] flex items-center gap-3">
-             <ShieldCheck className="w-7 h-7 text-slate-800" />
+             <ShieldCheck className="w-7 h-7 text-slate-900" />
              授权核发中心
           </h1>
           <p className="text-slate-500 text-[13px] font-medium tracking-wide">管理与监控品牌官方合作授权书，一键生成防伪溯源大图。</p>

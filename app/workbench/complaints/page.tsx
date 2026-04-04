@@ -76,16 +76,16 @@ export default function ComplaintsPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-             <Megaphone className="w-7 h-7 text-[#eb5757]" />
-             打假投诉审核中台
+             <Megaphone className="w-7 h-7 text-slate-900" />
+             打假投诉审核
           </h1>
           <p className="text-slate-500 text-[13px]">查看并处理来自官网访客提交的侵权与假冒举报工单信息。</p>
         </motion.div>
       </div>
 
-      <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="px-6 py-6 border-b border-slate-50 flex items-center justify-between bg-white shadow-sm ring-1 ring-black/[0.02]">
-          <div className="flex items-center gap-6 text-slate-500 font-semibold text-[13px]">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
+        <div className="px-0 py-6 border-b border-slate-100/50 flex items-center justify-between bg-transparent">
+          <div className="flex items-center gap-6 text-slate-500 font-semibold text-[13px] ml-2">
              <span onClick={() => setActiveTab("ALL")} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
              <span onClick={() => setActiveTab("PENDING")} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
              <span onClick={() => setActiveTab("INVESTIGATING")} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
@@ -97,7 +97,7 @@ export default function ComplaintsPage() {
               placeholder="搜索工单号或涉事店铺..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400 shadow-sm shadow-slate-200/20"
+              className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -116,13 +116,13 @@ export default function ComplaintsPage() {
           <table className="w-full text-left text-[13px] whitespace-nowrap table-auto border-separate border-spacing-0">
             <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">工单号 (ID)</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">涉事店铺/渠道</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">侵权描述</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证据图片</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提交时间</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">状态</th>
-                <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">工单号 (ID)</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">涉事店铺/渠道</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">侵权描述</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证据图片</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提交时间</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">状态</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">

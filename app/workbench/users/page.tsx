@@ -161,8 +161,8 @@ export default function AdminsManagementPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-              <UserCog className="w-7 h-7 text-primary" />
-              管理中心
+              <UserCog className="w-7 h-7 text-slate-900" />
+              管理员管理
             </h1>
             {/* 权限说明气泡 */}
             <div className="group relative">
