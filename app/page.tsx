@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, Building2, Ticket, QrCode } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
 import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
 
+type SearchMode = 'sn' | 'company';
+
 export default function VerificationPage() {
+  const [searchMode, setSearchMode] = useState<SearchMode>('sn');
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<CertificateVerifyResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -25,18 +28,24 @@ export default function VerificationPage() {
     const cleanQuery = query.trim();
     if (!cleanQuery) return;
 
-    // 3. 客户端正则和长度过滤，直接拦截恶意或明显错误的输入，节约服务器资源
-    if (cleanQuery.length < 5 || cleanQuery.length > 50) {
-      setError("无效的证书编号格式（长度错误）。");
-      setResult(null);
-      return;
-    }
-
-    const validPattern = /^[A-Za-z0-9-]+$/;
-    if (!validPattern.test(cleanQuery)) {
-      setError("证书编号格式不正确（仅限字母、数字和连字符）。");
-      setResult(null);
-      return;
+    if (searchMode === 'sn') {
+      if (cleanQuery.length < 5 || cleanQuery.length > 50) {
+        setError("无效的证书编号格式（长度错误）。");
+        setResult(null);
+        return;
+      }
+      const validPattern = /^[A-Za-z0-9-]+$/;
+      if (!validPattern.test(cleanQuery)) {
+        setError("证书编号格式不正确（仅限字母、数字和连字符）。");
+        setResult(null);
+        return;
+      }
+    } else if (searchMode === 'company') {
+      if (cleanQuery.length < 2 || cleanQuery.length > 50) {
+        setError("无效的公司名称。");
+        setResult(null);
+        return;
+      }
     }
 
     setIsSearching(true);
@@ -44,8 +53,8 @@ export default function VerificationPage() {
     setError(null);
     
     try {
-      // 传入清洗后的 query 数据
-      const res = await verifyCertificateAction(cleanQuery);
+      // 传入清洗后的 query 数据与搜索模式
+      const res = await verifyCertificateAction(cleanQuery, searchMode);
       if (res.success && res.data) {
         setResult(res.data);
       } else {
@@ -119,28 +128,46 @@ export default function VerificationPage() {
             </div>
           </motion.div>
 
-          {/* 搜索框 */}
+          {/* 搜索模式切换 */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.995 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="flex bg-white/40 backdrop-blur-md p-1.5 rounded-2xl mb-8 w-fit mx-auto border border-black/5 shadow-sm"
+          >
+            <button 
+              type="button" onClick={() => { setSearchMode('sn'); setQuery(''); setError(null); }} 
+              className={`px-6 py-2.5 rounded-xl text-xs font-bold tracking-[0.1em] transition-all flex items-center gap-2 ${searchMode === 'sn' ? 'bg-white shadow-sm text-[#2C2A29]' : 'text-[#8B7355]/70 hover:text-[#2C2A29]'}`}
+            >
+              <Ticket className="w-4 h-4" /> 证书编号
+            </button>
+            <button 
+              type="button" onClick={() => { setSearchMode('company'); setQuery(''); setError(null); }} 
+              className={`px-6 py-2.5 rounded-xl text-xs font-bold tracking-[0.1em] transition-all flex items-center gap-2 ${searchMode === 'company' ? 'bg-white shadow-sm text-[#2C2A29]' : 'text-[#8B7355]/70 hover:text-[#2C2A29]'}`}
+            >
+              <Building2 className="w-4 h-4" /> 经销主体
+            </button>
+          </motion.div>
+
+          {/* 搜索框区 */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }}
             className="w-full max-w-xl"
           >
             <form 
               onSubmit={handleSearch} 
-              className="group relative flex items-center p-1.5 bg-white/40 backdrop-blur-2xl border border-white/80 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.06)] transition-all duration-700"
+              className="group relative flex items-center p-1.5 bg-white/60 backdrop-blur-2xl border border-white/80 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.06)] transition-all duration-700"
             >
               <div className="flex-1 relative flex items-center">
                 <Search className="absolute left-6 w-4.5 h-4.5 text-slate-400 group-focus-within:text-slate-500 transition-colors" />
                 <input 
                   type="text" 
-                  placeholder="输入证书编号 ( 示例: BAVP-2024-001 )" 
+                  placeholder={searchMode === 'sn' ? "输入证书编号 ( 示例: BAVP-2024-001 )" : "输入经销商企业全称或简称"} 
                   className="w-full bg-transparent border-none outline-none pl-15 pr-6 py-4 text-[#2C2A29] text-[15px] placeholder:text-[#8B7355]/50 focus:ring-0 transition-all font-sans tracking-wide"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
               <button 
-                disabled={isSearching}
+                disabled={isSearching || !query.trim()}
                 className="bg-[#2C2A29] text-white h-11 px-9 rounded-[14px] hover:bg-[#1A1918] active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-2.5 shadow-lg shadow-[#2C2A29]/10 text-sm tracking-[0.1em]"
               >
                 {isSearching ? <RefreshCw className="w-4 h-4 animate-spin mx-3" /> : (

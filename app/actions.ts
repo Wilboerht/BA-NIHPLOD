@@ -16,20 +16,19 @@ export interface VerifyActionResponse {
   error?: string;
 }
 
-export async function verifyCertificateAction(query: string): Promise<VerifyActionResponse> {
-  const cleanQuery = query?.trim().toUpperCase();
+export async function verifyCertificateAction(query: string, searchMode: 'sn' | 'company' = 'sn'): Promise<VerifyActionResponse> {
+  const cleanQuery = query?.trim(); // preserve case for company names
   
   if (!cleanQuery) {
-    return { success: false, error: "请输入证书编号。" };
+    return { success: false, error: "请输入查询内容。" };
   }
 
-  // 初步校验拦截防御 (防御无效/恶意长字符串)
   if (cleanQuery.length > 50) {
-    return { success: false, error: "证书编号格式不正确。" };
+    return { success: false, error: "输入内容过长，请精简。" };
   }
 
   try {
-    const { data, error } = await supabase
+    let queryBuilder = supabase
       .from('certificates')
       .select(`
         cert_number,
@@ -37,13 +36,20 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         end_date,
         auth_scope,
         status,
-        dealers (
+        dealers!inner (
           company_name
         )
       `)
-      .eq('cert_number', cleanQuery)
-      .eq('status', 'ISSUED')
-      .single();
+      .eq('status', 'ISSUED');
+
+    if (searchMode === 'sn') {
+      queryBuilder = queryBuilder.eq('cert_number', cleanQuery.toUpperCase());
+    } else if (searchMode === 'company') {
+      queryBuilder = queryBuilder.like('dealers.company_name', `%${cleanQuery}%`);
+    }
+
+    const { data: results, error } = await queryBuilder.order('end_date', { ascending: false }).limit(1);
+    const data = results?.[0]; // take the most recent valid one if multiple exist
     
     if (error || !data) {
       return { success: false, error: "未查询到相关授权信息。" };
