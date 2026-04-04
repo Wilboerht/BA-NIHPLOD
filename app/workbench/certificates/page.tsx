@@ -133,15 +133,15 @@ export default function CertificatesPage() {
       </div>
 
       <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0 border-slate-100 bg-white">
-        <div className="px-0 py-4 border-b border-slate-50 flex justify-between items-center bg-white">
+        <div className="px-0 py-6 flex justify-between items-center bg-white shadow-sm ring-1 ring-black/[0.02]">
           <div className="relative w-full max-w-sm ml-2">
-            <Search className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="搜索证书编号或经销商名称..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-200"
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -168,14 +168,14 @@ export default function CertificatesPage() {
                 <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
+            <tbody className="text-slate-700 font-medium">
               {!isLoading && filteredCerts.map((cert) => (
-                  <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-5 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
-                    <td className="px-6 py-5">
+                  <tr key={cert.id} className="hover:bg-slate-50/60 transition-all group duration-200">
+                    <td className="px-6 py-6 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
+                    <td className="px-6 py-6">
                        <span className="font-bold text-slate-900 text-[13px] tracking-tight">{cert.dealers?.company_name || "-"}</span>
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-6 py-6">
                       {cert.dealers?.phone ? (
                         <a href={`tel:${cert.dealers.phone}`} className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors font-mono tabular-nums text-[12px]">
                           <Phone className="w-3 h-3 opacity-50" /> {cert.dealers.phone}
@@ -184,10 +184,10 @@ export default function CertificatesPage() {
                         <span className="text-slate-200 text-xs">未录入</span>
                       )}
                     </td>
-                    <td className="px-6 py-5 text-[11px] text-slate-400 font-medium tabular-nums px-x uppercase tracking-wide">
+                    <td className="px-6 py-6 text-[11px] text-slate-400 font-medium tabular-nums px-x uppercase tracking-wide">
                       {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-5 text-center">
+                    <td className="px-6 py-6 text-center">
                       {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase border border-emerald-100">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
@@ -257,9 +257,9 @@ export default function CertificatesPage() {
                               setIsViewOnly(true);
                               setShowIssueModal(true);
                             }}
-                            className="text-slate-400 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none"
+                            className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none shadow-sm shadow-slate-200/50"
                           >
-                            <FileImage className="w-3.5 h-3.5 opacity-40" />
+                            <FileImage className="w-3.5 h-3.5 opacity-70" />
                             调阅档案
                           </button>
                         )}
@@ -336,7 +336,7 @@ export default function CertificatesPage() {
                     <X size={18} strokeWidth={2.5} />
                   </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-10 pb-12 custom-scrollbar bg-slate-50/10">
+              <div className="flex-1 overflow-y-auto px-10 pb-6 custom-scrollbar bg-slate-50/10">
                 <div className="py-4">
                   <CertificateGenerator 
                     initialData={selectedCertData} 

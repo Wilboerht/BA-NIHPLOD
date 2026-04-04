@@ -28,6 +28,7 @@ interface CertificateGeneratorProps {
 export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false }: CertificateGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<CertData>({
     platformId: "",
     platformLabel: "淘宝ID",
@@ -265,16 +266,28 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     setPreviewImageUrl(canvas.toDataURL("image/png"));
     setShowFullPreview(true);
   };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setData({ ...data, sealImage: result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
-    <div className="grid lg:grid-cols-[400px_1fr] gap-12 items-start h-full pb-10">
+    <div className="grid lg:grid-cols-[400px_1fr] gap-12 items-start h-full pb-2">
       {/* 控制面板 */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="flex flex-col h-full pl-2"
+        className="flex flex-col h-full pl-2 px-1"
       >
-        <div className="space-y-8 mt-4 mb-8">
+        <div className="space-y-8 mt-4 mb-4">
           {/* 属性 1：平台ID */}
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0">
@@ -370,9 +383,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <input type="date" className="w-[130px] bg-slate-50/50 px-2.5 py-2 rounded-lg text-[13px]" value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""} onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })} />
-                  <span className="text-slate-300">-</span>
-                  <input type="date" className="w-[130px] bg-slate-50/50 px-2.5 py-2 rounded-lg text-[13px]" value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""} onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })} />
+                  <input 
+                    type="date" 
+                    className="w-[135px] bg-slate-50/50 px-2.5 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all tabular-nums" 
+                    value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""} 
+                    onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })} 
+                  />
+                  <span className="text-slate-300">/</span>
+                  <input 
+                    type="date" 
+                    className="w-[135px] bg-slate-50/50 px-2.5 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all tabular-nums" 
+                    value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""} 
+                    onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })} 
+                  />
                 </div>
               )}
             </div>
@@ -385,7 +408,16 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium tabular-nums">{data.phone}</div>
               ) : (
-                <input type="text" className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px]" value={data.phone} onChange={(e) => setData({ ...data, phone: e.target.value })} placeholder="请输入电话" />
+                <input 
+                  type="tel" 
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all tabular-nums" 
+                  value={data.phone} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d]/g, '').substring(0, 11);
+                    setData({ ...data, phone: val });
+                  }} 
+                  placeholder="11位中国大陆手机号码" 
+                />
               )}
             </div>
           </div>
@@ -397,7 +429,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium">{data.authorizer}</div>
               ) : (
-                <input className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px]" value={data.authorizer} onChange={(e) => setData({ ...data, authorizer: e.target.value })} />
+                <input 
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all" 
+                  value={data.authorizer} 
+                  onChange={(e) => setData({ ...data, authorizer: e.target.value })} 
+                />
               )}
             </div>
           </div>
@@ -405,13 +441,25 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           {/* 属性 5：签字盖章 */}
           <div className="flex items-start gap-3">
             <div className="w-24 text-[13px] text-slate-500 font-medium pt-2.5">签字盖章</div>
-            <div className="flex-1 flex items-center gap-3">
-              <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center relative">
-                {data.sealImage ? <img src={data.sealImage} className="w-10 h-10 object-contain" /> : <div className="text-[10px] text-slate-300">未上传</div>}
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">{mode === 'view' ? '备案公章' : '上传/更换公章'}</div>
-                <div className="text-[10px] text-slate-400">{mode === 'view' ? '系统自动存证' : '支持 PNG, SVG'}</div>
+            <div className="flex-1">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*.png,image/svg+xml" 
+                onChange={handleFileChange} 
+              />
+              <div 
+                className={`flex items-center gap-3 group/seal ${mode !== 'view' ? 'cursor-pointer hover:bg-slate-50/50 p-2 -m-2 rounded-xl transition-all' : ''}`}
+                onClick={() => mode !== 'view' && fileInputRef.current?.click()}
+              >
+                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center relative ring-offset-2 group-hover/seal:ring-1 ring-slate-200 transition-all">
+                  {data.sealImage ? <img src={data.sealImage} className="w-10 h-10 object-contain" /> : <div className="text-[10px] text-slate-300">未上传</div>}
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">{mode === 'view' ? '备案公章' : '上传/更换公章'}</div>
+                  <div className="text-[10px] text-slate-400">{mode === 'view' ? '系统自动存证' : '点击上传 PNG/SVG'}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -423,16 +471,42 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 leading-relaxed whitespace-pre-wrap pt-2.5">{data.scopeText}</div>
               ) : (
-                <textarea rows={4} className="w-full bg-slate-50/50 px-3 py-2.5 rounded-xl text-[13px] leading-relaxed border border-transparent resize-none h-24 overflow-y-auto" value={data.scopeText} onChange={(e) => setData({ ...data, scopeText: e.target.value })} />
+                <textarea 
+                  rows={4} 
+                  className="w-full bg-slate-50/50 px-3 py-2.5 rounded-xl text-[13px] leading-relaxed text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all resize-none h-28 overflow-y-auto" 
+                  value={data.scopeText} 
+                  onChange={(e) => setData({ ...data, scopeText: e.target.value })} 
+                />
               )}
             </div>
           </div>
         </div>
 
-        <div className="pt-6 mt-auto flex items-center gap-4 border-t border-slate-100">
-           {!isVoided && <button onClick={handleDownload} className="h-9 px-4 text-slate-600 bg-white border rounded-lg text-sm font-medium transition-all hover:bg-slate-50 flex items-center gap-2"><Download className="w-4 h-4" />下载预览图片</button>}
-           {mode !== 'view' && <button onClick={async () => { /* Logic */ }} className="h-9 px-6 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-all">正式核发</button>}
-           {isIssued && !isVoided && <button onClick={handleDownload} className="h-9 px-6 bg-emerald-600 text-white rounded-lg text-sm font-bold animate-bounce shadow-lg">下载正式高清授权书</button>}
+        <div className="pt-12 pb-2 flex items-center gap-4">
+           {!isVoided && (
+             <button 
+               onClick={handleDownload} 
+               className="h-11 px-5 text-slate-500 bg-white border border-slate-100 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 flex items-center gap-2 tracking-wide"
+             >
+               <Download className="w-4 h-4 opacity-70" /> 下载预览图片
+             </button>
+           )}
+           {mode !== 'view' && (
+             <button 
+               onClick={async () => { /* Logic */ }} 
+               className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13.5px] font-bold hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 tracking-[0.1em]"
+             >
+               正式签发许可
+             </button>
+           )}
+           {isIssued && !isVoided && (
+             <button 
+               onClick={handleDownload} 
+               className="h-11 px-8 bg-emerald-600 text-white rounded-xl text-[13px] font-bold animate-bounce shadow-xl shadow-emerald-100 tracking-wide"
+             >
+               获取正式授权书
+             </button>
+           )}
         </div>
       </motion.div>
 

@@ -84,20 +84,20 @@ export default function ComplaintsPage() {
       </div>
 
       <div className="notion-card flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white text-[13px]">
-          <div className="flex items-center gap-6 text-slate-500 font-semibold">
+        <div className="px-6 py-6 border-b border-slate-50 flex items-center justify-between bg-white shadow-sm ring-1 ring-black/[0.02]">
+          <div className="flex items-center gap-6 text-slate-500 font-semibold text-[13px]">
              <span onClick={() => setActiveTab("ALL")} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
              <span onClick={() => setActiveTab("PENDING")} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
              <span onClick={() => setActiveTab("INVESTIGATING")} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
           </div>
-          <div className="relative w-full max-w-[240px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="搜索工单号或涉事店铺..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-4 py-2 text-[13px] outline-none focus:border-slate-400 hover:border-slate-300 transition-colors shadow-sm"
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400 shadow-sm shadow-slate-200/20"
             />
           </div>
         </div>
