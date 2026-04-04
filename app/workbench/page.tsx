@@ -146,13 +146,13 @@ export default function WorkbenchPage() {
   const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'MANAGER' || userRole === 'PROJECT_MANAGER';
 
   return (
-    <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 gap-8">
+    <div className="px-6 md:px-10 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 gap-8">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">工作台概览</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">工作台首页</h1>
         <p className="text-slate-500 text-[13px]">欢迎来到 NIHPLOD 品牌授权核查系统的管理大盘。</p>
       </motion.div>
 
