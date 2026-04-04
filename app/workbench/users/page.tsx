@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, UserPlus, UserCog, Key, Trash2, Info,
-  ChevronDown, X, Eye, EyeOff, ShieldCheck, Loader2, CheckCircle2
+  ChevronDown, X, Eye, EyeOff, ShieldCheck, Loader2, CheckCircle2, Plus
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -189,12 +189,13 @@ export default function AdminsManagementPage() {
         </motion.div>
 
         <motion.button
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.01, y: -1 }}
+          whileTap={{ scale: 0.98 }}
           onClick={openCreate}
-          className="bg-slate-900 text-white font-semibold h-10 px-6 rounded-lg shadow-md hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 text-[13px] shrink-0"
+          className="text-slate-900 border-b border-slate-900/20 px-0 pb-0.5 flex items-center gap-2 hover:text-slate-500 hover:border-slate-900 transition-all font-bold tracking-wide"
         >
-          <UserPlus className="w-4 h-4" /> 创建新管理用户
+          <Plus className="w-3.5 h-3.5" />
+          <span className="font-bold tracking-wide">添加管理账号</span>
         </motion.button>
       </div>
 

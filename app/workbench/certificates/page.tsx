@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X } from "lucide-react";
+import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
@@ -117,18 +117,19 @@ export default function CertificatesPage() {
           <p className="text-slate-500 text-[13px] font-medium tracking-wide">管理与监控品牌官方合作授权书，一键生成防伪溯源大图。</p>
         </motion.div>
         
-        <motion.button 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+        <motion.button
+          whileHover={{ scale: 1.01, y: -1 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => {
             setSelectedCertData(null);
             setIsViewOnly(false);
             setIsViewVoided(false);
             setShowIssueModal(true);
           }}
-          className="bg-[#2C2A29] text-white font-bold h-10 px-8 rounded-xl shadow-lg shadow-[#2C2A29]/10 hover:bg-black transition-all flex items-center gap-2.5 active:scale-95 text-[12px] tracking-[0.1em]"
+          className="text-slate-900 border-b border-slate-900/20 px-0 pb-0.5 flex items-center gap-2 hover:text-slate-500 hover:border-slate-900 transition-all font-bold tracking-wide"
         >
-          <Plus className="w-4 h-4" /> 新建核发证书
+          <Award className="w-3.5 h-3.5" />
+          <span className="font-bold tracking-wide">核发新证书</span>
         </motion.button>
       </div>
 
@@ -337,7 +338,7 @@ export default function CertificatesPage() {
                   </button>
               </div>
               <div className="flex-1 overflow-y-auto px-10 pb-6 custom-scrollbar bg-slate-50/10">
-                <div className="py-4">
+                <div className="pt-0 pb-4">
                   <CertificateGenerator 
                     initialData={selectedCertData} 
                     mode={isViewOnly ? 'view' : 'create'} 

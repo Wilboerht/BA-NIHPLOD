@@ -287,7 +287,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         animate={{ opacity: 1, x: 0 }}
         className="flex flex-col h-full pl-2 px-1"
       >
-        <div className="space-y-8 mt-4 mb-4">
+        <div className="space-y-8 mb-4">
           {/* 属性 1：平台ID */}
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0">
