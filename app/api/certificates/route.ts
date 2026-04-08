@@ -61,8 +61,7 @@ async function uploadCertificateImage(
 ): Promise<string> {
   try {
     if (!imageDataUrl || !imageDataUrl.startsWith('data:')) {
-      console.warn('Invalid image data URL provided');
-      return '';
+      throw new Error('无效的证书图片数据：图片未正确生成或数据格式错误');
     }
 
     const blob = dataUrlToBlob(imageDataUrl);
@@ -76,8 +75,7 @@ async function uploadCertificateImage(
       });
 
     if (error) {
-      console.error('Failed to upload certificate image:', error);
-      return '';
+      throw new Error(`证书图片上传失败: ${error.message || error}`);
     }
 
     // 生成公开 URL
@@ -85,10 +83,14 @@ async function uploadCertificateImage(
       .from('certificates')
       .getPublicUrl(fileName);
 
-    return urlData?.publicUrl || '';
-  } catch (err) {
-    console.error('Certificate image upload error:', err);
-    return '';
+    const publicUrl = urlData?.publicUrl;
+    if (!publicUrl) {
+      throw new Error('证书图片上传成功但无法生成公开链接');
+    }
+
+    return publicUrl;
+  } catch (err: any) {
+    throw new Error(`证书图片上传失败: ${err.message || '未知错误'}`);
   }
 }
 
@@ -197,19 +199,34 @@ export async function POST(req: Request) {
           dealerId = newDealer.id;
       }
 
-      const { data: cert, error: certErr } = await supabaseAdmin.from('certificates').insert({
-        cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        dealer_id: dealerId,
-        auth_scope: certData.platformId + ' | ' + certData.scopeText,
-        start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
-        end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
-        status: 'PENDING', // 待审核
-        auditor_id: managerId, // 提报人作为初审人
-        manager_id: null
-      }).select().single();
+      const certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        
+        // 可选上传证书图片（用户可能已在生成器中生成）
+        let finalImageUrl = '';
+        if (certData?.certImageDataUrl) {
+          try {
+            finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
+          } catch (uploadErr: any) {
+            console.warn('证书图片上传失败，但继续提报:', uploadErr.message);
+            // 待审核阶段允许没有图片，审核时再补充
+            finalImageUrl = '';
+          }
+        }
 
-      if (certErr) throw certErr;
-      return NextResponse.json({ success: true, status: 'PENDING' });
+        const { data: cert, error: certErr } = await supabaseAdmin.from('certificates').insert({
+          cert_number: certNumber,
+          dealer_id: dealerId,
+          auth_scope: certData.platformId + ' | ' + certData.scopeText,
+          start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
+          end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
+          status: 'PENDING', // 待审核
+          final_image_url: finalImageUrl, // 可选，可为空
+          auditor_id: managerId, // 提报人作为初审人
+          manager_id: null
+        }).select().single();
+
+        if (certErr) throw certErr;
+        return NextResponse.json({ success: true, status: 'PENDING' });
     }
 
     // --- 流程 2: 项目负责人审核通过并核发 (创建账户 + 状态转为 ISSUED) ---
@@ -256,10 +273,17 @@ export async function POST(req: Request) {
 
         certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
         
-        // 上传证书图片
+        // 可选：如果管理员直发时已生成图片，则上传；否则留空给经销商后续生成
         let finalImageUrl = '';
         if (certData.certImageDataUrl) {
-          finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
+          try {
+            finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
+            if (!finalImageUrl) {
+              console.warn('证书图片上传失败，但继续核发（经销商可后续生成）');
+            }
+          } catch (uploadErr: any) {
+            console.warn('证书图片上传失败，但继续核发（经销商可后续生成）:', uploadErr.message);
+          }
         }
 
         const { data: newCert, error: certErr } = await supabaseAdmin.from('certificates').insert({
@@ -269,7 +293,7 @@ export async function POST(req: Request) {
             start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 
-            final_image_url: finalImageUrl,
+            final_image_url: finalImageUrl,  // 可为空，经销商下载时生成
             seal_url: '',  // 不使用自定义签章，仅使用默认公章
             manager_id: managerId
         }).select('*, dealers(*)').single();
@@ -280,22 +304,30 @@ export async function POST(req: Request) {
         throw new Error("缺少核发数据");
       }
 
-// 上传证书图片（如果在PENDING流程中）
+      // 可选：如果在审核时要求上传图片，则上传；否则留空给经销商后续生成
       if (certId && certData?.certImageDataUrl) {
-        const finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
-        
-        const { error: updateImgErr } = await supabaseAdmin
-          .from('certificates')
-          .update({ 
-            final_image_url: finalImageUrl,
-            seal_url: ''  // 不使用自定义签章，仅使用默认公章
-          })
-          .eq('id', certId);
+        try {
+          const finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
+          
+          if (finalImageUrl) {
+            const { error: updateImgErr } = await supabaseAdmin
+              .from('certificates')
+              .update({ 
+                final_image_url: finalImageUrl,
+                seal_url: ''  // 不使用自定义签章，仅使用默认公章
+              })
+              .eq('id', certId);
 
-        if (updateImgErr) {
-          console.warn('Failed to update certificate image URL:', updateImgErr);
+            if (updateImgErr) {
+              console.warn('更新证书图片信息失败，但继续核发:', updateImgErr.message);
+            }
+          }
+        } catch (uploadErr: any) {
+          console.warn('证书图片上传失败，但继续核发（经销商可后续生成）:', uploadErr.message);
         }
       }
+      // 注：如果没有提供certImageDataUrl，final_image_url保持为NULL，
+      // 经销商下载时会自动打开生成器进行生成
 
       const phone = certDataDb.dealers.phone;
       const passwordHash = await bcrypt.hash(phone, 10);

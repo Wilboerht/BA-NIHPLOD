@@ -44,11 +44,9 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showCertificateModal, setShowCertificateModal] = useState(false);
-  const [selectedCertForView, setSelectedCertForView] = useState<Certificate | null>(null);
-  const [selectedCertInitialData, setSelectedCertInitialData] = useState<any>(null);
-  const [isPdfMode, setIsPdfMode] = useState(false);
+  const [showHiddenGenerator, setShowHiddenGenerator] = useState(false);
+  const [generatorDataForBackground, setGeneratorDataForBackground] = useState<any>(null);
+  const [isPdfModeBackground, setIsPdfModeBackground] = useState(false);
 
   // 模态框打开时加载用户信息和证书
   useEffect(() => {
@@ -126,18 +124,9 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
   }, []);
 
   const handleDownload = async (cert: Certificate) => {
+    // ✅ 如果图片为空，在后台生成证书
     if (!cert.final_image_url) {
-      alert("证书图片未生成或为空");
-      return;
-    }
-
-    console.log("Download PNG - cert.final_image_url:", cert.final_image_url.substring(0, 100));
-
-    // 检测是否是占位符图片
-    const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
-    if (isPlaceholder) {
-      console.log("检测到占位符图片，打开 CertificateGenerator 生成真实证书");
-      // 准备 CertificateGenerator 的初始数据
+      console.log("检测到证书未生成，后台生成中...");
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
         cert_number: cert.cert_number,
@@ -151,10 +140,37 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
         sealImage: cert.templates?.stamp_url || "/default-seal.svg",
         phone: cert.dealers?.phone || ""
       };
-      setSelectedCertInitialData(certData);
-      setSelectedCertForView(cert);
-      setIsPdfMode(false);
-      setShowCertificateModal(true);
+      setIsDownloading(cert.id);
+      // 设置在后台生成，会触发隐藏生成器
+      setGeneratorDataForBackground(certData);
+      setIsPdfModeBackground(false);
+      setShowHiddenGenerator(true);
+      return;
+    }
+
+    console.log("Download PNG - cert.final_image_url:", cert.final_image_url.substring(0, 100));
+
+    // 检测是否是占位符图片
+    const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
+    if (isPlaceholder) {
+      console.log("检测到占位符图片，后台生成中...");
+      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+      const certData = {
+        cert_number: cert.cert_number,
+        platformId: scopeParts[0],
+        platformLabel: "识别码", 
+        shopName: cert.dealers?.company_name || "",
+        shopLabel: "授权主体",
+        scopeText: scopeParts[1] || "品牌官方经销授权",
+        duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+        authorizer: "旎柏（上海）商贸有限公司",
+        sealImage: cert.templates?.stamp_url || "/default-seal.svg",
+        phone: cert.dealers?.phone || ""
+      };
+      setIsDownloading(cert.id);
+      setGeneratorDataForBackground(certData);
+      setIsPdfModeBackground(false);
+      setShowHiddenGenerator(true);
       return;
     }
 
@@ -211,19 +227,9 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
   };
 
   const handleDownloadPDF = async (cert: Certificate) => {
+    // ✅ 如果图片为空，在后台生成证书
     if (!cert.final_image_url) {
-      alert("证书图片未生成或为空");
-      return;
-    }
-
-    console.log("Download PDF - cert.final_image_url:", cert.final_image_url.substring(0, 100));
-
-    // 检测是否是占位符图片
-    const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
-    if (isPlaceholder) {
-      console.log("检测到占位符图片，后台生成真实证书");
-      setIsGenerating(true);
-      // 准备 CertificateGenerator 的初始数据
+      console.log("检测到证书未生成，后台生成中...");
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
         cert_number: cert.cert_number,
@@ -237,10 +243,34 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
         sealImage: cert.templates?.stamp_url || "/default-seal.svg",
         phone: cert.dealers?.phone || ""
       };
-      setSelectedCertInitialData(certData);
-      setSelectedCertForView(cert);
-      setIsPdfMode(true);
-      setShowCertificateModal(true);
+      setIsDownloading(cert.id);
+      setGeneratorDataForBackground(certData);
+      setIsPdfModeBackground(true);
+      setShowHiddenGenerator(true);
+      return;
+    }
+
+    // 检测是否是占位符图片
+    const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
+    if (isPlaceholder) {
+      console.log("检测到占位符图片，后台生成中...");
+      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+      const certData = {
+        cert_number: cert.cert_number,
+        platformId: scopeParts[0],
+        platformLabel: "识别码", 
+        shopName: cert.dealers?.company_name || "",
+        shopLabel: "授权主体",
+        scopeText: scopeParts[1] || "品牌官方经销授权",
+        duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+        authorizer: "旎柏（上海）商贸有限公司",
+        sealImage: cert.templates?.stamp_url || "/default-seal.svg",
+        phone: cert.dealers?.phone || ""
+      };
+      setIsDownloading(cert.id);
+      setGeneratorDataForBackground(certData);
+      setIsPdfModeBackground(true);
+      setShowHiddenGenerator(true);
       return;
     }
 
@@ -311,7 +341,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
 
   // 隐藏容器中自动下载证书
   useEffect(() => {
-    if (showCertificateModal && selectedCertForView && selectedCertInitialData) {
+    if (showHiddenGenerator && generatorDataForBackground) {
       const downloadTimer = setTimeout(() => {
         const hiddenContainer = document.getElementById('hidden-certificate-canvas-container');
         const canvas = hiddenContainer?.querySelector('canvas') as HTMLCanvasElement;
@@ -321,7 +351,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
             const dataUrl = canvas.toDataURL('image/png');
             console.log("Canvas已就绪，长度:", dataUrl.length);
 
-            if (isPdfMode) {
+            if (isPdfModeBackground) {
               // 转换为PDF
               const pdf = new jsPDF({
                 orientation: 'portrait',
@@ -349,39 +379,42 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
               const y = margin + (contentHeight - height) / 2;
 
               pdf.addImage(dataUrl, "PNG", x, y, width, height);
-              pdf.save(`授权书_${selectedCertInitialData.shopName}.pdf`);
+              pdf.save(`授权书_${generatorDataForBackground.shopName}.pdf`);
               console.log("PDF自动下载完成");
             } else {
               // 下载为PNG
               const link = document.createElement('a');
               link.href = dataUrl;
-              link.download = `授权书_${selectedCertInitialData.shopName}.png`;
+              link.download = `授权书_${generatorDataForBackground.shopName}.png`;
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);
               console.log("PNG自动下载完成");
             }
 
-            // 下载完成后关闭setIsGenerating(false);
-            setShowCertificateModal(false);
-            setSelectedCertForView(null);
-            setSelectedCertInitialData(null);
-            setIsPdfMode(false);
+            // 下载完成后关闭生成器并清理状态
+            setShowHiddenGenerator(false);
+            setGeneratorDataForBackground(null);
+            setIsPdfModeBackground(false);
+            setIsDownloading(null);
+            // 刷新证书列表
+            if (user?.id) {
+              fetchCertificates(user.id);
+            }
           } catch (error) {
             console.error("自动下载失败:", error);
             alert("下载失败：" + (error as Error).message);
-            setShowCertificateModal(false);
-            setSelectedCertForView(null);
-            setSelectedCertInitialData(null);
-            setIsPdfMode(false);
-            setIsGenerating(false);
+            setShowHiddenGenerator(false);
+            setGeneratorDataForBackground(null);
+            setIsPdfModeBackground(false);
+            setIsDownloading(null);
           }
         }
       }, 800); // 延迟800ms确保canvas渲染完成
 
       return () => clearTimeout(downloadTimer);
     }
-  }, [showCertificateModal, selectedCertForView, selectedCertInitialData, isPdfMode]);
+  }, [showHiddenGenerator, generatorDataForBackground, isPdfModeBackground]);
 
   const handleLogout = () => {
     sessionStorage.removeItem("user");
@@ -489,8 +522,8 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                                 <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={() => handleDownload(cert)}
-                                    disabled={isDownloading === cert.id || !cert.final_image_url}
-                                    title={!cert.final_image_url ? "证书图片未生成" : "下载 PNG"}
+                                    disabled={isDownloading === cert.id}
+                                    title="下载证书为 PNG 格式"
                                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 hover:text-blue-500 font-bold text-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
                                   >
                                     {isDownloading === cert.id ? (
@@ -502,8 +535,8 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                                   </button>
                                   <button
                                     onClick={() => handleDownloadPDF(cert)}
-                                    disabled={isDownloading === cert.id || !cert.final_image_url}
-                                    title={!cert.final_image_url ? "证书文件未生成" : "下载 PDF"}
+                                    disabled={isDownloading === cert.id}
+                                    title="下载证书为 PDF 格式"
                                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 hover:text-indigo-500 font-bold text-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
                                   >
                                     {isDownloading === cert.id ? (
@@ -538,38 +571,18 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
           </motion.div>
         </div>
       )}
-      {/* 隐藏的CertificateGenerator容器，用于后台生成证书 */}
-      {showCertificateModal && selectedCertInitialData && (
-        <div 
-          id="hidden-certificate-canvas-container"
-          style={{ 
-            visibility: 'hidden',
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '1px',
-            height: '1px',
-            pointerEvents: 'none',
-            overflow: 'hidden'
-          }}
-        >
+      {/* ✅ 隐藏的证书生成器容器 - 用于经销商下载时静默生成 */}
+      {showHiddenGenerator && generatorDataForBackground && (
+        <div id="hidden-certificate-canvas-container" style={{ display: 'none' }}>
           <CertificateGenerator 
-            initialData={selectedCertInitialData} 
-            mode="view"
+            initialData={generatorDataForBackground} 
+            mode="create"
+            onSuccess={() => {
+              // onSuccess 由 useEffect 中的 canvas 自动下载逻辑处理
+              console.log("隐藏生成器成功生成证书");
+            }}
           />
         </div>
-      )}
-      {/* 证书生成中的提示 */}
-      {isGenerating && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 whitespace-nowrap"
-        >
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm font-medium">正在生成证书，请稍候...</span>
-        </motion.div>
       )}
     </AnimatePresence>
   );
