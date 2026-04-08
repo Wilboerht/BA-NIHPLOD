@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   try {
@@ -116,30 +117,45 @@ export async function POST(req: Request) {
         throw new Error("缺少核发数据");
       }
 
-      const platformId = certDataDb.auth_scope.split(' | ')[0];
-      const email = `${platformId}@ba.nihplod.cn`;
-      const password = platformId;
+      const phone = certDataDb.dealers.phone;
+      const passwordHash = await bcrypt.hash(phone, 10);
 
-      // 1. 创建经销商 Auth 账户
-      const { data: authUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { dealer_id: certDataDb.dealer_id }
-      });
+      // 1. 创建经销商本地账户 (不使用 Supabase auth)
+      // 先检查是否已有此电话号的经销商账户
+      const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('phone', phone)
+        .maybeSingle();
 
-      if (authErr && !authErr.message.includes('already been registered')) throw authErr;
+      let profileId;
+      if (existingProfile) {
+        // 已存在，更新密码
+        profileId = existingProfile.id;
+        await supabaseAdmin
+          .from('profiles')
+          .update({ password_hash: passwordHash, is_first_login: true })
+          .eq('id', profileId);
+      } else {
+        // 新建账户：生成一个临时 UUID 作为 profile id（不需要实际的 auth.users）
+        const { data: newProfile, error: profileErr } = await supabaseAdmin
+          .from('profiles')
+          .insert({
+            id: crypto.randomUUID(),
+            username: phone,
+            full_name: certDataDb.dealers.company_name,
+            phone: phone,
+            password_hash: passwordHash,
+            role: 'DEALER',
+            is_first_login: true
+          })
+          .select('id')
+          .single();
 
-      const userId = authUser?.user?.id || (await supabaseAdmin.auth.admin.listUsers()).data.users.find(u => u.email === email)?.id;
-
-      if (userId) {
-          await supabaseAdmin.from('profiles').upsert({
-              id: userId,
-              username: platformId,
-              full_name: certDataDb.dealers.company_name,
-              role: 'DEALER',
-              is_first_login: true
-          });
+        if (profileErr || !newProfile) {
+          throw new Error(`经销商账户创建失败: ${profileErr?.message}`);
+        }
+        profileId = newProfile.id;
       }
 
       // 2. 如果是从待审核转为ISSUED，需要更新证书状态
@@ -152,7 +168,7 @@ export async function POST(req: Request) {
         if (updateErr) throw updateErr;
       }
 
-      return NextResponse.json({ success: true, status: 'ISSUED', email, password });
+      return NextResponse.json({ success: true, status: 'ISSUED', phone, password: phone });
     }
 
     // --- 流程 3: 吊销证书 (管理员行为，同步禁用账户) ---

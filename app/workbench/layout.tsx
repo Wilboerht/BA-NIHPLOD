@@ -7,13 +7,44 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar/Sidebar";
 import styles from "./layout.module.css";
 
+interface UserSession {
+  id: string;
+  phone?: string;
+  username?: string;
+  full_name?: string;
+  role?: string;
+  is_first_login?: boolean;
+}
+
 export default function WorkbenchLayout({ children }: { children: React.ReactNode }) {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [user, setUser] = useState<UserSession | null>(null);
+  const [userType, setUserType] = useState<'admin' | 'dealer' | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const checkAuth = async () => {
+      // 1. 首先检查 sessionStorage 里是否有经销商用户
+      const sessionUserStr = sessionStorage.getItem('user');
+      if (sessionUserStr) {
+        try {
+          const sessionUser = JSON.parse(sessionUserStr);
+          setUser(sessionUser);
+          setUserType('dealer');
+          
+          if (sessionUser.is_first_login) {
+            router.replace("/reset-password");
+          } else {
+            setIsAuthorized(true);
+          }
+          return;
+        } catch (e) {
+          console.error('Failed to parse user session:', e);
+        }
+      }
+
+      // 2. 检查 Supabase auth（管理员用户）
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -23,11 +54,19 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_first_login")
+        .select("*")
         .eq("id", session.user.id)
         .single();
         
-      if (profile?.is_first_login) {
+      if (!profile) {
+        router.replace("/login");
+        return;
+      }
+
+      setUser(profile as UserSession);
+      setUserType('admin');
+      
+      if (profile.is_first_login) {
         router.replace("/reset-password");
         return;
       }

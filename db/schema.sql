@@ -7,6 +7,8 @@ CREATE TABLE profiles (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
     username TEXT UNIQUE,
     full_name TEXT,
+    phone TEXT UNIQUE,
+    password_hash TEXT,
     role user_role DEFAULT 'DEALER',
     is_first_login BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
