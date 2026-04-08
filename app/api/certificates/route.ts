@@ -124,17 +124,17 @@ export async function POST(req: Request) {
       // 先检查是否已有此电话号的经销商账户
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, is_first_login')
         .eq('phone', phone)
         .maybeSingle();
 
       let profileId;
       if (existingProfile) {
-        // 已存在，更新密码
+        // 已存在，仅更新密码（不重置 is_first_login，保留原有状态）
         profileId = existingProfile.id;
         await supabaseAdmin
           .from('profiles')
-          .update({ password_hash: passwordHash, is_first_login: true })
+          .update({ password_hash: passwordHash })
           .eq('id', profileId);
       } else {
         // 新建账户：生成一个临时 UUID 作为 profile id（不需要实际的 auth.users）

@@ -68,7 +68,10 @@ CREATE TABLE audit_logs (
 
 -- RLS (Row Level Security) 策略示例
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dealers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 经销商只能看到自己的证书
 CREATE POLICY "Dealers can view own certificates" ON certificates
@@ -81,6 +84,33 @@ CREATE POLICY "Public can view issued certificates" ON certificates
 -- 管理员可以查看所有
 CREATE POLICY "Admins can do everything" ON certificates
     FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+
+-- Dealers 表 RLS 策略
+CREATE POLICY "Dealers can view all dealers" ON dealers
+    FOR SELECT USING (true); -- 允许所有用户查看（用于签发时查询）
+
+CREATE POLICY "Only admins can manage dealers" ON dealers
+    FOR INSERT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+
+CREATE POLICY "Only admins can update dealers" ON dealers
+    FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+
+-- Templates 表 RLS 策略
+CREATE POLICY "Templates are public for reading" ON templates
+    FOR SELECT USING (true);
+
+CREATE POLICY "Only admins can manage templates" ON templates
+    FOR INSERT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN')));
+
+CREATE POLICY "Only admins can update templates" ON templates
+    FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN')));
+
+-- Audit Logs 表 RLS 策略
+CREATE POLICY "Only admins can view audit logs" ON audit_logs
+    FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+
+CREATE POLICY "Only admins can create audit logs" ON audit_logs
+    FOR INSERT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
 
 -- 6. 打假举报投诉表 (Complaints)
 CREATE TYPE complaint_status AS ENUM ('PENDING', 'INVESTIGATING', 'RESOLVED', 'REJECTED');
