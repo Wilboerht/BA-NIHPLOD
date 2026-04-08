@@ -15,6 +15,7 @@ export interface CertificateVerifyResult {
   duration: string;
   scope: string;
   status: string;
+  final_image_url?: string;
 }
 
 export interface VerifyActionResponse {
@@ -44,6 +45,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         end_date,
         auth_scope,
         status,
+        final_image_url,
         dealers ( company_name )
       `)
       .eq('cert_number', cleanQuery.toUpperCase())
@@ -62,6 +64,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           end_date,
           auth_scope,
           status,
+          final_image_url,
           dealers!inner ( company_name )
         `)
         .ilike('dealers.company_name', `%${cleanQuery}%`)
@@ -120,6 +123,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
         scope: data.auth_scope || '-',
         status: data.status,
+        final_image_url: data.final_image_url || undefined
       }
     };
   } catch (err) {

@@ -2,6 +2,96 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 
+/**
+ * 🔑 证书管理 API - 关键设计决策文档
+ * 
+ * 问题背景：
+ * 同一经销商可能用多个门店名称，但对应唯一的手机号和账户
+ * 示例：
+ *   - dealer1: 名字="用来测试的门店", phone="11111111111"
+ *   - dealer2: 名字="dsfsffsfdsfdsfsa", phone="11111111111"
+ *   - 这两个是同一个账户，应该共用 profile
+ * 
+ * 解决方案：
+ * ✅ Profile 关联规则：按手机号（username）进行关联
+ *   - profiles.username = dealers.phone (关键！)
+ *   - profiles.full_name = 当前的经销商名称（会变化）
+ *   
+ * ❌ 已废弃规则：
+ *   - profiles.full_name ↔ dealers.company_name (导致同手机号显示多个状态)
+ * 
+ * 应用场景：
+ * 1. [经销商主页] /workbench/dealers
+ *    - 按 phone 分组经销商
+ *    - 用 profiles.username 查询对应 profile
+ *    - 结果：同 phone 的所有门店都显示为同一账户状态
+ * 
+ * 2. [证书审核] PUT /api/certificates
+ *    - 创建 profile 时：username = phone（关键）
+ *    - full_name = 当前提交的经销商名称
+ *    - 已存在时：仅更新密码，保留原有 is_first_login 状态
+ * 
+ * 3. [登录验证] /api/auth/login
+ *    - 用户输入：username（手机号）
+ *    - 查询：SELECT ... WHERE username = ?
+ *    - 自动解决：同手机号登录后自动访问对应账户
+ */
+
+/**
+ * 辅助函数：将 Data URL 转换为 Blob
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const parts = dataUrl.split(',');
+  const bstr = atob(parts[1]);
+  const n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    u8arr[i] = bstr.charCodeAt(i);
+  }
+  return new Blob([u8arr], { type: 'image/png' });
+}
+
+/**
+ * 辅助函数：上传证书图片到 Supabase Storage
+ */
+async function uploadCertificateImage(
+  supabaseAdmin: any,
+  certNumber: string,
+  imageDataUrl: string
+): Promise<string> {
+  try {
+    if (!imageDataUrl || !imageDataUrl.startsWith('data:')) {
+      console.warn('Invalid image data URL provided');
+      return '';
+    }
+
+    const blob = dataUrlToBlob(imageDataUrl);
+    const fileName = `certificates/${certNumber}-${Date.now()}.png`;
+    
+    const { data, error } = await supabaseAdmin.storage
+      .from('certificates')
+      .upload(fileName, blob, {
+        contentType: 'image/png',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Failed to upload certificate image:', error);
+      return '';
+    }
+
+    // 生成公开 URL
+    const { data: urlData } = supabaseAdmin.storage
+      .from('certificates')
+      .getPublicUrl(fileName);
+
+    return urlData?.publicUrl || '';
+  } catch (err) {
+    console.error('Certificate image upload error:', err);
+    return '';
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -61,6 +151,7 @@ export async function POST(req: Request) {
     // --- 流程 2: 项目负责人审核通过并核发 (创建账户 + 状态转为 ISSUED) ---
     if (action === 'approve_issue') {
       let certDataDb;
+      let certNumber: string;
       
       if (certId) {
         // A. 系统流程：处理已有的待审核记录 (通过 ID)
@@ -71,6 +162,7 @@ export async function POST(req: Request) {
           .single();
         if (getCertErr || !dbData) throw new Error("未找到待审核证书 (ID: " + certId + ")");
         certDataDb = dbData;
+        certNumber = dbData.cert_number;
       } else if (certData) {
         // B. 管理员直发：直接根据新提交的数据开号 (无 ID)
         // 1. 先查找是否已有该手机号的经销商 (通过 phone 去重)
@@ -98,14 +190,22 @@ export async function POST(req: Request) {
             dealerId = newDealer.id;
         }
 
+        certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        
+        // 上传证书图片
+        let finalImageUrl = '';
+        if (certData.certImageDataUrl) {
+          finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
+        }
+
         const { data: newCert, error: certErr } = await supabaseAdmin.from('certificates').insert({
-            cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            cert_number: certNumber,
             dealer_id: dealerId,
             auth_scope: certData.platformId + ' | ' + certData.scopeText,
             start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 
-            final_image_url: certData.certImageDataUrl || null,  // 保存证书图像
+            final_image_url: finalImageUrl,
             manager_id: managerId
         }).select('*, dealers(*)').single();
 
@@ -115,15 +215,30 @@ export async function POST(req: Request) {
         throw new Error("缺少核发数据");
       }
 
+      // 上传证书图片（如果在PENDING流程中）
+      if (certId && certData?.certImageDataUrl) {
+        const finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
+        
+        const { error: updateImgErr } = await supabaseAdmin
+          .from('certificates')
+          .update({ final_image_url: finalImageUrl })
+          .eq('id', certId);
+
+        if (updateImgErr) {
+          console.warn('Failed to update certificate image URL:', updateImgErr);
+        }
+      }
+
       const phone = certDataDb.dealers.phone;
       const passwordHash = await bcrypt.hash(phone, 10);
 
       // 1. 创建经销商本地账户 (不使用 Supabase auth)
+      // 注意：按手机号（username）关联，同一手机号为同一账户
       // 先检查是否已有此电话号的经销商账户
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
         .select('id, is_first_login')
-        .eq('phone', phone)
+        .eq('username', phone)  // 按 username（手机号）查询
         .maybeSingle();
 
       let profileId;
@@ -140,7 +255,7 @@ export async function POST(req: Request) {
           .from('profiles')
           .insert({
             id: crypto.randomUUID(),
-            username: phone,
+            username: phone,  // 关键：username 存储手机号，用于关联
             full_name: certDataDb.dealers.company_name,
             phone: phone,
             password_hash: passwordHash,
@@ -162,8 +277,7 @@ export async function POST(req: Request) {
           .from('certificates')
           .update({ 
             status: 'ISSUED', 
-            manager_id: managerId,
-            final_image_url: certData.certImageDataUrl || null  // 如果新提供了图像，更新它
+            manager_id: managerId
           })
           .eq('id', certId);
 
@@ -173,7 +287,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, status: 'ISSUED', phone, password: phone });
     }
 
-    // --- 流程 3: 吊销证书 (管理员行为，同步禁用账户) ---
+    // --- 流程 3: 吊销证书 (管理员行为) ---
     if (action === 'revoke_certificate') {
         const { data: cert, error: certErr } = await supabaseAdmin
             .from('certificates')
@@ -183,17 +297,15 @@ export async function POST(req: Request) {
         
         if (certErr || !cert) throw new Error("未找到对应证书");
 
-        // 1. 更新数据库状态 (使用现有的 EXPIRED 状态，因为 REVOKED 不在 enum 中)
+        // 更新数据库状态为 REVOKED
         const { error: updateErr } = await supabaseAdmin
             .from('certificates')
-            .update({ status: 'EXPIRED' })
+            .update({ status: 'REVOKED' })
             .eq('id', certId);
         
         if (updateErr) throw updateErr;
 
-        // 2. 证书已吊销，不封禁账户 (因为管理员可能需要重新核发)
-
-        return NextResponse.json({ success: true, status: 'EXPIRED' });
+        return NextResponse.json({ success: true, status: 'REVOKED' });
     }
 
     // --- 流程 4: 退回/拒绝 审核员提交的申请 ---

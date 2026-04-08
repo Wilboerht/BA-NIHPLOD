@@ -38,7 +38,7 @@ CREATE TABLE templates (
 );
 
 -- 4. 证书主表
-CREATE TYPE certificate_status AS ENUM ('PENDING', 'AUDITED', 'ISSUED', 'REJECTED', 'EXPIRED');
+CREATE TYPE certificate_status AS ENUM ('PENDING', 'AUDITED', 'ISSUED', 'REJECTED', 'EXPIRED', 'REVOKED');
 
 CREATE TABLE certificates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

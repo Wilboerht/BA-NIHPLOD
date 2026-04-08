@@ -244,6 +244,24 @@ export default function VerificationPage() {
     }
   };
 
+  // 下载证书函数
+  const downloadCertificate = (certNumber: string) => {
+    // 如果有最终图片URL，直接下载
+    if (result && (result as any).final_image_url) {
+      const link = document.createElement('a');
+      link.href = (result as any).final_image_url;
+      link.download = `${certNumber}-防伪授权证书.png`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // 否则跳转到验证页面（那里可以从完整的证书数据中获取图片）
+      const verifyUrl = `/verify?cert=${encodeURIComponent(certNumber)}`;
+      window.open(verifyUrl, '_blank');
+    }
+  };
+
   return (
     <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
           style={{ background: "#FAFAFA" }}>
@@ -454,7 +472,9 @@ export default function VerificationPage() {
                     </div>
 
                     <div className="pt-10 flex flex-wrap gap-5">
-                      <button className="bg-[#2C2A29] text-white h-12 px-10 rounded-2xl text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-[#1A1918] transition-all shadow-xl shadow-[#2C2A29]/10 active:scale-95">
+                      <button 
+                        onClick={() => downloadCertificate(result.id)}
+                        className="bg-[#2C2A29] text-white h-12 px-10 rounded-2xl text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-[#1A1918] transition-all shadow-xl shadow-[#2C2A29]/10 active:scale-95">
                         <Download className="w-4 h-4 opacity-70" /> 保存防伪证书
                       </button>
                     </div>

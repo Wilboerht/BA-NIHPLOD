@@ -63,11 +63,30 @@ export default function DealersPage() {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      const dealerNames = data.map(d => d.company_name);
+      /**
+       * 🔑 关键设计决策：经销商账户关联规则
+       * 
+       * ✅ 正确做法（按手机号关联）：
+       * - dealers.phone ↔ profiles.username 进行关联
+       * - 同一手机号下的所有经销商共用一个账户
+       * - 示例：
+       *   - dealer1: 名字="用来测试的门店", phone="11111111111"
+       *   - dealer2: 名字="dsfsffsfdsfdsfsa", phone="11111111111"
+       *   - 都关联到 profile { username: "11111111111" }
+       * 
+       * ❌ 错误做法（已弃用）：
+       * - 不要按 dealers.company_name ↔ profiles.full_name 关联
+       * - 这样会导致同一手机号的不同门店显示为 "待开启"
+       * 
+       * 相关文件：
+       * - app/api/certificates/route.ts (profile 创建处也要按 username 查询)
+       */
+      // 改为按手机号关联 profile（同一手机号为同一账户）
+      const dealerPhones = [...new Set(data.map(d => d.phone))]; // 去重手机号
       const { data: profiles } = await supabase
         .from('profiles')
         .select('*')
-        .in('full_name', dealerNames)
+        .in('username', dealerPhones)
         .eq('role', 'DEALER');
 
       // 批量查询封禁状态（仅有 profile 即有 auth 账号的经销商才需要）
@@ -89,7 +108,8 @@ export default function DealersPage() {
       }
 
       const enriched: Dealer[] = data.map(d => {
-        const profile = profiles?.find(p => p.full_name === d.company_name);
+        // 按手机号匹配对应的 profile
+        const profile = profiles?.find(p => p.username === d.phone);
         return {
           ...d,
           profile,
