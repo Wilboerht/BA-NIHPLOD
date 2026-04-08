@@ -40,7 +40,7 @@ export default function CertificatesPage() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('certificates')
-      .select('*, dealers(company_name, phone)')
+      .select('*, dealers(company_name, phone), templates(stamp_url)')
       .order('created_at', { ascending: false });
       
     if (!error && data) {
@@ -227,7 +227,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
-                                sealImage: "/default-seal.svg",
+                                sealImage: (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(false);
@@ -253,7 +253,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
-                                sealImage: "/default-seal.svg",
+                                sealImage: (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(true);
@@ -327,17 +327,19 @@ export default function CertificatesPage() {
                     </h3>
                     <p className="text-[12px] text-slate-400 font-medium tracking-wide">核实经销商主体资质，签发受防伪协议保护的电子证书</p>
                   </div>
-                  <button 
-                    onClick={() => {
-                      setShowIssueModal(false);
-                      setSelectedCertData(null);
-                      setIsViewOnly(false);
-                      setIsViewVoided(false);
-                    }} 
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
-                  >
-                    <X size={18} strokeWidth={2.5} />
-                  </button>
+                  {!isViewOnly && !isViewVoided && (
+                    <button 
+                      onClick={() => {
+                        setShowIssueModal(false);
+                        setSelectedCertData(null);
+                        setIsViewOnly(false);
+                        setIsViewVoided(false);
+                      }} 
+                      className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
+                    >
+                      <X size={18} strokeWidth={2.5} />
+                    </button>
+                  )}
               </div>
               <div className="flex-1 overflow-y-auto px-10 pb-6 custom-scrollbar bg-slate-50/10">
                 <div className="pt-0 pb-4">

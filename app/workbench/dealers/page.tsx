@@ -223,7 +223,7 @@ export default function DealersPage() {
               <tr>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商主体（名称）</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">ID</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">登录账号 (Phone)</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">登录账号 (手机号)</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">持有证书</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">注册时间</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">账户状态</th>
@@ -376,10 +376,10 @@ export default function DealersPage() {
                         onClick={async () => {
                           setSelectedDealer(dealerGroup);
                           setIsCertsLoading(true);
-                          // 查询该 phone 下所有 dealer 的证书
+                          // 查询该 phone 下所有 dealer 的证书，并包含template的公章信息
                           const { data } = await supabase
                             .from('certificates')
-                            .select('*')
+                            .select('*, templates(stamp_url)')
                             .in('dealer_id', dealerGroup.allDealerIds)
                             .order('created_at', { ascending: false });
                           setDealerCerts(data || []);
@@ -428,7 +428,12 @@ export default function DealersPage() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSelectedDealer(null)}
+              onClick={() => {
+                setSelectedDealer(null);
+                setDealerCerts([]);
+                setDealerNameMap({});
+                setDealerPhoneMap({});
+              }}
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             />
             <motion.div
@@ -446,7 +451,12 @@ export default function DealersPage() {
                   <p className="text-xs text-slate-500 font-medium">登录账号：{selectedDealer!.phone}</p>
                 </div>
                 <button
-                  onClick={() => setSelectedDealer(null)}
+                  onClick={() => {
+                    setSelectedDealer(null);
+                    setDealerCerts([]);
+                    setDealerNameMap({});
+                    setDealerPhoneMap({});
+                  }}
                   className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
                 >
                   <XCircle className="w-6 h-6" />
@@ -514,7 +524,7 @@ export default function DealersPage() {
                                     scopeText: scopeParts[1] || "授权经销资格条款",
                                     duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                     authorizer: "旎柏（上海）商贸有限公司",
-                                    sealImage: "/default-seal.svg",
+                                    sealImage: (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                     phone: dealerPhoneMap[cert.dealer_id] || ""
                                   });
                                   setIsViewVoided(isVoided || cert.status === 'EXPIRED');
@@ -550,11 +560,8 @@ export default function DealersPage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
             >
-              <div className="p-8 flex justify-between items-center border-b border-slate-100">
+              <div className="p-8 border-b border-slate-100">
                 <h3 className="text-xl font-bold text-slate-900 tracking-tight">调取历史授信档案</h3>
-                <button onClick={() => setViewCertData(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900">
-                  <XCircle className="w-6 h-6" />
-                </button>
               </div>
               <div className="flex-1 overflow-auto p-10">
                 <CertificateGenerator
