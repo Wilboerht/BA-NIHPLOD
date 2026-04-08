@@ -15,6 +15,7 @@ interface CertData {
   authorizer: string;
   sealImage: string; // URL or DataURL
   phone: string;
+  cert_number?: string; // 证书编号
 }
 
 import QRCode from "qrcode";
@@ -51,6 +52,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isVoided, setIsVoided] = useState(initialVoided);
   
   const renderRequestId = useRef(0);
+  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
 
   const platformOptions = ["淘宝ID", "京东ID", "拼多多ID", "抖音号", "快手ID", "小红书账号", "得物账号"];
   const shopOptions = ["店铺名称", "专柜名称", "授权店名称", "直播间名称", "机构名称"];
@@ -202,6 +204,34 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.restore();
     }
 
+    // 生成并绘制二维码
+    try {
+      const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
+      const verifyUrl = `https://ba.nihplod.cn/verify?cert=${certNumber}`;
+      const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+        width: 120 * scale,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'H'
+      });
+      
+      const qrImg = await loadImage(qrDataUrl);
+      if (qrImg) {
+        const qrSize = 120 * scale;
+        const qrX = 50 * scale; // 左下角距离
+        const qrY = height - 180 * scale; // 距离底部
+        offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+        
+        // 添加二维码标签
+        offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
+        offCtx.fillStyle = "#666666";
+        offCtx.textAlign = "center";
+        offCtx.fillText("扫码验证", qrX + qrSize / 2, qrY + qrSize + 18 * scale);
+      }
+    } catch (err) {
+      console.warn("QR code generation failed:", err);
+    }
+
     if (!isIssued || isVoided) {
       offCtx.save();
       if (isVoided) {
@@ -276,6 +306,47 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         setData({ ...data, sealImage: result });
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleIssueSubmit = async () => {
+    if (!data.platformId || !data.shopName || !data.phone) {
+      alert("请填写完整的基本信息（平台ID、店铺名称、联系电话）");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error("证书图像生成失败");
+
+      const certImageDataUrl = canvas.toDataURL("image/png");
+      const certNumber = tempCertNumberRef.current;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const response = await fetch("/api/certificates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_pending",
+          certData: {
+            ...data,
+            cert_number: certNumber
+          },
+          managerId: user?.id
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "签发失败");
+
+      alert(`✅ 证书已生成\n证书号：${certNumber}\n\n请等待负责人审核并核发。`);
+      setIsIssued(true);
+    } catch (err: any) {
+      alert("签发失败：" + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -493,10 +564,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
            )}
            {mode !== 'view' && (
              <button 
-               onClick={async () => { /* Logic */ }} 
-               className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13.5px] font-bold hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 tracking-[0.1em]"
+               onClick={handleIssueSubmit}
+               disabled={isSubmitting}
+               className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13.5px] font-bold hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 tracking-[0.1em] disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               正式签发许可
+               {isSubmitting ? "处理中..." : "正式签发许可"}
              </button>
            )}
            {isIssued && !isVoided && (
