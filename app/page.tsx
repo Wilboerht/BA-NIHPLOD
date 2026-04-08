@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, QrCode } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
 import DealerModalPanel from "@/components/DealerModalPanel";
 import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
+import { Html5QrcodeScanner, Html5QrcodeScannerState } from "html5-qrcode";
 
 interface UserSession {
   id: string;
@@ -30,6 +31,13 @@ export default function VerificationPage() {
   const [loggedInUser, setLoggedInUser] = useState<UserSession | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const prevShowLoginModalRef = useRef(false);
+  
+  // 二维码扫描相关状态
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerReady, setScannerReady] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   // 页面加载时检查登录状态
   useEffect(() => {
@@ -59,6 +67,105 @@ export default function VerificationPage() {
 
     checkLoginStatus();
   }, []);
+
+  // 初始化和清理扫描器
+  useEffect(() => {
+    if (showScanner && !scannerRef.current) {
+      const scanner = new Html5QrcodeScanner(
+        "qr-scanner-container",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          rememberLastUsedCamera: true,
+          showTorchButtonIfSupported: true,
+          aspectRatio: 1,
+          useBarCodeDetectorIfSupported: false // 只识别二维码，不识别条形码
+        },
+        false
+      );
+
+      scanner.render(
+        (decodedText: string) => {
+          // 扫描成功
+          setScanError(null);
+          setIsScanning(true);
+          
+          // 从 URL 中提取证书编号
+          let certNumber = decodedText;
+          const urlParams = new URL(decodedText, "http://localhost").searchParams;
+          if (urlParams.has("cert")) {
+            certNumber = urlParams.get("cert") || decodedText;
+          }
+          
+          // 停止扫描
+          scanner.pause();
+          
+          // 执行验证查询
+          handleScanVerify(certNumber);
+        },
+        (error: any) => {
+          // 扫描持续中 - 忽略这些错误
+          if (!error.toString().includes("NotAllowedError") && !error.toString().includes("PermissionDenied")) {
+            console.log("Scanning...");
+          }
+        }
+      );
+
+      scannerRef.current = scanner;
+      setScannerReady(true);
+    }
+
+    return () => {
+      if (scannerRef.current && !showScanner) {
+        try {
+          scannerRef.current.clear();
+          scannerRef.current = null;
+          setScannerReady(false);
+        } catch (e) {
+          console.error("Failed to clean up scanner:", e);
+        }
+      }
+    };
+  }, [showScanner]);
+
+  // 处理扫描验证
+  const handleScanVerify = async (certNumber: string) => {
+    setIsSearching(true);
+    setResult(null);
+    setError(null);
+    setScanError(null);
+
+    try {
+      const res = await verifyCertificateAction(certNumber.trim());
+      if (res.success && res.data) {
+        setResult(res.data);
+      } else {
+        setError(res.error || "未查询到相关授权信息。");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("系统查询出错，请稍后再试。");
+    } finally {
+      setIsSearching(false);
+      setIsScanning(false);
+      setShowScanner(false);
+    }
+  };
+
+  // 关闭扫描器
+  const handleCloseScanner = () => {
+    if (scannerRef.current) {
+      try {
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      } catch (e) {
+        console.error("Failed to close scanner:", e);
+      }
+    }
+    setShowScanner(false);
+    setScannerReady(false);
+    setScanError(null);
+  };
 
   // 检查是否有经销商用户登录，当登录模态框从打开变为关闭时（登陆完成）才打开面板
   useEffect(() => {
@@ -229,33 +336,49 @@ export default function VerificationPage() {
           {/* 搜索框区 */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-xl"
+            className="w-full max-w-2xl"
           >
             <form 
               onSubmit={handleSearch} 
-              className="group relative flex items-center p-1.5 bg-white/60 backdrop-blur-2xl border border-white/80 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.06)] transition-all duration-700"
+              className="group relative flex items-center bg-white/70 backdrop-blur-2xl border border-white/80 rounded-[26px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
             >
-              <div className="flex-1 relative flex items-center">
-                <Search className="absolute left-6 w-4.5 h-4.5 text-slate-400 group-focus-within:text-slate-500 transition-colors" />
+              <div className="flex-1 relative flex items-center px-8 py-4">
+                <Search className="absolute left-8 w-5 h-5 text-slate-400 group-focus-within:text-[#8B7355] transition-colors" />
                 <input 
                   type="text" 
-                  placeholder="输入证书编号 (SN) 或 经销商企业名称" 
-                  className="w-full bg-transparent border-none outline-none pl-15 pr-6 py-4 text-[#2C2A29] text-[15px] placeholder:text-[#8B7355]/50 focus:ring-0 transition-all font-sans tracking-wide"
+                  placeholder="输入证书编号 (SN) 或经销企业名称" 
+                  className="w-full bg-transparent border-none outline-none pl-12 pr-4 text-[#2C2A29] text-base placeholder:text-[#8B7355]/45 focus:ring-0 transition-all font-medium"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
-              <button 
-                disabled={isSearching || !query.trim()}
-                className="bg-[#2C2A29] text-white h-11 px-9 rounded-[14px] hover:bg-[#1A1918] active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-2.5 shadow-lg shadow-[#2C2A29]/10 text-sm tracking-[0.1em]"
-              >
-                {isSearching ? <RefreshCw className="w-4 h-4 animate-spin mx-3" /> : (
-                  <>
-                     查询验证
-                     <ArrowRight className="w-4 h-4 ml-0.5" />
-                  </>
-                )}
-              </button>
+
+              {/* 按钮区 */}
+              <div className="flex items-center gap-2 pr-3 flex-shrink-0">
+                <button 
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  disabled={isSearching}
+                  className="relative flex items-center justify-center h-9 w-9 rounded-[10px] bg-slate-100/70 hover:bg-slate-200/80 text-[#8B7355] hover:text-[#6B5346] active:scale-90 transition-all duration-200 border border-slate-200/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="扫描授权书二维码"
+                >
+                  <QrCode className="w-4 h-4" />
+                </button>
+
+                <button 
+                  disabled={isSearching || !query.trim()}
+                  className="relative flex items-center justify-center gap-1 h-9 px-5 rounded-[10px] bg-[#2C2A29] hover:bg-[#1A1918] text-white text-xs active:scale-90 transition-all duration-200 shadow-md shadow-[#2C2A29]/20 hover:shadow-lg hover:shadow-[#2C2A29]/30 disabled:opacity-50 disabled:cursor-not-allowed font-bold tracking-widest uppercase"
+                >
+                  {isSearching ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <>
+                       <span>查询</span>
+                       <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </motion.div>
         </div>
@@ -409,6 +532,64 @@ export default function VerificationPage() {
                     提交核查请求
                  </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 二维码扫描模态框 */}
+      <AnimatePresence>
+        {showScanner && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={handleCloseScanner}
+               className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.98, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.98, y: 10 }}
+               className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 overflow-hidden"
+            >
+              <div className="absolute top-6 right-6">
+                <button 
+                  onClick={handleCloseScanner}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              <div className="text-center mb-6 pt-2">
+                 <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700 mx-auto mb-6">
+                    <QrCode size={24} />
+                 </div>
+                 <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">扫描二维码验证</h2>
+                 <p className="text-xs text-slate-500 mt-2">将摄像头对准授权书上的二维码</p>
+              </div>
+
+              {isScanning && (
+                <div className="text-center py-4">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2" />
+                  <p className="text-sm text-slate-600">正在验证...</p>
+                </div>
+              )}
+
+              <div id="qr-scanner-container" className="mb-6" style={{ width: '100%' }}></div>
+
+              {scanError && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-xs text-red-700">{scanError}</p>
+                </div>
+              )}
+
+              <button 
+                onClick={handleCloseScanner}
+                className="w-full mt-4 bg-slate-100 text-slate-700 h-11 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-all"
+              >
+                关闭
+              </button>
             </motion.div>
           </div>
         )}
