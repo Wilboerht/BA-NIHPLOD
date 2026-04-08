@@ -33,9 +33,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<CertData>({
     platformId: "",
-    platformLabel: "淘宝ID",
+    platformLabel: "",
     shopName: "",
-    shopLabel: "店铺名称",
+    shopLabel: "",
     scopeText: "拥有我公司代理的品牌 **NIHPLOD(旎柏)** 全系列产品\n在阿里巴巴集团旗下淘宝商城上的 **合格经销资格**，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
     duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
     authorizer: "旎柏（上海）商贸有限公司",
@@ -45,7 +45,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFontLoaded, setIsFontLoaded] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,9 +55,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
-
-  const platformOptions = ["淘宝ID", "京东ID", "拼多多ID", "抖音号", "快手ID", "小红书账号", "得物账号"];
-  const shopOptions = ["店铺名称", "专柜名称", "授权店名称", "直播间名称", "机构名称"];
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -140,8 +136,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
     
-    const idFullLine = `${data.platformLabel || "淘宝ID"}：${data.platformId || ""}`;
-    const shopFullLine = `${data.shopLabel || "店铺名称"}：${data.shopName || ""}`;
+    const idFullLine = data.platformLabel ? `${data.platformLabel}：${data.platformId}` : (data.platformId || "");
+    const shopFullLine = data.shopLabel ? `${data.shopLabel}：${data.shopName}` : (data.shopName || "");
     offCtx.fillText(idFullLine, width / 2, 530 * scale);
     offCtx.fillText(shopFullLine, width / 2, 578 * scale);
 
@@ -449,9 +445,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="flex flex-col h-full pl-2 px-1"
+        className="flex flex-col h-full"
       >
-        <div className="space-y-8 mb-4">
+        <div className="space-y-8 mb-4 pt-1">
           {/* 证书编号 - 仅在查看模式下显示 */}
           {mode === 'view' && data.cert_number && (
             <div className="flex items-center gap-3">
@@ -462,35 +458,21 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 属性 1：平台ID */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-500 font-medium">{data.platformLabel || "淘宝ID"}</div>
-              ) : (
-                <div className="relative -ml-2 group/label">
-                  <div 
-                    className="flex items-center gap-1.5 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    onClick={() => setActiveDropdown(activeDropdown === 'platform' ? null : 'platform')}
-                  >
-                    <span className="text-[13px] text-slate-500 font-medium truncate flex-1">
-                      {data.platformLabel || "名称"}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${activeDropdown === 'platform' ? 'rotate-180 text-blue-500' : 'group-hover/label:text-slate-400'}`} />
-                  </div>
-                  {activeDropdown === 'platform' && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />
-                      <div className="absolute left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-20">
-                        <div className="px-3 py-2 bg-slate-50/80 border-b border-slate-100 italic text-[10px]">自定义输入...</div>
-                        <input className="w-full px-3 py-1.5 text-xs outline-none" value={data.platformLabel} onChange={(e) => setData({ ...data, platformLabel: e.target.value })} />
-                        {platformOptions.map(opt => (
-                          <button key={opt} className="w-full px-3 py-2 text-left text-[13px] hover:bg-slate-50" onClick={() => { setData({ ...data, platformLabel: opt }); setActiveDropdown(null); }}>{opt}</button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            {data.platformLabel && (
+              <div className="w-24 shrink-0">
+                {mode === 'view' ? (
+                  <div className="text-[13px] text-slate-500 font-medium">{data.platformLabel}</div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="请输入标签"
+                    className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all"
+                    value={data.platformLabel}
+                    onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
+                  />
+                )}
+              </div>
+            )}
             <div className="flex-1">
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium">{data.platformId}</div>
@@ -506,30 +488,22 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             </div>
           </div>
 
-          {/* 属性 2：店铺名称 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-500 font-medium">{data.shopLabel || "店铺名称"}</div>
-              ) : (
-                <div className="relative -ml-2 group/label">
-                  <div 
-                    className="flex items-center gap-1.5 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    onClick={() => setActiveDropdown(activeDropdown === 'shop' ? null : 'shop')}
-                  >
-                    <span className="text-[13px] text-slate-500 font-medium truncate flex-1">{data.shopLabel || "名称"}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-300" />
-                  </div>
-                  {activeDropdown === 'shop' && (
-                    <div className="absolute left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-20">
-                       {shopOptions.map(opt => (
-                        <button key={opt} className="w-full px-3 py-2 text-left text-[13px] hover:bg-slate-50" onClick={() => { setData({ ...data, shopLabel: opt }); setActiveDropdown(null); }}>{opt}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            {data.shopLabel && (
+              <div className="w-24 shrink-0">
+                {mode === 'view' ? (
+                  <div className="text-[13px] text-slate-500 font-medium">{data.shopLabel}</div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="请输入标签"
+                    className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all"
+                    value={data.shopLabel}
+                    onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
+                  />
+                )}
+              </div>
+            )}
             <div className="flex-1">
                {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium">{data.shopName}</div>
@@ -547,7 +521,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 属性 3：有效期 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 text-[13px] text-slate-500 font-medium">有效期</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">有效期</div>
             <div className="flex-1">
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium">
@@ -575,7 +549,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 属性：联系电话 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 text-[13px] text-slate-500 font-medium">联系电话</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">联系电话</div>
             <div className="flex-1">
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium tabular-nums">{data.phone}</div>
@@ -596,7 +570,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 属性 4：授权方主体 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 text-[13px] text-slate-500 font-medium">授权方主体</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权方主体</div>
             <div className="flex-1">
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium">{data.authorizer}</div>
@@ -612,7 +586,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 属性 5：签字盖章 */}
           <div className="flex items-start gap-3">
-            <div className="w-24 text-[13px] text-slate-500 font-medium pt-2.5">签字盖章</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">签字盖章</div>
             <div className="flex-1">
               <input 
                 type="file" 
