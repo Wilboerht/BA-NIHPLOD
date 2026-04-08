@@ -126,13 +126,14 @@ export default function DealersPage() {
 
     return Array.from(phoneMap.values()).map(dealerGroup => {
       const allDealer = dealerGroup[0]; // 用第一个作为代表
-      const allNames = dealerGroup.map(d => d.company_name);
+      const allNames = [...new Set(dealerGroup.map(d => d.company_name))]; // 去重
+      const allDealerIds = dealerGroup.map(d => d.id);
       const totalCerts = dealerGroup.reduce((sum, d) => sum + (d.certificates?.[0]?.count || 0), 0);
       
       return {
         ...allDealer,
         allNames,
-        allDealerIds: dealerGroup.map(d => d.id),
+        allDealerIds,
         totalCerts
       };
     });
@@ -385,13 +386,10 @@ export default function DealersPage() {
                           // 建立dealerId到dealerName和dealerPhone的映射
                           const nameMap: Record<string, string> = {};
                           const phoneMap: Record<string, string> = {};
-                          dealerGroup.allDealerIds.forEach((id, idx) => {
-                            nameMap[id] = dealerGroup.allNames[idx];
-                          });
-                          // 从原始dealers列表中获取phone信息
                           dealerGroup.allDealerIds.forEach(id => {
                             const dealer = dealers.find(d => d.id === id);
                             if (dealer) {
+                              nameMap[id] = dealer.company_name;
                               phoneMap[id] = dealer.phone || '';
                             }
                           });
