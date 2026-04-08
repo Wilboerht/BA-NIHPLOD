@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone } from "lucide-react";
@@ -8,51 +8,79 @@ import Link from "next/link";
 
 export default function VerifyPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const certId = searchParams.get("cert");
   
   const [certificate, setCertificate] = useState<any>(null);
+  const [isExpired, setIsExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // 验证证书号格式 BAVP-YYYY-XXXX
+  const isValidCertNumber = (certNum: string | null): boolean => {
+    if (!certNum) return false;
+    return /^BAVP-\d{4}-\d{4}$/.test(certNum);
+  };
+
   useEffect(() => {
-    if (!certId) {
-      setError("未找到证书号");
+    if (!isValidCertNumber(certId)) {
+      setError("证书号格式不正确");
       setLoading(false);
       return;
     }
 
     const fetchCertificate = async () => {
       try {
+        // 直接解码 certId
+        const decodedCertId = decodeURIComponent(certId || "");
+        
         const { data, error: dbError } = await supabase
           .from("certificates")
           .select("*, dealers(company_name, phone)")
-          .eq("cert_number", certId)
+          .eq("cert_number", decodedCertId)
           .single();
 
-        if (dbError || !data) {
-          setError("证书不存在或已过期");
+        // 处理查询错误
+        if (dbError) {
+          if (dbError.code === "PGRST116") {
+            // 没有找到记录
+            setError("证书不存在");
+          } else {
+            setError("查询失败，请稍后重试");
+          }
           setLoading(false);
           return;
         }
 
-        // 检查证书状态和有效期
+        if (!data) {
+          setError("证书不存在");
+          setLoading(false);
+          return;
+        }
+
+        // 检查证书状态
         if (data.status !== "ISSUED") {
-          setError(`证书状态异常：${data.status}`);
+          if (data.status === "PENDING") {
+            setError("证书未生效，请等待审核");
+          } else if (data.status === "EXPIRED") {
+            setError("证书已过期");
+          } else {
+            setError(`证书状态异常：${data.status}`);
+          }
           setLoading(false);
           return;
         }
 
+        // 检查有效期
         const endDate = new Date(data.end_date);
         if (new Date() > endDate) {
-          setError("证书已过期");
-          data.expired = true;
+          setIsExpired(true);
         }
 
         setCertificate(data);
         setLoading(false);
-      } catch (err) {
-        setError("查询失败，请检查证书号");
+      } catch (err: any) {
+        console.error("Certificate verification error:", err);
+        setError("查询失败，请检查网络连接");
         setLoading(false);
       }
     };
@@ -156,7 +184,7 @@ export default function VerifyPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  {certificate.expired ? (
+                  {isExpired ? (
                     <span className="text-red-600 font-semibold">⚠ 已过期</span>
                   ) : (
                     <span className="text-emerald-600 font-semibold">

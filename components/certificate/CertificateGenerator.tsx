@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn } from "lucide-react";
+import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, File } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import jsPDF from 'jspdf';
 
 interface CertData {
   platformId: string;
@@ -35,7 +36,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     platformLabel: "淘宝ID",
     shopName: "",
     shopLabel: "店铺名称",
-    scopeText: "拥有我公司代理的品牌 NIHPLOD(旎柏) 全系列产品\n在阿里巴巴集团旗下淘宝商城上的合格经销资格，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
+    scopeText: "拥有我公司代理的品牌 **NIHPLOD(旎柏)** 全系列产品\n在阿里巴巴集团旗下淘宝商城上的 **合格经销资格**，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
     duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
     authorizer: "旎柏（上海）商贸有限公司",
     sealImage: "",
@@ -50,6 +51,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isIssued, setIsIssued] = useState(false);
   const [isVoided, setIsVoided] = useState(initialVoided);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [sealFileName, setSealFileName] = useState<string | null>(null);
   
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -147,27 +150,52 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const scopeLines = (data.scopeText || "").split('\n');
     let startY = 630 * scale; 
     
+    // 解析 Markdown 加粗语法 (**text**)
+    const parseMarkdownBold = (line: string) => {
+      const parts = [];
+      const regex = /\*\*(.*?)\*\*/g;
+      let lastIndex = 0;
+      let match;
+      
+      while ((match = regex.exec(line)) !== null) {
+        // 加粗前的文本
+        if (match.index > lastIndex) {
+          parts.push({ text: line.substring(lastIndex, match.index), bold: false });
+        }
+        // 加粗的文本
+        parts.push({ text: match[1], bold: true });
+        lastIndex = regex.lastIndex;
+      }
+      
+      // 加粗后的剩余文本
+      if (lastIndex < line.length) {
+        parts.push({ text: line.substring(lastIndex), bold: false });
+      }
+      
+      return parts.length > 0 ? parts : [{ text: line, bold: false }];
+    };
+    
     scopeLines.forEach((line) => {
-      const brandKey = "NIHPLOD(旎柏)";
-      if (line.includes(brandKey)) {
-        const parts = line.split(brandKey);
-        offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-        const w1 = offCtx.measureText(parts[0]).width;
-        const w3 = offCtx.measureText(parts[1]).width;
-        offCtx.font = `bold ${15 * scale}px "Noto Serif SC", serif`;
-        const w2 = offCtx.measureText(brandKey).width;
+      const parts = parseMarkdownBold(line.trim());
+      
+      if (parts.some(p => p.bold)) {
+        // 有加粗内容，需要计算宽度并分段绘制
+        let totalWidth = 0;
+        parts.forEach(part => {
+          offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+          totalWidth += offCtx.measureText(part.text).width;
+        });
         
-        let currentX = (width - (w1 + w2 + w3)) / 2;
+        let currentX = (width - totalWidth) / 2;
         offCtx.textAlign = "left";
-        offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillText(parts[0], currentX, startY);
-        currentX += w1;
-        offCtx.font = `bold ${15 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillText(brandKey, currentX, startY);
-        currentX += w2;
-        offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillText(parts[1], currentX, startY);
+        
+        parts.forEach(part => {
+          offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+          offCtx.fillText(part.text, currentX, startY);
+          currentX += offCtx.measureText(part.text).width;
+        });
       } else {
+        // 没有加粗内容，居中绘制
         offCtx.textAlign = "center";
         offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
         offCtx.fillText(line.trim(), width / 2, startY);
@@ -190,6 +218,15 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.fillText(`授权方：${data.authorizer || ""}`, width - 435 * scale, 848 * scale);
     offCtx.fillText("签字/盖章：", width - 435 * scale, 892 * scale);
 
+    // 显示证书编号
+    const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
+    if (certNumber) {
+      offCtx.textAlign = "right";
+      offCtx.font = `400 ${12 * scale}px "Noto Serif SC", serif`;
+      offCtx.fillStyle = "#666666";
+      offCtx.fillText(`证书号：${certNumber}`, width - 40 * scale, height - 30 * scale);
+    }
+
     if (isIssued && sealImg) {
       const maxSealSize = 160 * scale;
       const aspect = sealImg.width / sealImg.height;
@@ -207,26 +244,27 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     // 生成并绘制二维码
     try {
       const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
-      const verifyUrl = `https://ba.nihplod.cn/verify?cert=${certNumber}`;
+      // 使用相对路径，避免硬编码域名
+      const verifyUrl = `/verify?cert=${encodeURIComponent(certNumber)}`;
       const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
-        width: 120 * scale,
+        width: 80,  // 固定尺寸 80px，不根据 scale 缩放
         margin: 1,
         color: { dark: '#000000', light: '#ffffff' },
-        errorCorrectionLevel: 'H'
+        errorCorrectionLevel: 'M'  // 改为 M 级别，足以应对二维码被部分遮挡
       });
       
       const qrImg = await loadImage(qrDataUrl);
       if (qrImg) {
-        const qrSize = 120 * scale;
-        const qrX = 50 * scale; // 左下角距离
-        const qrY = height - 180 * scale; // 距离底部
+        const qrSize = 100 * scale;  // 保持缩放，但基数减小
+        const qrX = 210 * scale; // 从左边向内移动
+        const qrY = height - 320 * scale; // 距离底部
         offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
         
         // 添加二维码标签
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
-        offCtx.fillText("扫码验证", qrX + qrSize / 2, qrY + qrSize + 18 * scale);
+        offCtx.fillText("扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
       }
     } catch (err) {
       console.warn("QR code generation failed:", err);
@@ -285,9 +323,52 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = `授权书_【预览稿】_${data.shopName}.png`;
+    link.download = `授权书_${data.shopName}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setIsDownloading(true);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // canvas 尺寸：800x1131 (实际 1600x2262)
+      const imgData = canvas.toDataURL("image/png");
+      const pdfWidth = 210; // A4 宽度 mm
+      const pdfHeight = 297; // A4 高度 mm
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // 计算缩放后的尺寸（限制在 A4 页面内）
+      const maxWidth = pdfWidth - 10; // 留出边距
+      const maxHeight = pdfHeight - 10;
+      
+      let imgWidth = maxWidth;
+      let imgHeight = (maxWidth * canvas.height) / canvas.width;
+      
+      if (imgHeight > maxHeight) {
+        imgHeight = maxHeight;
+        imgWidth = (maxHeight * canvas.width) / canvas.height;
+      }
+
+      const x = (pdfWidth - imgWidth) / 2;
+      const y = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+      
+      const fileName = `授权书_${data.shopName}.pdf`;
+      pdf.save(fileName);
+    } catch (err: any) {
+      alert("PDF 下载失败：" + err.message);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleImagePreview = () => {
@@ -300,6 +381,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSealFileName(file.name);
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
@@ -359,6 +441,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         className="flex flex-col h-full pl-2 px-1"
       >
         <div className="space-y-8 mb-4">
+          {/* 证书编号 - 仅在查看模式下显示 */}
+          {mode === 'view' && data.cert_number && (
+            <div className="flex items-center gap-3">
+              <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">证书编号</div>
+              <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium">{data.cert_number}</div>
+            </div>
+          )}
+
           {/* 属性 1：平台ID */}
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0">
@@ -529,7 +619,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">{mode === 'view' ? '备案公章' : '上传/更换公章'}</div>
-                  <div className="text-[10px] text-slate-400">{mode === 'view' ? '系统自动存证' : '点击上传 PNG/SVG'}</div>
+                  <div className="text-[10px] text-slate-400">{mode === 'view' ? '系统自动存证' : sealFileName ? `已上传: ${sealFileName}` : '点击上传 PNG/SVG'}</div>
                 </div>
               </div>
             </div>
@@ -553,14 +643,24 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           </div>
         </div>
 
-        <div className="pt-12 pb-2 flex items-center gap-4">
+        <div className="pt-12 pb-2 flex items-center gap-3 flex-wrap">
            {!isVoided && (
-             <button 
-               onClick={handleDownload} 
-               className="h-11 px-5 text-slate-500 bg-white border border-slate-100 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 flex items-center gap-2 tracking-wide"
-             >
-               <Download className="w-4 h-4 opacity-70" /> 下载预览图片
-             </button>
+             <>
+               <button 
+                 onClick={handleDownload}
+                 disabled={isDownloading}
+                 className="h-11 px-4 text-slate-500 bg-white border border-slate-100 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 <Download className="w-4 h-4 opacity-70" /> PNG
+               </button>
+               <button 
+                 onClick={handleDownloadPDF}
+                 disabled={isDownloading}
+                 className="h-11 px-4 text-slate-500 bg-white border border-slate-100 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 <File className="w-4 h-4 opacity-70" /> PDF
+               </button>
+             </>
            )}
            {mode !== 'view' && (
              <button 
@@ -572,12 +672,22 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
              </button>
            )}
            {isIssued && !isVoided && (
-             <button 
-               onClick={handleDownload} 
-               className="h-11 px-8 bg-emerald-600 text-white rounded-xl text-[13px] font-bold animate-bounce shadow-xl shadow-emerald-100 tracking-wide"
-             >
-               获取正式授权书
-             </button>
+             <>
+               <button 
+                 onClick={handleDownload}
+                 disabled={isDownloading}
+                 className="h-11 px-6 bg-blue-600 text-white rounded-xl text-[13px] font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 tracking-wide flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 <Download className="w-4 h-4" /> PNG
+               </button>
+               <button 
+                 onClick={handleDownloadPDF}
+                 disabled={isDownloading}
+                 className="h-11 px-6 bg-emerald-600 text-white rounded-xl text-[13px] font-bold animate-bounce shadow-xl shadow-emerald-100 tracking-wide flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 <File className="w-4 h-4" /> PDF
+               </button>
+             </>
            )}
         </div>
       </motion.div>

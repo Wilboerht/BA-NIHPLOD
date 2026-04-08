@@ -219,6 +219,7 @@ export default function CertificatesPage() {
                             onClick={() => {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
+                                cert_number: cert.cert_number,
                                 platformId: scopeParts[0],
                                 platformLabel: "识别码", 
                                 shopName: cert.dealers?.company_name,
@@ -244,6 +245,7 @@ export default function CertificatesPage() {
                             onClick={() => {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
+                                cert_number: cert.cert_number,
                                 platformId: scopeParts[0],
                                 platformLabel: "识别码", 
                                 shopName: cert.dealers?.company_name,
