@@ -25,19 +25,13 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const checkAuth = async () => {
-      // 1. 首先检查 sessionStorage 里是否有经销商用户
+      // 1. 首先检查 sessionStorage 里是否有经销商用户，如果有则拦截不允许进入 workbench
       const sessionUserStr = sessionStorage.getItem('user');
       if (sessionUserStr) {
         try {
           const sessionUser = JSON.parse(sessionUserStr);
-          setUser(sessionUser);
-          setUserType('dealer');
-          
-          if (sessionUser.is_first_login) {
-            router.replace("/reset-password");
-          } else {
-            setIsAuthorized(true);
-          }
+          // 经销商用户不允许进入 workbench，重定向到 /dealer
+          router.replace("/dealer");
           return;
         } catch (e) {
           console.error('Failed to parse user session:', e);

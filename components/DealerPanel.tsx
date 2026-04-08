@@ -50,12 +50,12 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
   const fetchCertificates = async () => {
     setIsLoading(true);
     try {
-      // 通过 phone 查询 dealers 表，然后获取相关证书
+      // 通过 profile_id 查询 dealers 表，然后获取相关证书
       const { data: dealers, error: dealerError } = await supabase
         .from('dealers')
         .select('id')
-        .eq('phone', user?.phone)
-        .maybeSingle();
+        .eq('profile_id', user?.id)
+        .single();
 
       if (dealerError || !dealers) {
         console.error('Failed to fetch dealer:', dealerError);

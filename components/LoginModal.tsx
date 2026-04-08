@@ -37,8 +37,11 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
         // 保存用户信息到 sessionStorage
         sessionStorage.setItem('user', JSON.stringify(data.user));
 
+        // 根据用户角色重定向
         if (data.user.is_first_login) {
           window.location.href = "/reset-password";
+        } else if (data.user.role === "DEALER") {
+          window.location.href = "/dealer";
         } else {
           window.location.href = "/workbench";
         }
