@@ -654,22 +654,22 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           </div>
         </div>
 
-        <div className="pt-12 pb-2 flex items-center gap-3 flex-wrap">
+        <div className="pt-12 pb-2 flex items-center gap-6 flex-wrap">
            {!isVoided && !isIssued && (
              <>
                <button 
                  onClick={handleDownload}
                  disabled={isDownloading}
-                 className="h-11 px-4 text-slate-500 bg-white border border-slate-100 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                 <Download className="w-4 h-4 opacity-70" /> PNG
+                 <Download className="w-4 h-4 opacity-70" /> 下载 PNG
                </button>
                <button 
                  onClick={handleDownloadPDF}
                  disabled={isDownloading}
-                 className="h-11 px-4 text-slate-500 bg-white border border-slate-100 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                 <File className="w-4 h-4 opacity-70" /> PDF
+                 <File className="w-4 h-4 opacity-70" /> 下载 PDF
                </button>
              </>
            )}
@@ -687,16 +687,16 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                <button 
                  onClick={handleDownload}
                  disabled={isDownloading}
-                 className="h-11 px-6 bg-blue-600 text-white rounded-xl text-[13px] font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 tracking-wide flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                 <Download className="w-4 h-4" /> PNG
+                 <Download className="w-4 h-4" /> 下载 PNG
                </button>
                <button 
                  onClick={handleDownloadPDF}
                  disabled={isDownloading}
-                 className="h-11 px-6 bg-emerald-600 text-white rounded-xl text-[13px] font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 tracking-wide flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                 <File className="w-4 h-4" /> PDF
+                 <File className="w-4 h-4" /> 下载 PDF
                </button>
              </>
            )}
