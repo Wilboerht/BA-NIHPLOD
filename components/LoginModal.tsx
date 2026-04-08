@@ -5,7 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Eye, EyeOff, ArrowRight, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function LoginModal({ 
+  isOpen, 
+  onClose,
+  onShowResetPassword 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void;
+  onShowResetPassword?: () => void;
+}) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -39,7 +47,8 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
 
         // 根据用户角色和首次登录状态处理
         if (data.user.is_first_login) {
-          window.location.href = "/reset-password";
+          onClose();
+          onShowResetPassword?.();
         } else if (data.user.role === "DEALER") {
           // 经销商直接关闭登录模态框，让首页检测到变化并打开经销商模态框
           onClose();
@@ -66,7 +75,8 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
 
         // 根据首次登录状态处理
         if (data.user.is_first_login) {
-          window.location.href = "/reset-password";
+          onClose();
+          onShowResetPassword?.();
         } else {
           window.location.href = "/workbench";
         }

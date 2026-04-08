@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle, AlertCircle, File } from "lucide-react";
+import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle, AlertCircle, File, Lock } from "lucide-react";
 import jsPDF from "jspdf";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
@@ -37,9 +37,10 @@ interface Certificate {
 interface DealerModalPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenResetPassword?: () => void;
 }
 
-export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelProps) {
+export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword }: DealerModalPanelProps) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -557,7 +558,14 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                 </div>
 
                 {/* Footer */}
-                <div className="px-8 py-5 bg-gradient-to-t from-white via-white to-transparent border-t border-slate-100/50 shrink-0">
+                <div className="px-8 py-5 bg-gradient-to-t from-white via-white to-transparent border-t border-slate-100/50 shrink-0 space-y-3">
+                  <button
+                    onClick={onOpenResetPassword}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-700 font-semibold text-sm rounded-lg transition-all duration-200"
+                  >
+                    <Lock className="w-4 h-4" />
+                    修改密码
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-sm rounded-lg transition-all duration-200"
@@ -576,7 +584,8 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
         <div id="hidden-certificate-canvas-container" style={{ display: 'none' }}>
           <CertificateGenerator 
             initialData={generatorDataForBackground} 
-            mode="create"
+            mode="view"
+            isVoided={false}
             onSuccess={() => {
               // onSuccess 由 useEffect 中的 canvas 自动下载逻辑处理
               console.log("隐藏生成器成功生成证书");

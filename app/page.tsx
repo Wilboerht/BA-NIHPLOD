@@ -7,6 +7,7 @@ import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
 import DealerModalPanel from "@/components/DealerModalPanel";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
 import { Html5QrcodeScanner, Html5QrcodeScannerState } from "html5-qrcode";
 
@@ -26,6 +27,7 @@ export default function VerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showDealerModal, setShowDealerModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
   const [loggedInUser, setLoggedInUser] = useState<UserSession | null>(null);
@@ -665,9 +667,41 @@ export default function VerificationPage() {
             </button>
          </div>
       </footer>
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+        onShowResetPassword={() => {
+          setShowLoginModal(false);
+          setShowResetPasswordModal(true);
+        }}
+      />
       <LegalModal isOpen={showLegalModal.isOpen} type={showLegalModal.type} onClose={() => setShowLegalModal({ ...showLegalModal, isOpen: false })} />
-      <DealerModalPanel isOpen={showDealerModal} onClose={() => setShowDealerModal(false)} />
+      <DealerModalPanel 
+        isOpen={showDealerModal} 
+        onClose={() => setShowDealerModal(false)}
+        onOpenResetPassword={() => {
+          setShowDealerModal(false);
+          setShowResetPasswordModal(true);
+        }}
+      />
+      <ResetPasswordModal 
+        isOpen={showResetPasswordModal} 
+        onClose={() => setShowResetPasswordModal(false)}
+        onSuccess={() => {
+          // 重置密码成功后，如果是经销商，打开经销商面板
+          const userStr = sessionStorage.getItem('user');
+          if (userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              if (user.role === 'DEALER') {
+                setShowDealerModal(true);
+              }
+            } catch (e) {
+              console.error('Failed to parse user:', e);
+            }
+          }
+        }}
+      />
     </main>
   );
 }
