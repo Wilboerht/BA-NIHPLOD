@@ -4,7 +4,7 @@
 CREATE TYPE user_role AS ENUM ('SUPER_ADMIN', 'AUDITOR', 'DEALER');
 
 CREATE TABLE profiles (
-    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT UNIQUE,
     full_name TEXT,
     phone TEXT UNIQUE,

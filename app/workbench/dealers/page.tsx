@@ -217,7 +217,7 @@ export default function DealersPage() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="text-[13px] text-slate-600 font-mono">
-                        {dealer.profile?.username ? `${dealer.profile.username}@ba.nihplod.cn` : "-"}
+                        {dealer.phone || "-"}
                       </span>
                       {dealer.profile?.is_first_login && (
                         <span className="text-[10px] text-amber-500 font-bold uppercase tracking-tighter">

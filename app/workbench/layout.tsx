@@ -48,7 +48,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        router.replace("/login");
+        router.replace("/");
         return;
       }
 
@@ -59,7 +59,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
         .single();
         
       if (!profile) {
-        router.replace("/login");
+        router.replace("/");
         return;
       }
 
