@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, LogOut } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
@@ -29,6 +29,7 @@ export default function VerificationPage() {
   const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
   const [loggedInUser, setLoggedInUser] = useState<UserSession | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const prevShowLoginModalRef = useRef(false);
 
   // 页面加载时检查登录状态
   useEffect(() => {
@@ -44,10 +45,10 @@ export default function VerificationPage() {
             return;  // 不设置isPageLoading，让页面在重定向时闪烁
           }
 
-          // 如果是经销商，设置状态并打开经销商面板
+          // 如果是经销商，设置状态但不自动打开面板
           if (user.role === "DEALER") {
             setLoggedInUser(user);
-            setShowDealerModal(true);
+            // 页面刷新时不自动打开面板，只有登陆完成后才打开
           }
         } catch (e) {
           console.error("Failed to parse user session:", e);
@@ -59,14 +60,14 @@ export default function VerificationPage() {
     checkLoginStatus();
   }, []);
 
-  // 检查是否有经销商用户登录，当登录模态框关闭时检查
+  // 检查是否有经销商用户登录，当登录模态框从打开变为关闭时（登陆完成）才打开面板
   useEffect(() => {
-    if (!showLoginModal) {
+    // 只在登陆模态框从true变为false时执行（即刚完成登陆）
+    if (prevShowLoginModalRef.current && !showLoginModal) {
       const userStr = sessionStorage.getItem("user");
       if (userStr) {
         try {
           const user = JSON.parse(userStr) as UserSession;
-          setLoggedInUser(user);
           if (user.role === "DEALER") {
             setShowDealerModal(true);
           }
@@ -75,6 +76,8 @@ export default function VerificationPage() {
         }
       }
     }
+    // 更新ref值用于下一次比较
+    prevShowLoginModalRef.current = showLoginModal;
   }, [showLoginModal]);
 
   const handleLogout = () => {
@@ -427,18 +430,13 @@ export default function VerificationPage() {
 
             {/* 用户区域 */}
             {loggedInUser ? (
-              <div className="flex gap-6 items-center border-l border-slate-200/50 pl-6">
-                <span className="text-slate-600 flex items-center gap-2 whitespace-nowrap">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                  <span className="hidden sm:inline max-w-[60px] truncate">{loggedInUser.full_name || loggedInUser.username || "已登陆"}</span>
-                </span>
-                <button 
-                  onClick={handleLogout} 
-                  className="cursor-pointer hover:text-red-600 active:text-red-700 transition-colors flex items-center gap-2 text-red-500/70 whitespace-nowrap"
-                >
-                  <LogOut className="w-3.5 h-3.5 flex-shrink-0" /> 退出
-                </button>
-              </div>
+              <button
+                onClick={handleLoginClick}
+                className="text-slate-600 flex items-center gap-2 whitespace-nowrap cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span className="hidden sm:inline max-w-[60px] truncate">{loggedInUser.phone || "已登陆"}</span>
+              </button>
             ) : (
               <button 
                 onClick={handleLoginClick} 
