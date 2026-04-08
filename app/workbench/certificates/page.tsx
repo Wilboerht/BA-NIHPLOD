@@ -345,6 +345,13 @@ export default function CertificatesPage() {
                     initialData={selectedCertData} 
                     mode={isViewOnly ? 'view' : 'create'} 
                     isVoided={isViewVoided}
+                    onSuccess={() => {
+                      setShowIssueModal(false);
+                      setSelectedCertData(null);
+                      setIsViewOnly(false);
+                      setIsViewVoided(false);
+                      fetchCertificates(); // 重新加载证书列表
+                    }}
                   />
                 </div>
               </div>

@@ -33,6 +33,8 @@ export default function DealersPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [dealerCerts, setDealerCerts] = useState<any[]>([]);
+  const [dealerNameMap, setDealerNameMap] = useState<Record<string, string>>({}); // dealer_id -> company_name
+  const [dealerPhoneMap, setDealerPhoneMap] = useState<Record<string, string>>({}); // dealer_id -> phone
   const [isCertsLoading, setIsCertsLoading] = useState(false);
   const [viewCertData, setViewCertData] = useState<any>(null);
   const [isViewVoided, setIsViewVoided] = useState(false);
@@ -107,8 +109,34 @@ export default function DealersPage() {
 
   const filteredDealers = dealers.filter(d =>
     d.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.profile?.username || "").toLowerCase().includes(searchQuery.toLowerCase())
+    (d.phone || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // 按 phone 分组，合并同 phone 的 dealers
+  const groupedByPhone = useCallback(() => {
+    const phoneMap = new Map<string, Dealer[]>();
+    
+    filteredDealers.forEach(dealer => {
+      const phone = dealer.phone || 'unknown';
+      if (!phoneMap.has(phone)) {
+        phoneMap.set(phone, []);
+      }
+      phoneMap.get(phone)!.push(dealer);
+    });
+
+    return Array.from(phoneMap.values()).map(dealerGroup => {
+      const allDealer = dealerGroup[0]; // 用第一个作为代表
+      const allNames = dealerGroup.map(d => d.company_name);
+      const totalCerts = dealerGroup.reduce((sum, d) => sum + (d.certificates?.[0]?.count || 0), 0);
+      
+      return {
+        ...allDealer,
+        allNames,
+        allDealerIds: dealerGroup.map(d => d.id),
+        totalCerts
+      };
+    });
+  }, [filteredDealers]);
 
   const resetDealerPassword = async (username: string) => {
     if (!username) return;
@@ -117,32 +145,36 @@ export default function DealersPage() {
   };
 
   // 第一次点击：进入待确认状态
-  const triggerBanConfirm = (dealer: Dealer) => {
-    if (!dealer.profile?.id) return;
-    setConfirmBanId(dealer.id);
+  const triggerBanConfirm = (dealerGroup: any) => {
+    if (!dealerGroup.profile?.id) return;
+    setConfirmBanId(dealerGroup.phone);
   };
 
-  // 第二次点击：执行封禁/解封
-  const executeBan = async (dealer: Dealer) => {
-    if (!dealer.profile?.id) return;
-    const action = dealer.isBanned ? "unban" : "ban";
+  // 第二次点击：执行封禁/解封 (应用于该 phone 的所有 dealer)
+  const executeBan = async (dealerGroup: any) => {
+    if (!dealerGroup.profile?.id) return;
+    const action = dealerGroup.isBanned ? "unban" : "ban";
     setConfirmBanId(null);
-    setBanningId(dealer.id);
+    setBanningId(dealerGroup.phone);
     try {
+      // 只需 ban 该 phone 对应的 profile 一次（因为一个 phone 只有一个 profile）
       const res = await fetch('/api/admin/ban-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: dealer.profile.id, action }),
+        body: JSON.stringify({ userId: dealerGroup.profile.id, action }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
+      
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.error || '操作失败');
+      }
 
-      // 乐观更新本地状态
+      // 乐观更新本地状态：该 phone 下的所有 dealer 都更新
       setDealers(prev => prev.map(d =>
-        d.id === dealer.id ? { ...d, isBanned: action === 'ban' } : d
+        dealerGroup.allDealerIds.includes(d.id) ? { ...d, isBanned: action === 'ban' } : d
       ));
     } catch (err: any) {
-      alert("操作失败：" + err.message);
+      alert("操作失败：" + (err.message || "未知错误"));
     } finally {
       setBanningId(null);
     }
@@ -188,8 +220,9 @@ export default function DealersPage() {
           <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
             <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商主体</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">登录账号 (Email)</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商主体（名称）</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">ID</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">登录账号 (Phone)</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">持有证书</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">注册时间</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">账户状态</th>
@@ -197,29 +230,28 @@ export default function DealersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {!isLoading && filteredDealers.map((dealer) => (
-                <tr key={dealer.id} className={`hover:bg-slate-50/50 transition-colors group ${dealer.isBanned ? 'bg-rose-50/30' : ''}`}>
+              {!isLoading && groupedByPhone().map((dealerGroup) => (
+                <tr key={dealerGroup.phone} className={`hover:bg-slate-50/50 transition-colors group ${dealerGroup.isBanned ? 'bg-rose-50/30' : ''}`}>
                   <td className="px-6 py-4 mr-10">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[13px] transition-colors ${dealer.isBanned ? 'bg-rose-100 text-rose-400' : 'bg-blue-50 text-blue-500'}`}>
-                        {dealer.isBanned ? <Ban className="w-4 h-4" /> : dealer.company_name.charAt(0)}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className={`font-semibold ${dealer.isBanned ? 'text-slate-400 line-through decoration-rose-300' : 'text-slate-900'}`}>
-                          {dealer.company_name}
-                        </span>
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1 group-hover:text-primary transition-colors">
-                          ID: {dealer.id.substring(0, 8).toUpperCase()}
-                        </span>
+                    <div className="flex flex-col">
+                      <div className={`space-y-0.5 ${dealerGroup.isBanned ? 'text-slate-400 line-through decoration-rose-300' : 'text-slate-900'}`}>
+                        {dealerGroup.allNames.map((name, idx) => (
+                          <div key={idx} className="text-[12px]">{name}</div>
+                        ))}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      {dealerGroup.allDealerIds[0].substring(0, 8).toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-[13px] text-slate-600 font-mono">
-                        {dealer.phone || "-"}
+                      <span className="text-[13px] text-slate-600 font-mono uppercase">
+                        {dealerGroup.phone || "-"}
                       </span>
-                      {dealer.profile?.is_first_login && (
+                      {dealerGroup.profile?.is_first_login && (
                         <span className="text-[10px] text-amber-500 font-bold uppercase tracking-tighter">
                           未修改初始密码
                         </span>
@@ -228,18 +260,18 @@ export default function DealersPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
-                      {dealer.certificates?.[0]?.count || 0} 张
+                      {dealerGroup.totalCerts} 张
                     </span>
                   </td>
                   <td className="px-6 py-4 text-xs text-slate-500">
-                    {new Date(dealer.created_at).toLocaleDateString()}
+                    {new Date(dealerGroup.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4">
-                    {!dealer.profile ? (
+                    {!dealerGroup.profile ? (
                       <span className="inline-flex items-center gap-1 text-slate-300 text-[11px] font-bold uppercase tracking-wider">
                         待开启
                       </span>
-                    ) : dealer.isBanned ? (
+                    ) : dealerGroup.isBanned ? (
                       <span className="inline-flex items-center gap-1.5 text-rose-500 text-[11px] font-bold uppercase tracking-wider">
                         <Ban className="w-3 h-3" /> 已封禁
                       </span>
@@ -251,7 +283,7 @@ export default function DealersPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <AnimatePresence mode="wait" initial={false}>
-                      {confirmBanId === dealer.id ? (
+                      {confirmBanId === dealerGroup.phone ? (
                         /* ── 二次确认条 ── */
                         <motion.div
                           key="confirm"
@@ -262,9 +294,9 @@ export default function DealersPage() {
                           className="flex items-center justify-end gap-2"
                         >
                           <span className={`text-[11px] font-bold tracking-wide ${
-                            dealer.isBanned ? 'text-emerald-600' : 'text-rose-500'
+                            dealerGroup.isBanned ? 'text-emerald-600' : 'text-rose-500'
                           }`}>
-                            {dealer.isBanned ? '确认解封？' : '确认封禁？'}
+                            {dealerGroup.isBanned ? '确认解封？' : '确认封禁？'}
                           </span>
                           <button
                             onClick={() => setConfirmBanId(null)}
@@ -273,14 +305,14 @@ export default function DealersPage() {
                             取消
                           </button>
                           <button
-                            onClick={() => executeBan(dealer)}
+                            onClick={() => executeBan(dealerGroup)}
                             className={`px-3 py-1 text-[11px] font-bold text-white rounded-md transition-all active:scale-95 ${
-                              dealer.isBanned
+                              dealerGroup.isBanned
                                 ? 'bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-100'
                                 : 'bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-100'
                             }`}
                           >
-                            {dealer.isBanned ? '解封' : '封禁'}
+                            {dealerGroup.isBanned ? '解封' : '封禁'}
                           </button>
                         </motion.div>
                       ) : (
@@ -294,9 +326,9 @@ export default function DealersPage() {
                           className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                       {/* 重置密码 */}
-                      {dealer.profile && userRole === 'SUPER_ADMIN' && (
+                      {dealerGroup.profile && userRole === 'SUPER_ADMIN' && (
                         <button
-                          onClick={() => resetDealerPassword(dealer.profile!.username)}
+                          onClick={() => resetDealerPassword(dealerGroup.profile!.username)}
                           title="重置初始密码"
                           className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-all"
                         >
@@ -305,16 +337,16 @@ export default function DealersPage() {
                       )}
 
                       {/* 封禁 / 解封 */}
-                      {dealer.profile && userRole === 'SUPER_ADMIN' && (
-                        dealer.isBanned ? (
+                      {dealerGroup.profile && userRole === 'SUPER_ADMIN' && (
+                        dealerGroup.isBanned ? (
                           /* 已封禁 → 显示绿色"解封"胶囊 */
                           <button
-                            onClick={() => triggerBanConfirm(dealer)}
-                            disabled={banningId === dealer.id}
+                            onClick={() => triggerBanConfirm(dealerGroup)}
+                            disabled={banningId === dealerGroup.phone}
                             title="解除封禁"
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all disabled:opacity-40 disabled:pointer-events-none"
                           >
-                            {banningId === dealer.id ? (
+                            {banningId === dealerGroup.phone ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <ShieldCheck className="w-3.5 h-3.5" />
@@ -324,12 +356,12 @@ export default function DealersPage() {
                         ) : (
                           /* 正常账户 → 显示灰色"封禁"图标按钮，悬停变红 */
                           <button
-                            onClick={() => triggerBanConfirm(dealer)}
-                            disabled={banningId === dealer.id}
+                            onClick={() => triggerBanConfirm(dealerGroup)}
+                            disabled={banningId === dealerGroup.phone}
                             title="封禁账户"
                             className="p-1.5 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all disabled:opacity-40 disabled:pointer-events-none"
                           >
-                            {banningId === dealer.id ? (
+                            {banningId === dealerGroup.phone ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                               <ShieldOff className="w-4 h-4" />
@@ -338,17 +370,33 @@ export default function DealersPage() {
                         )
                       )}
 
-                      {/* 查看证书 */}
+                      {/* 查看证书 (显示该 phone 下所有 dealer 的证书) */}
                       <button
                         onClick={async () => {
-                          setSelectedDealer(dealer);
+                          setSelectedDealer(dealerGroup);
                           setIsCertsLoading(true);
+                          // 查询该 phone 下所有 dealer 的证书
                           const { data } = await supabase
                             .from('certificates')
                             .select('*')
-                            .eq('dealer_id', dealer.id)
+                            .in('dealer_id', dealerGroup.allDealerIds)
                             .order('created_at', { ascending: false });
                           setDealerCerts(data || []);
+                          // 建立dealerId到dealerName和dealerPhone的映射
+                          const nameMap: Record<string, string> = {};
+                          const phoneMap: Record<string, string> = {};
+                          dealerGroup.allDealerIds.forEach((id, idx) => {
+                            nameMap[id] = dealerGroup.allNames[idx];
+                          });
+                          // 从原始dealers列表中获取phone信息
+                          dealerGroup.allDealerIds.forEach(id => {
+                            const dealer = dealers.find(d => d.id === id);
+                            if (dealer) {
+                              phoneMap[id] = dealer.phone || '';
+                            }
+                          });
+                          setDealerNameMap(nameMap);
+                          setDealerPhoneMap(phoneMap);
                           setIsCertsLoading(false);
                         }}
                         title="查看名下证书"
@@ -365,7 +413,7 @@ export default function DealersPage() {
             </tbody>
           </table>
 
-          {!isLoading && filteredDealers.length === 0 && (
+          {!isLoading && groupedByPhone().length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <Building2 className="w-6 h-6" />
@@ -397,7 +445,7 @@ export default function DealersPage() {
                     <FileText className="w-5 h-5 text-blue-500" />
                     授权历史档案
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">主体名称：{selectedDealer.company_name}</p>
+                  <p className="text-xs text-slate-500 font-medium">登录账号：{selectedDealer!.phone}</p>
                 </div>
                 <button
                   onClick={() => setSelectedDealer(null)}
@@ -425,6 +473,7 @@ export default function DealersPage() {
                     <thead className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-y border-slate-100">
                       <tr>
                         <th className="px-6 py-4">证书编号</th>
+                        <th className="px-6 py-4">主题名称</th>
                         <th className="px-6 py-4">有效期</th>
                         <th className="px-6 py-4">状态</th>
                         <th className="px-6 py-4 text-right">预览/存档</th>
@@ -440,6 +489,7 @@ export default function DealersPage() {
                         return (
                           <tr key={cert.id} className="hover:bg-white transition-colors group/row">
                             <td className="px-6 py-4 font-mono text-[11px] font-bold text-slate-900">{cert.cert_number}</td>
+                            <td className="px-6 py-4 text-[12px] text-slate-600">{dealerNameMap[cert.dealer_id] || '-'}</td>
                             <td className="px-6 py-4 text-[12px] text-slate-500">
                               {cert.start_date.replace(/-/g, '.')} - {cert.end_date.replace(/-/g, '.')}
                             </td>
@@ -449,9 +499,9 @@ export default function DealersPage() {
                               ) : isExpiredByDate || cert.status === 'EXPIRED' ? (
                                 <span className="text-slate-400 text-[10px] font-bold">已失效</span>
                               ) : cert.status === 'ISSUED' ? (
-                                <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wider">Active</span>
+                                <span className="text-emerald-500 text-[10px] font-bold">生效中</span>
                               ) : (
-                                <span className="text-amber-500 text-[10px] font-bold uppercase tracking-wider">Pending</span>
+                                <span className="text-amber-500 text-[10px] font-bold">待审核</span>
                               )}
                             </td>
                             <td className="px-6 py-4 text-right">
@@ -461,13 +511,13 @@ export default function DealersPage() {
                                   setViewCertData({
                                     platformId: scopeParts[0],
                                     platformLabel: "淘宝ID",
-                                    shopName: selectedDealer!.company_name,
+                                    shopName: dealerNameMap[cert.dealer_id] || '-',
                                     shopLabel: "店铺名称",
                                     scopeText: scopeParts[1] || "授权经销资格条款",
                                     duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                     authorizer: "旎柏（上海）商贸有限公司",
                                     sealImage: "/default-seal.svg",
-                                    phone: selectedDealer!.phone || ""
+                                    phone: dealerPhoneMap[cert.dealer_id] || ""
                                   });
                                   setIsViewVoided(isVoided || cert.status === 'EXPIRED');
                                 }}

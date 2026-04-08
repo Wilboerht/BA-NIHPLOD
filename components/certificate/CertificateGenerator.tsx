@@ -25,9 +25,10 @@ interface CertificateGeneratorProps {
   initialData?: any;
   mode?: 'create' | 'view';
   isVoided?: boolean;
+  onSuccess?: () => void;
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false }: CertificateGeneratorProps) {
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, onSuccess }: CertificateGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +58,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
 
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  // 证书状态翻译
+  const getStatusLabel = (status: string | undefined) => {
+    const statusMap: { [key: string]: string } = {
+      'PENDING': '待审核',
+      'AUDITED': '已审核',
+      'ISSUED': '生效中',
+      'REJECTED': '已拒绝',
+      'EXPIRED': '已失效',
+      'ACTIVE': '生效中'
+    };
+    return statusMap[status || ''] || status || '';
+  };
 
   useEffect(() => {
     fetchUserRole();
@@ -136,10 +150,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
     
-    const idFullLine = data.platformLabel ? `${data.platformLabel}：${data.platformId}` : (data.platformId || "");
-    const shopFullLine = data.shopLabel ? `${data.shopLabel}：${data.shopName}` : (data.shopName || "");
-    offCtx.fillText(idFullLine, width / 2, 530 * scale);
-    offCtx.fillText(shopFullLine, width / 2, 578 * scale);
+    // 只显示值，不显示标签
+    if (data.platformId) {
+      offCtx.fillText(data.platformId, width / 2, 530 * scale);
+    }
+    if (data.shopName) {
+      offCtx.fillText(data.shopName, width / 2, 578 * scale);
+    }
 
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
@@ -432,6 +449,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         alert(`✅ 证书已提报\n证书号：${certNumber}\n\n请等待负责人审核并核发。`);
       }
       setIsIssued(true);
+      
+      // 签发成功后，调用 onSuccess 回调关闭 modal
+      if (onSuccess) {
+        setTimeout(onSuccess, 800); // 延迟一点，让用户看到成功提示
+      }
     } catch (err: any) {
       alert("签发失败：" + err.message);
     } finally {

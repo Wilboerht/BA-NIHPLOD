@@ -19,19 +19,17 @@ export async function POST(req: Request) {
 
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
-      // 创建或获取经销商 (不在此处创建 Auth 账户)
-      // 先查找是否已有该经销商名，避免 upsert 冲突
+      // 创建或获取经销商 (通过 phone 去重)
       const { data: existingDealer } = await supabaseAdmin
           .from('dealers')
           .select('id')
-          .eq('company_name', certData.shopName)
+          .eq('phone', certData.phone)
           .maybeSingle();
 
       let dealerId;
       if (existingDealer) {
           dealerId = existingDealer.id;
-          // 同步更新电话
-          await supabaseAdmin.from('dealers').update({ phone: certData.phone }).eq('id', dealerId);
+          // 保留原有的公司名，不要覆盖
       } else {
           const { data: newDealer, error: insErr } = await supabaseAdmin
               .from('dealers')
@@ -75,18 +73,17 @@ export async function POST(req: Request) {
         certDataDb = dbData;
       } else if (certData) {
         // B. 管理员直发：直接根据新提交的数据开号 (无 ID)
-        // 1. 先查找是否已有该经销商名 (回避 upsert 对 Unique 索引的强一致性要求)
+        // 1. 先查找是否已有该手机号的经销商 (通过 phone 去重)
         const { data: existingDealer } = await supabaseAdmin
             .from('dealers')
             .select('id')
-            .eq('company_name', certData.shopName)
+            .eq('phone', certData.phone)
             .maybeSingle();
 
         let dealerId;
         if (existingDealer) {
             dealerId = existingDealer.id;
-            // 同步更新电话
-            await supabaseAdmin.from('dealers').update({ phone: certData.phone }).eq('id', dealerId);
+            // 保留原有的公司名，不要覆盖
         } else {
             const { data: newDealer, error: insErr } = await supabaseAdmin
                 .from('dealers')
