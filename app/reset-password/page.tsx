@@ -90,24 +90,38 @@ export default function ResetPasswordPage() {
 
         setIsSuccess(true);
       } else {
-        // 管理员改密码（通过 Supabase auth）
-        const { data, error: authError } = await supabase.auth.updateUser({
-          password: password,
+        // 管理员改密码（通过 API）
+        if (!oldPassword) {
+          setError("请输入当前密码");
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await fetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user?.id,
+            requesterId: user?.id,
+            oldPassword: oldPassword,
+            newPassword: password
+          })
         });
 
-        if (authError) {
-          throw authError;
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data.error || "密码修改失败");
+          setIsLoading(false);
+          return;
         }
 
-        if (data.user) {
-          // 更新 profile 的 is_first_login 状态
-          await supabase
-            .from('profiles')
-            .update({ is_first_login: false })
-            .eq('id', data.user.id);
-            
-          setIsSuccess(true);
+        // 更新 sessionStorage 中的用户信息
+        if (user) {
+          const updatedUser = { ...user, is_first_login: false };
+          sessionStorage.setItem('user', JSON.stringify(updatedUser));
         }
+
+        setIsSuccess(true);
       }
     } catch (err: any) {
       console.error(err);

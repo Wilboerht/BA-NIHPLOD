@@ -9,7 +9,6 @@ import {
   Loader2, UserCog
 } from "lucide-react";
 import Link from "next/link";
-import DealerPanel from "@/components/DealerPanel";
 
 interface PendingCert {
   id: string;
@@ -40,37 +39,29 @@ export default function WorkbenchPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [isDealerPanelOpen, setIsDealerPanelOpen] = useState(false);
-  const [dealerUser, setDealerUser] = useState<UserSession | null>(null);
 
   const fetchUserRole = useCallback(async () => {
-    // 1. 检查是否有经销商 session
+    // 从 sessionStorage 获取管理员用户信息
     const sessionUserStr = sessionStorage.getItem('user');
     if (sessionUserStr) {
       try {
         const sessionUser = JSON.parse(sessionUserStr);
-        setDealerUser(sessionUser);
-        setUserRole('DEALER');
-        return { role: 'DEALER', uid: sessionUser.id };
+        // workbench 只接受管理员用户
+        if (sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'AUDITOR' || sessionUser.role === 'MANAGER' || sessionUser.role === 'PROJECT_MANAGER') {
+          return { role: sessionUser.role, uid: sessionUser.id };
+        }
       } catch (e) {
         console.error('Failed to parse user session:', e);
       }
     }
 
-    // 2. 检查 Supabase auth（管理员用户）
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-      setUserRole(profile?.role ?? null);
-      return { role: profile?.role, uid: user.id };
-    }
+    // 如果没有找到管理员用户，则返回 null
     return null;
   }, []);
 
   const loadDashboard = useCallback(async (role?: string) => {
-    // 跳过经销商的数据加载
-    if (role === 'DEALER') {
+    // 跳过非管理员的数据加载
+    if (!role || (role !== 'SUPER_ADMIN' && role !== 'AUDITOR' && role !== 'MANAGER' && role !== 'PROJECT_MANAGER')) {
       setIsLoading(false);
       return;
     }
@@ -131,7 +122,11 @@ export default function WorkbenchPage() {
   useEffect(() => {
     (async () => {
       const info = await fetchUserRole();
-      await loadDashboard(info?.role);
+      if (info) {
+        setUserRole(info.role);
+        setUserId(info.uid);
+        await loadDashboard(info.role);
+      }
     })();
   }, [fetchUserRole, loadDashboard]);
 
@@ -175,43 +170,6 @@ export default function WorkbenchPage() {
   };
 
   const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'MANAGER' || userRole === 'PROJECT_MANAGER';
-
-  // 经销商界面
-  if (userRole === 'DEALER') {
-    return (
-      <>
-        <div className="flex-1 flex items-center justify-center p-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-6"
-          >
-            <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
-              <UserCog className="w-10 h-10 text-slate-600" />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-slate-900">欢迎，{dealerUser?.full_name}</h1>
-              <p className="text-slate-600 text-sm max-w-sm mx-auto">
-                点击下方按钮查看您的证书信息和账户设置
-              </p>
-            </div>
-            <button
-              onClick={() => setIsDealerPanelOpen(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-all"
-            >
-              <UserCog size={18} />
-              打开我的账户
-            </button>
-          </motion.div>
-        </div>
-        <DealerPanel
-          isOpen={isDealerPanelOpen}
-          user={dealerUser}
-          onClose={() => setIsDealerPanelOpen(false)}
-        />
-      </>
-    );
-  }
 
   return (
     <div className="px-6 md:px-10 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 gap-8">

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import styles from "./Sidebar.module.css";
 import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog } from "lucide-react";
 
@@ -22,46 +21,24 @@ export default function Sidebar({
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
   useEffect(() => {
-    // 监听 Auth 状态变化（包括初始加载、登录、登出）
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🛡️ Auth State Change:", event, session?.user?.email);
-      
-      if (session?.user?.email) {
-        setUserEmail(session.user.email);
-        setUserName(session.user.email.split("@")[0]);
-
-        // 获取角色
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (error) {
-          console.error("❌ Failed to fetch user role:", error.message);
-          setUserRole(null);
-        } else {
-          console.log("✅ Success! Identified user role:", profile?.role);
-          setUserRole(profile?.role);
-        }
-      } else {
-        setUserRole(null);
+    // 从 sessionStorage 获取当前登录用户信息
+    const userStr = sessionStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserName(user.full_name || user.username || "User");
+        setUserEmail(user.username || user.phone || "admin@nihplod.cn");
+        setUserRole(user.role);
+        console.log("✅ User info loaded from sessionStorage:", user);
+      } catch (e) {
+        console.error("❌ Failed to parse user session:", e);
       }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    }
   }, []);
 
   const handleLogout = async () => {
-    if (isConfirmingLogout) {
-      await supabase.auth.signOut();
-      window.location.href = "/";
-    } else {
-      setIsConfirmingLogout(true);
-      setTimeout(() => setIsConfirmingLogout(false), 3000);
-    }
+    sessionStorage.removeItem('user');
+    window.location.href = "/";
   };
 
   const userInitial = userName.charAt(0).toUpperCase();

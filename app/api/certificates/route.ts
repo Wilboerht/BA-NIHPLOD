@@ -92,6 +92,52 @@ async function uploadCertificateImage(
   }
 }
 
+/**
+ * 辅助函数：上传印章图片到 Supabase Storage
+ * 用于存储用户上传的自定义印章，与证书图片分开管理
+ */
+async function uploadSealImage(
+  supabaseAdmin: any,
+  certNumber: string,
+  sealImageDataUrl: string
+): Promise<string> {
+  try {
+    if (!sealImageDataUrl) {
+      return ''; // 无印章数据
+    }
+
+    // 如果是 Data URL（用户上传的自定义印章），上传到 Storage
+    if (sealImageDataUrl.startsWith('data:')) {
+      const blob = dataUrlToBlob(sealImageDataUrl);
+      const fileName = `seals/${certNumber}-${Date.now()}.png`;
+      
+      const { data, error } = await supabaseAdmin.storage
+        .from('certificates')
+        .upload(fileName, blob, {
+          contentType: 'image/png',
+          upsert: false
+        });
+
+      if (error) {
+        console.warn('Failed to upload seal image:', error);
+        return ''; // 失败时返回空，会降级到模板默认印章
+      }
+
+      const { data: urlData } = supabaseAdmin.storage
+        .from('certificates')
+        .getPublicUrl(fileName);
+
+      return urlData?.publicUrl || '';
+    } else {
+      // 如果已经是 URL（模板中的默认印章），直接返回
+      return sealImageDataUrl;
+    }
+  } catch (err) {
+    console.warn('Seal image upload error:', err);
+    return '';
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -106,6 +152,23 @@ export async function POST(req: Request) {
         persistSession: false
       }
     });
+
+    // ✅ 验证 managerId
+    if (managerId) {
+      const { data: managerExists, error: managerCheckErr } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username, role')
+        .eq('id', managerId)
+        .maybeSingle();
+
+      if (managerCheckErr || !managerExists) {
+        console.error(`❌ Manager ID 在数据库中不存在或出错: ${managerId}`);
+        return NextResponse.json(
+          { error: `❌ 身份验证失效：您的登录信息已过期（账户不存在于数据库中）。\n\n请清除浏览器缓存重新登录：\n1. F12 打开开发工具\n2. 应用程序(Application) → 存储(Storage) → 会话存储(SessionStorage)\n3. 清除所有内容\n4. 重新刷新页面并登录。` },
+          { status: 403 }
+        );
+      }
+    }
 
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
@@ -141,7 +204,8 @@ export async function POST(req: Request) {
         start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
         end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
         status: 'PENDING', // 待审核
-        manager_id: managerId
+        auditor_id: managerId, // 提报人作为初审人
+        manager_id: null
       }).select().single();
 
       if (certErr) throw certErr;
@@ -206,6 +270,7 @@ export async function POST(req: Request) {
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 
             final_image_url: finalImageUrl,
+            seal_url: '',  // 不使用自定义签章，仅使用默认公章
             manager_id: managerId
         }).select('*, dealers(*)').single();
 
@@ -215,13 +280,16 @@ export async function POST(req: Request) {
         throw new Error("缺少核发数据");
       }
 
-      // 上传证书图片（如果在PENDING流程中）
+// 上传证书图片（如果在PENDING流程中）
       if (certId && certData?.certImageDataUrl) {
         const finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
         
         const { error: updateImgErr } = await supabaseAdmin
           .from('certificates')
-          .update({ final_image_url: finalImageUrl })
+          .update({ 
+            final_image_url: finalImageUrl,
+            seal_url: ''  // 不使用自定义签章，仅使用默认公章
+          })
           .eq('id', certId);
 
         if (updateImgErr) {

@@ -21,6 +21,7 @@ interface Certificate {
   end_date: string;
   status: string;
   final_image_url?: string;
+  seal_url?: string;
   auth_scope?: string;
   dealers?: {
     id: string;

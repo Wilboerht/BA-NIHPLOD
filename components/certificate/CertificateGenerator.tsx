@@ -31,7 +31,6 @@ interface CertificateGeneratorProps {
 export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, onSuccess }: CertificateGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<CertData>({
     platformId: "",
     platformLabel: "",
@@ -52,7 +51,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isIssued, setIsIssued] = useState(false);
   const [isVoided, setIsVoided] = useState(initialVoided);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [sealFileName, setSealFileName] = useState<string | null>(null);
   
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -77,10 +75,15 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   }, []);
 
   const fetchUserRole = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-      setUserRole(profile?.role || 'AUDITOR');
+    try {
+      const userStr = sessionStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserRole(user.role || 'AUDITOR');
+      }
+    } catch (err) {
+      console.warn("Failed to get user role:", err);
+      setUserRole('AUDITOR');
     }
   };
 
@@ -390,19 +393,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     setPreviewImageUrl(canvas.toDataURL("image/png"));
     setShowFullPreview(true);
   };
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSealFileName(file.name);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setData({ ...data, sealImage: result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleIssueSubmit = async () => {
     if (!data.platformId || !data.shopName || !data.phone) {
@@ -418,11 +408,16 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const certImageDataUrl = canvas.toDataURL("image/png");
       const certNumber = tempCertNumberRef.current;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // 获取当前用户的role
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
-      const userRole = profile?.role;
+      // 从 sessionStorage 获取当前用户
+      const userStr = sessionStorage.getItem('user');
+      if (!userStr) {
+        alert("❌ 未找到登录信息，请重新登录");
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const userRole = user.role;
+      const managerId = user.id;
       
       // 判断是否为负责人级别的角色
       const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole);
@@ -434,10 +429,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           action: isManager ? "approve_issue" : "create_pending",  // 负责人直接核发，否则待审核
           certData: {
             ...data,
+            sealImage: "",  // 不使用自定义签章，只用默认公章
             cert_number: certNumber,
             certImageDataUrl: certImageDataUrl  // 添加生成的证书图像数据
           },
-          managerId: user?.id
+          managerId: managerId
         })
       });
 
@@ -611,23 +607,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           <div className="flex items-start gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">签字盖章</div>
             <div className="flex-1">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*.png,image/svg+xml" 
-                onChange={handleFileChange} 
-              />
-              <div 
-                className={`flex items-center gap-3 group/seal ${mode !== 'view' ? 'cursor-pointer hover:bg-slate-50/50 p-2 -m-2 rounded-xl transition-all' : ''}`}
-                onClick={() => mode !== 'view' && fileInputRef.current?.click()}
-              >
-                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center relative ring-offset-2 group-hover/seal:ring-1 ring-slate-200 transition-all">
-                  {data.sealImage ? <img src={data.sealImage} className="w-10 h-10 object-contain" /> : <div className="text-[10px] text-slate-300">未上传</div>}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center">
+                  <img src="/default-seal.svg" className="w-10 h-10 object-contain" alt="默认公章" />
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">{mode === 'view' ? '备案公章' : '上传/更换公章'}</div>
-                  <div className="text-[10px] text-slate-400">{mode === 'view' ? '系统自动存证' : sealFileName ? `已上传: ${sealFileName}` : '点击上传 PNG/SVG'}</div>
+                  <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">默认公章</div>
+                  <div className="text-[10px] text-slate-400">使用系统默认公章签署</div>
                 </div>
               </div>
             </div>

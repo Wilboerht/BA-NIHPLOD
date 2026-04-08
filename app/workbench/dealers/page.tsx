@@ -43,14 +43,14 @@ export default function DealersPage() {
 
   const fetchUserRole = useCallback(async () => {
     try {
-      await new Promise(r => setTimeout(r, 150));
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        setUserRole(profile?.role ?? null);
+      // 从 sessionStorage 获取用户信息
+      const userStr = sessionStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserRole(user.role ?? null);
       }
-    } catch {
-      console.warn("Auth sync recovered");
+    } catch (err) {
+      console.warn("Failed to get user role from sessionStorage:", err);
     }
   }, []);
 
@@ -396,10 +396,10 @@ export default function DealersPage() {
                         onClick={async () => {
                           setSelectedDealer(dealerGroup);
                           setIsCertsLoading(true);
-                          // 查询该 phone 下所有 dealer 的证书，并包含template的公章信息
+                          // 查询该 phone 下所有 dealer 的证书，并包含template的公章信息和自定义印章
                           const { data } = await supabase
                             .from('certificates')
-                            .select('*, templates(stamp_url)')
+                            .select('*, templates(stamp_url), seal_url')
                             .in('dealer_id', dealerGroup.allDealerIds)
                             .order('created_at', { ascending: false });
                           setDealerCerts(data || []);
@@ -544,7 +544,7 @@ export default function DealersPage() {
                                     scopeText: scopeParts[1] || "授权经销资格条款",
                                     duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                     authorizer: "旎柏（上海）商贸有限公司",
-                                    sealImage: (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                    sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                     phone: dealerPhoneMap[cert.dealer_id] || ""
                                   });
                                   setIsViewVoided(isVoided || cert.status === 'EXPIRED');

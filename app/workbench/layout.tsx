@@ -25,47 +25,32 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const checkAuth = async () => {
-      // 1. 首先检查 sessionStorage 里是否有经销商用户，如果有则拦截不允许进入 workbench
+      // 1. 首先检查 sessionStorage 里的用户信息
       const sessionUserStr = sessionStorage.getItem('user');
       if (sessionUserStr) {
         try {
           const sessionUser = JSON.parse(sessionUserStr);
-          // 经销商用户不允许进入 workbench，重定向到 /dealer
-          router.replace("/dealer");
-          return;
+          
+          // 经销商用户不允许进入 workbench
+          if (sessionUser.role === 'DEALER') {
+            router.replace("/dealer");
+            return;
+          }
+          
+          // 管理员用户（从 sessionStorage）可以进入
+          if (sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'AUDITOR' || sessionUser.role === 'MANAGER' || sessionUser.role === 'PROJECT_MANAGER') {
+            setUser(sessionUser);
+            setUserType('admin');
+            setIsAuthorized(true);
+            return;
+          }
         } catch (e) {
           console.error('Failed to parse user session:', e);
         }
       }
 
-      // 2. 检查 Supabase auth（管理员用户）
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        router.replace("/");
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
-        
-      if (!profile) {
-        router.replace("/");
-        return;
-      }
-
-      setUser(profile as UserSession);
-      setUserType('admin');
-      
-      if (profile.is_first_login) {
-        router.replace("/reset-password");
-        return;
-      }
-      
-      setIsAuthorized(true);
+      // sessionStorage 中没有用户，重定向到首页
+      router.replace("/");
     };
 
     checkAuth();

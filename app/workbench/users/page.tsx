@@ -61,8 +61,27 @@ export default function AdminsManagementPage() {
 
   const fetchData = async () => {
     setIsLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
+    
+    // 从 sessionStorage 获取当前用户信息
+    const userStr = sessionStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentUser(user);
+      
+      // 查询当前用户在 profiles 表中的完整信息（用于权限检查）
+      if (user?.phone) {
+        const { data: currentProfile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("phone", user.phone)
+          .single();
+      
+        if (currentProfile) {
+          // 将 profile 信息保存到 currentUser 中
+          setCurrentUser((prev: any) => ({ ...prev, profileId: currentProfile.id, role: currentProfile.role }));
+        }
+      }
+    }
 
     const { data, error } = await supabase
       .from("profiles")
@@ -96,7 +115,7 @@ export default function AdminsManagementPage() {
       const res = await fetch("/api/admin/create-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, adminId: currentUser?.profileId }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -123,9 +142,35 @@ export default function AdminsManagementPage() {
 
   const deleteUser = async (id: string, name: string) => {
     if (confirm(`确定要彻底移除管理员 "${name}" 吗？此操作不可逆。`)) {
-      const { error } = await supabase.from("profiles").delete().eq("id", id);
-      if (error) alert("删除失败：" + error.message);
-      else fetchData();
+      try {
+        const currentUserStr = sessionStorage.getItem('user');
+        if (!currentUserStr) {
+          alert("❌ 未登录，无法删除用户");
+          return;
+        }
+        
+        const currentUser = JSON.parse(currentUserStr);
+        
+        const res = await fetch("/api/admin/delete-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            userId: id, 
+            adminId: currentUser.id 
+          }),
+        });
+        
+        const result = await res.json();
+        
+        if (res.ok && result.success) {
+          alert(`✅ ${result.message}`);
+          fetchData();
+        } else {
+          alert(`❌ ${result.error || "删除失败"}`);
+        }
+      } catch (err: any) {
+        alert(`❌ 错误：${err.message}`);
+      }
     }
   };
 
@@ -370,20 +415,15 @@ export default function AdminsManagementPage() {
                   {/* 用户名 */}
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">系统识别号 (USERNAME)</label>
-                    <div className="flex items-center">
-                      <input
-                        type="text"
-                        required
-                        placeholder="zhangsan"
-                        value={form.username}
-                        onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "") }))}
-                        disabled={isSubmitting || !!createSuccess}
-                        className="flex-1 bg-slate-50 border border-slate-100 rounded-l-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all font-mono text-slate-900 placeholder:text-slate-200"
-                      />
-                      <span className="px-4 py-3 bg-slate-100/50 border border-slate-100 border-l-0 rounded-r-xl text-[11px] font-bold text-slate-400 tracking-wider">
-                        @admin.nihplod.cn
-                      </span>
-                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="zhangsan@admin.nihplod.cn"
+                      value={form.username}
+                      onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                      disabled={isSubmitting || !!createSuccess}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all font-mono text-slate-900 placeholder:text-slate-200"
+                    />
                   </div>
 
                   {/* 密码 */}

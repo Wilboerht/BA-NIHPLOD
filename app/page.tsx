@@ -43,14 +43,15 @@ export default function VerificationPage() {
   useEffect(() => {
     const checkLoginStatus = async () => {
       const userStr = sessionStorage.getItem("user");
+      
       if (userStr) {
         try {
           const user = JSON.parse(userStr) as UserSession;
 
-          // 如果是管理员，检查Supabase auth状态
+          // 如果是管理员，重定向到workbench
           if (user.role === "SUPER_ADMIN" || user.role === "AUDITOR" || user.role === "MANAGER" || user.role === "PROJECT_MANAGER") {
             window.location.href = "/workbench";
-            return;  // 不设置isPageLoading，让页面在重定向时闪烁
+            return;
           }
 
           // 如果是经销商，设置状态但不自动打开面板

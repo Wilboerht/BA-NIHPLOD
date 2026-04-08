@@ -47,70 +47,25 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClo
           window.location.href = "/workbench";
         }
       } else {
-        // 管理员登录：用 Supabase auth
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email: phone,
-          password,
+        // 管理员登录：使用自定义 API 认证
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, password, loginType: 'admin' })
         });
 
-        if (authError) {
-          setError("账号或密码错误，请核对后重试。");
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data.error || "登录失败");
           setIsLoading(false);
           return;
         }
 
-        if (!data.user) {
-          setError("登录失败，请稍后重试。");
-          setIsLoading(false);
-          return;
-        }
+        // 保存用户信息到 sessionStorage
+        sessionStorage.setItem('user', JSON.stringify(data.user));
 
-        // 等待 profile 创建（最多3秒）
-        let profile = null;
-        for (let i = 0; i < 6; i++) {
-          const { data: p } = await supabase
-            .from("profiles")
-            .select("is_first_login")
-            .eq("id", data.user.id)
-            .single();
-          
-          if (p) {
-            profile = p;
-            break;
-          }
-          
-          if (i < 5) {
-            await new Promise(r => setTimeout(r, 500)); // 等待500ms后重试
-          }
-        }
-
-        // 如果 trigger 没有创建 profile，手动创建
-        if (!profile) {
-          console.warn("Profile trigger failed, creating manually...");
-          const { data: newProfile, error: createErr } = await supabase
-            .from("profiles")
-            .insert({
-              id: data.user.id,
-              username: data.user.email,
-              full_name: data.user.email?.split('@')[0] || '',
-              phone: phone,
-              role: 'SUPER_ADMIN',
-              is_first_login: true
-            })
-            .select('is_first_login')
-            .single();
-
-          if (createErr) {
-            console.error("Failed to create profile manually:", createErr);
-            setError("账户信息初始化失败，请稍后再试。");
-            setIsLoading(false);
-            return;
-          }
-
-          profile = newProfile;
-        }
-
-        if (profile?.is_first_login) {
+        // 根据首次登录状态处理
+        if (data.user.is_first_login) {
           window.location.href = "/reset-password";
         } else {
           window.location.href = "/workbench";

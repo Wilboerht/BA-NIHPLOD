@@ -50,15 +50,29 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
   const fetchCertificates = async () => {
     setIsLoading(true);
     try {
+      if (!user?.id) {
+        console.error('User ID not available');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Fetching certificates for user:', user.id);
+
       // 通过 profile_id 查询 dealers 表，然后获取相关证书
       const { data: dealers, error: dealerError } = await supabase
         .from('dealers')
         .select('id')
-        .eq('profile_id', user?.id)
+        .eq('profile_id', user.id)
         .single();
 
-      if (dealerError || !dealers) {
+      if (dealerError) {
         console.error('Failed to fetch dealer:', dealerError);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!dealers) {
+        console.warn('No dealer found for user:', user.id);
         setIsLoading(false);
         return;
       }
@@ -69,7 +83,13 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
         .eq('dealer_id', dealers.id)
         .order('created_at', { ascending: false });
 
-      if (!certError && certs) {
+      if (certError) {
+        console.error('Failed to fetch certificates:', certError);
+        setIsLoading(false);
+        return;
+      }
+
+      if (certs) {
         setCertificates(certs);
       }
     } catch (err) {

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 /**
  * 权限检查：确保只有管理员可以创建新的管理员账户
@@ -53,39 +54,45 @@ export async function POST(req: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // 生成内部邮箱（username@admin.nihplod.cn）
-    const email = `${username.trim().toLowerCase()}@admin.nihplod.cn`;
+    // 使用 username 作为邮箱
+    const email = username.trim();
 
-    // 1. 创建 Auth 账户
-    const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
-
-    if (authErr) {
-      // 账号已存在
-      if (authErr.message.includes("already been registered")) {
-        return NextResponse.json({ error: `账号名 "${username}" 已被使用，请换一个。` }, { status: 409 });
-      }
-      throw authErr;
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: `邮箱格式无效："${email}"。请输入有效的邮箱地址（如：user@example.com）` },
+        { status: 400 }
+      );
     }
 
-    const userId = authData.user.id;
+    // 生成密码哈希
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    // 2. 写入 profiles 表
-    const { error: profileErr } = await supabaseAdmin.from("profiles").insert({
-      id: userId,
-      username: username.trim().toLowerCase(),
+    // 直接在 profiles 表中插入管理员账户
+    const { data, error: profileErr } = await supabaseAdmin.from("profiles").insert({
+      username: email.trim().toLowerCase(),
       full_name: fullName.trim(),
+      password_hash: passwordHash,
       role,
       is_first_login: false,
-    });
+    }).select('id');
 
     if (profileErr) {
-      // 回滚：删除刚建好的 Auth 用户
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-      throw profileErr;
+      console.error("[create-admin] Insert error:", profileErr);
+      
+      // 检查是否是唯一性冲突
+      if (profileErr.message.includes("duplicate") || profileErr.message.includes("unique")) {
+        return NextResponse.json(
+          { error: `邮箱 "${email}" 已被使用，请换一个。` },
+          { status: 409 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: `创建账户失败: ${profileErr.message}` },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ success: true, email });

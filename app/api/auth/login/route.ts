@@ -25,11 +25,45 @@ export async function POST(req: Request) {
     });
 
     // 1. 查询 profiles 表获取用户
-    const { data: profile, error: profileErr } = await supabaseAdmin
+    // 支持用 phone、username、email 登录
+    let profile = null;
+    let profileErr = null;
+    
+    // 先尝试用 phone 查询
+    const { data: phoneProfile, error: phoneErr } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('phone', phone)
       .maybeSingle();
+    
+    if (phoneProfile) {
+      profile = phoneProfile;
+    } else if (!phoneErr) {
+      // phone 查询无错误但没找到，再用 username 查询
+      const { data: usernameProfile, error: usernameErr } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('username', phone)
+        .maybeSingle();
+      
+      if (usernameProfile) {
+        profile = usernameProfile;
+      } else if (!usernameErr) {
+        // username 查询无错误但没找到，再用小写 username 查询
+        const { data: usernameLowerProfile, error: usernameLowerErr } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('username', phone.toLowerCase())
+          .maybeSingle();
+        
+        profile = usernameLowerProfile;
+        profileErr = usernameLowerErr;
+      } else {
+        profileErr = usernameErr;
+      }
+    } else {
+      profileErr = phoneErr;
+    }
 
     if (profileErr || !profile) {
       return NextResponse.json(
@@ -40,6 +74,7 @@ export async function POST(req: Request) {
 
     // 2. 验证密码
     const isPasswordValid = await bcrypt.compare(password, profile.password_hash || '');
+    
     if (!isPasswordValid) {
       return NextResponse.json(
         { error: '账号或密码错误' },

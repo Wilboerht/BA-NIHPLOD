@@ -23,16 +23,14 @@ export default function CertificatesPage() {
 
   const fetchUserRole = async () => {
     try {
-      // 避免与侧边栏/父组件同时发起 getUser 导致锁竞争
-      await new Promise(r => setTimeout(r, 100)); 
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        setUserRole(profile?.role);
+      // 从 sessionStorage 获取用户信息
+      const userStr = sessionStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserRole(user.role);
       }
     } catch (err) {
-      console.warn("Auth Lock warning (recovered)", err);
+      console.warn("Failed to get user role from sessionStorage:", err);
     }
   };
 
@@ -40,7 +38,7 @@ export default function CertificatesPage() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('certificates')
-      .select('*, dealers(company_name, phone), templates(stamp_url)')
+      .select('*, dealers(company_name, phone), templates(stamp_url), seal_url')
       .order('created_at', { ascending: false });
       
     if (!error && data) {
@@ -78,24 +76,47 @@ export default function CertificatesPage() {
     
     setIsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // 从 sessionStorage 获取用户 ID
+      const userStr = sessionStorage.getItem('user');
+      if (!userStr) {
+        alert("❌ 未找到登录信息，请重新登录");
+        window.location.href = "/";
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const managerId = user.id;
+
+      if (!managerId) {
+        alert("❌ 用户 ID 无效，请清除浏览器缓存并重新登录：\n\n1. F12 打开开发工具\n2. 应用 → Storage → SessionStorage\n3. 删除所有条目\n4. 重新加载页面并登录");
+        return;
+      }
+
+      console.log("📋 发起证书核发请求", { certId: id, managerId, username: user.username });
+
       const response = await fetch('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           action: 'approve_issue', 
           certId: id,
-          managerId: session?.user?.id
+          managerId: managerId
         })
       });
 
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      
+      if (!response.ok) {
+        console.error("❌ 核发失败:", result);
+        alert("❌ 核发失败\n\n" + result.error);
+        return;
+      }
 
       alert(`✅ 审核通过！授权书已核发。\n经销商账户已开通。`);
       fetchCertificates();
     } catch (err: any) {
-      alert("核发失败：" + err.message);
+      console.error("❌ 异常:", err);
+      alert("❌ 发生错误：" + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -227,7 +248,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
-                                sealImage: (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(false);
@@ -253,7 +274,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
-                                sealImage: (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(true);

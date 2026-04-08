@@ -7,13 +7,16 @@ CREATE TABLE profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT UNIQUE,
     full_name TEXT,
-    phone TEXT UNIQUE,
+    phone TEXT,
     password_hash TEXT,
     role user_role DEFAULT 'DEALER',
     is_first_login BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 部分唯一索引：只对非 NULL 的 phone 强制唯一性（允许多个 NULL）
+CREATE UNIQUE INDEX profiles_phone_key ON profiles(phone) WHERE phone IS NOT NULL;
 
 -- 2. 经销商表
 CREATE TABLE dealers (
@@ -50,6 +53,7 @@ CREATE TABLE certificates (
     end_date DATE NOT NULL,
     status certificate_status DEFAULT 'PENDING',
     final_image_url TEXT, -- 生成后的证书图片存储路径
+    seal_url TEXT, -- 用户上传的自定义印章 URL（核发时保存，下载时优先使用）
     auditor_id UUID REFERENCES profiles(id), -- 初审人
     manager_id UUID REFERENCES profiles(id), -- 终审发证人
     created_at TIMESTAMPTZ DEFAULT NOW(),
