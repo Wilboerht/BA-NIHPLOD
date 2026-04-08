@@ -19,20 +19,35 @@ export async function POST(req: Request) {
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
       // 创建或获取经销商 (不在此处创建 Auth 账户)
-      const { data: dealer, error: queryErr } = await supabaseAdmin
-        .from('dealers')
-        .upsert({ 
-          company_name: certData.shopName,
-          phone: certData.phone 
-        }, { onConflict: 'company_name' })
-        .select('id')
-        .single();
-      
-      if (queryErr || !dealer) throw new Error("经销商资料录入失败");
+      // 先查找是否已有该经销商名，避免 upsert 冲突
+      const { data: existingDealer } = await supabaseAdmin
+          .from('dealers')
+          .select('id')
+          .eq('company_name', certData.shopName)
+          .maybeSingle();
+
+      let dealerId;
+      if (existingDealer) {
+          dealerId = existingDealer.id;
+          // 同步更新电话
+          await supabaseAdmin.from('dealers').update({ phone: certData.phone }).eq('id', dealerId);
+      } else {
+          const { data: newDealer, error: insErr } = await supabaseAdmin
+              .from('dealers')
+              .insert({ 
+                  company_name: certData.shopName,
+                  phone: certData.phone 
+              })
+              .select('id')
+              .single();
+          
+          if (insErr || !newDealer) throw new Error(`经销商（${certData.shopName}）基础档案录入失败: ${insErr?.message}`);
+          dealerId = newDealer.id;
+      }
 
       const { data: cert, error: certErr } = await supabaseAdmin.from('certificates').insert({
         cert_number: `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        dealer_id: dealer.id,
+        dealer_id: dealerId,
         auth_scope: certData.platformId + ' | ' + certData.scopeText,
         start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
         end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
@@ -127,13 +142,15 @@ export async function POST(req: Request) {
           });
       }
 
-      // 2. 更新证书状态为 ISSUED
-      const { error: updateErr } = await supabaseAdmin
-        .from('certificates')
-        .update({ status: 'ISSUED', manager_id: managerId }) // 记录最终核发人
-        .eq('id', certId);
+      // 2. 如果是从待审核转为ISSUED，需要更新证书状态
+      if (certId) {
+        const { error: updateErr } = await supabaseAdmin
+          .from('certificates')
+          .update({ status: 'ISSUED', manager_id: managerId }) // 记录最终核发人
+          .eq('id', certId);
 
-      if (updateErr) throw updateErr;
+        if (updateErr) throw updateErr;
+      }
 
       return NextResponse.json({ success: true, status: 'ISSUED', email, password });
     }

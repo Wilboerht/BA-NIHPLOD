@@ -108,7 +108,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const height = 1131 * scale;
 
     const loadImage = (src: string | null | undefined): Promise<HTMLImageElement | null> => {
-      if (!src || src.trim() === "" || src === "undefined" || src === "/default-seal.svg") return Promise.resolve(null);
+      if (!src || src.trim() === "" || src === "undefined") return Promise.resolve(null);
       return new Promise((resolve) => {
         const img = new Image();
         img.src = src;
@@ -119,7 +119,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     const [bgImage, sealImg] = await Promise.all([
       loadImage("/cert-template.svg"),
-      data.sealImage ? loadImage(data.sealImage) : Promise.resolve(null)
+      data.sealImage ? loadImage(data.sealImage) : loadImage("/default-seal.svg")
     ]);
 
     const offCanvas = document.createElement("canvas");
@@ -227,14 +227,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.fillText(`证书号：${certNumber}`, width - 40 * scale, height - 30 * scale);
     }
 
-    if (isIssued && sealImg) {
+    if (sealImg) {
       const maxSealSize = 160 * scale;
       const aspect = sealImg.width / sealImg.height;
       const drawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
       const drawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
       
       offCtx.save();
-      offCtx.translate(width - 310 * scale, 875 * scale);
+      offCtx.translate(width - 280 * scale, 875 * scale);
       offCtx.rotate(-0.06); 
       offCtx.globalAlpha = 0.88;
       offCtx.drawImage(sealImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
@@ -407,11 +407,18 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
       const { data: { user } } = await supabase.auth.getUser();
       
+      // 获取当前用户的role
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
+      const userRole = profile?.role;
+      
+      // 判断是否为负责人级别的角色
+      const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole);
+      
       const response = await fetch("/api/certificates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "create_pending",
+          action: isManager ? "approve_issue" : "create_pending",  // 负责人直接核发，否则待审核
           certData: {
             ...data,
             cert_number: certNumber
@@ -423,7 +430,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "签发失败");
 
-      alert(`✅ 证书已生成\n证书号：${certNumber}\n\n请等待负责人审核并核发。`);
+      if (isManager) {
+        alert(`✅ 证书已签发\n证书号：${certNumber}\n\n经销商账户已开通，可直接登陆。`);
+      } else {
+        alert(`✅ 证书已提报\n证书号：${certNumber}\n\n请等待负责人审核并核发。`);
+      }
       setIsIssued(true);
     } catch (err: any) {
       alert("签发失败：" + err.message);

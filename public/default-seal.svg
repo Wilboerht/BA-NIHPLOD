@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Red circular stamp -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#c41e3a" stroke-width="8"/>
+  
+  <!-- Inner circle -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="#c41e3a" stroke-width="2"/>
+  
+  <!-- Center text -->
+  <text x="100" y="95" font-family="serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#c41e3a" letter-spacing="4">备</text>
+  <text x="100" y="125" font-family="serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#c41e3a" letter-spacing="4">案</text>
+  
+  <!-- Outer decorative text (arc) -->
+  <defs>
+    <path id="topCurve" d="M 30,100 A 70,70 0 0,1 170,100" fill="none"/>
+    <path id="bottomCurve" d="M 170,100 A 70,70 0 0,1 30,100" fill="none"/>
+  </defs>
+  
+  <text font-family="serif" font-size="14" fill="#c41e3a" font-weight="bold" letter-spacing="2">
+    <textPath href="#topCurve" startOffset="50%" text-anchor="middle">
+      官方认证
+    </textPath>
+  </text>
+  
+  <text font-family="serif" font-size="12" fill="#c41e3a" letter-spacing="1">
+    <textPath href="#bottomCurve" startOffset="50%" text-anchor="middle">
+      2026年
+    </textPath>
+  </text>
+</svg>
