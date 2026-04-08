@@ -5,12 +5,20 @@ import bcrypt from 'bcryptjs';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, oldPassword, newPassword } = body;
+    const { userId, oldPassword, newPassword, requesterId } = body;
 
     if (!userId || !oldPassword || !newPassword) {
       return NextResponse.json(
         { error: '缺少必要参数' },
         { status: 400 }
+      );
+    }
+
+    // 权限检查：用户只能修改自己的密码
+    if (!requesterId || requesterId !== userId) {
+      return NextResponse.json(
+        { error: '无权限修改他人密码' },
+        { status: 403 }
       );
     }
 

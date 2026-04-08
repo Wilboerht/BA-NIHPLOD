@@ -69,6 +69,7 @@ export default function ResetPasswordPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.id,
+            requesterId: user.id,
             oldPassword: user.is_first_login ? user.phone : oldPassword,
             newPassword: password
           })
@@ -275,7 +276,7 @@ export default function ResetPasswordPage() {
                 </p>
               </div>
               <div className="pt-6">
-                <Link href={isDealer ? "/dealer" : "/login"} className="inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95">
+                <Link href={isDealer ? "/" : "/login"} className="inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95">
                   {isDealer ? "进入我的账户" : "登入工作台"}
                   <ArrowRight className="w-6 h-6" />
                 </Link>

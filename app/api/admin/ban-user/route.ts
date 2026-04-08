@@ -10,14 +10,42 @@ function makeAdmin() {
 }
 
 /**
- * GET /api/admin/ban-user?userId=xxx
- * 查询指定用户的封禁状态
+ * 权限检查：确保仅管理员可以封禁用户
+ */
+async function checkIsAdmin(adminId: string): Promise<boolean> {
+  try {
+    const supabaseAdmin = makeAdmin();
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', adminId)
+      .single();
+
+    return !!(profile && ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(profile.role));
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * GET /api/admin/ban-user?userId=xxx&adminId=xxx
+ * 查询指定用户的封禁状态（仅管理员可调用）
  */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    if (!userId) return NextResponse.json({ error: "缺少 userId" }, { status: 400 });
+    const adminId = searchParams.get("adminId");
+
+    if (!userId || !adminId) return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
+
+    // 权限检查
+    if (!(await checkIsAdmin(adminId))) {
+      return NextResponse.json(
+        { error: "无权限查询用户封禁状态" },
+        { status: 403 }
+      );
+    }
 
     const supabaseAdmin = makeAdmin();
     const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -35,15 +63,23 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/admin/ban-user
- * Body: { userId: string, action: "ban" | "unban" }
- * 封禁或解封指定用户
+ * Body: { userId: string, action: "ban" | "unban", adminId: string }
+ * 封禁或解封指定用户（仅管理员可调用）
  */
 export async function POST(req: Request) {
   try {
-    const { userId, action } = await req.json();
+    const { userId, action, adminId } = await req.json();
 
-    if (!userId || !["ban", "unban"].includes(action)) {
+    if (!userId || !["ban", "unban"].includes(action) || !adminId) {
       return NextResponse.json({ error: "参数无效" }, { status: 400 });
+    }
+
+    // 权限检查
+    if (!(await checkIsAdmin(adminId))) {
+      return NextResponse.json(
+        { error: "无权限执行此操作" },
+        { status: 403 }
+      );
     }
 
     const supabaseAdmin = makeAdmin();

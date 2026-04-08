@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
+import DealerModalPanel from "@/components/DealerModalPanel";
 import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
+
+interface UserSession {
+  id: string;
+  phone?: string;
+  username?: string;
+  full_name?: string;
+  role?: string;
+  is_first_login?: boolean;
+}
 
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
@@ -15,7 +25,72 @@ export default function VerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showDealerModal, setShowDealerModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
+  const [loggedInUser, setLoggedInUser] = useState<UserSession | null>(null);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+
+  // 页面加载时检查登录状态
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      const userStr = sessionStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr) as UserSession;
+
+          // 如果是管理员，检查Supabase auth状态
+          if (user.role === "SUPER_ADMIN" || user.role === "AUDITOR" || user.role === "MANAGER" || user.role === "PROJECT_MANAGER") {
+            window.location.href = "/workbench";
+            return;  // 不设置isPageLoading，让页面在重定向时闪烁
+          }
+
+          // 如果是经销商，设置状态并打开经销商面板
+          if (user.role === "DEALER") {
+            setLoggedInUser(user);
+            setShowDealerModal(true);
+          }
+        } catch (e) {
+          console.error("Failed to parse user session:", e);
+        }
+      }
+      setIsPageLoading(false);
+    };
+
+    checkLoginStatus();
+  }, []);
+
+  // 检查是否有经销商用户登录，当登录模态框关闭时检查
+  useEffect(() => {
+    if (!showLoginModal) {
+      const userStr = sessionStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr) as UserSession;
+          setLoggedInUser(user);
+          if (user.role === "DEALER") {
+            setShowDealerModal(true);
+          }
+        } catch (e) {
+          console.error("Failed to parse user session:", e);
+        }
+      }
+    }
+  }, [showLoginModal]);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("user");
+    setLoggedInUser(null);
+    setShowDealerModal(false);
+    window.location.href = "/";
+  };
+
+  const handleLoginClick = () => {
+    if (loggedInUser?.role === "DEALER") {
+      setShowDealerModal(true);
+    } else {
+      setShowLoginModal(true);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,21 +412,62 @@ export default function VerificationPage() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full max-w-7xl px-12 py-10 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 border-t border-slate-100/30">
-         <p className="text-[11px] font-normal text-slate-300 tracking-normal antialiased">
+      <footer className="w-full max-w-7xl px-12 py-10 flex flex-col md:flex-row justify-between items-center gap-6 shrink-0 border-t border-slate-100/30">
+         <p className="text-[11px] font-normal text-slate-300 tracking-normal antialiased order-3 md:order-1">
            &copy; 2026 NIHPLOD. All rights reserved
          </p>
-         <div className="flex gap-12 text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">
-            <span onClick={() => setShowReportModal(true)} className="text-red-500/60 hover:text-red-600 cursor-pointer transition-colors flex items-center gap-2">
+         <div className="flex flex-wrap gap-6 md:gap-12 text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] justify-center md:justify-end order-1 md:order-3 w-full md:w-auto">
+            {/* 官方维权申诉 */}
+            <button 
+              onClick={() => setShowReportModal(true)} 
+              className="text-red-500/70 hover:text-red-600 active:text-red-700 cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
                <Megaphone className="w-3.5 h-3.5" /> 官方维权申诉
-            </span>
-            <span onClick={() => setShowLoginModal(true)} className="cursor-pointer hover:text-slate-900 transition-colors">统一登陆</span>
-            <span onClick={() => setShowLegalModal({ isOpen: true, type: "service" })} className="hover:text-slate-900 cursor-pointer transition-colors">服务协议</span>
-            <span onClick={() => setShowLegalModal({ isOpen: true, type: "privacy" })} className="hover:text-slate-900 cursor-pointer transition-colors">隐私声明</span>
+            </button>
+
+            {/* 用户区域 */}
+            {loggedInUser ? (
+              <div className="flex gap-6 items-center border-l border-slate-200/50 pl-6">
+                <span className="text-slate-600 flex items-center gap-2 whitespace-nowrap">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                  <span className="hidden sm:inline max-w-[60px] truncate">{loggedInUser.full_name || loggedInUser.username || "已登陆"}</span>
+                </span>
+                <button 
+                  onClick={handleLogout} 
+                  className="cursor-pointer hover:text-red-600 active:text-red-700 transition-colors flex items-center gap-2 text-red-500/70 whitespace-nowrap"
+                >
+                  <LogOut className="w-3.5 h-3.5 flex-shrink-0" /> 退出
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={handleLoginClick} 
+                className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
+              >
+                统一登陆
+              </button>
+            )}
+
+            {/* 服务条款 */}
+            <button 
+              onClick={() => setShowLegalModal({ isOpen: true, type: "service" })} 
+              className="hover:text-slate-900 active:text-slate-700 cursor-pointer transition-colors whitespace-nowrap"
+            >
+              服务协议
+            </button>
+
+            {/* 隐私声明 */}
+            <button 
+              onClick={() => setShowLegalModal({ isOpen: true, type: "privacy" })} 
+              className="hover:text-slate-900 active:text-slate-700 cursor-pointer transition-colors whitespace-nowrap"
+            >
+              隐私声明
+            </button>
          </div>
       </footer>
       <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
       <LegalModal isOpen={showLegalModal.isOpen} type={showLegalModal.type} onClose={() => setShowLegalModal({ ...showLegalModal, isOpen: false })} />
+      <DealerModalPanel isOpen={showDealerModal} onClose={() => setShowDealerModal(false)} />
     </main>
   );
 }

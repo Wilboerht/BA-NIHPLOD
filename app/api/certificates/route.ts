@@ -105,6 +105,7 @@ export async function POST(req: Request) {
             start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 
+            final_image_url: certData.certImageDataUrl || null,  // 保存证书图像
             manager_id: managerId
         }).select('*, dealers(*)').single();
 
@@ -159,7 +160,11 @@ export async function POST(req: Request) {
       if (certId) {
         const { error: updateErr } = await supabaseAdmin
           .from('certificates')
-          .update({ status: 'ISSUED', manager_id: managerId }) // 记录最终核发人
+          .update({ 
+            status: 'ISSUED', 
+            manager_id: managerId,
+            final_image_url: certData.certImageDataUrl || null  // 如果新提供了图像，更新它
+          })
           .eq('id', certId);
 
         if (updateErr) throw updateErr;

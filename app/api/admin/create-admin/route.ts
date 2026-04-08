@@ -1,9 +1,40 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+/**
+ * 权限检查：确保只有管理员可以创建新的管理员账户
+ */
+async function checkIsAdmin(adminId: string): Promise<boolean> {
+  try {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', adminId)
+      .single();
+
+    return !!(profile && ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(profile.role));
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const { fullName, username, password, role } = await req.json();
+    const { fullName, username, password, role, adminId } = await req.json();
+
+    // 权限检查：只有管理员可以创建新管理员
+    if (!adminId || !(await checkIsAdmin(adminId))) {
+      return NextResponse.json(
+        { error: "无权限创建新的管理员账户" },
+        { status: 403 }
+      );
+    }
 
     // 基本校验
     if (!fullName || !username || !password || !role) {

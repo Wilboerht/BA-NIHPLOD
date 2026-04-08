@@ -434,7 +434,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           action: isManager ? "approve_issue" : "create_pending",  // 负责人直接核发，否则待审核
           certData: {
             ...data,
-            cert_number: certNumber
+            cert_number: certNumber,
+            certImageDataUrl: certImageDataUrl  // 添加生成的证书图像数据
           },
           managerId: user?.id
         })

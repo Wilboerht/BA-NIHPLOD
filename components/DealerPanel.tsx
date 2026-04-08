@@ -101,6 +101,7 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user?.id,
+          requesterId: user?.id,
           oldPassword,
           newPassword
         })

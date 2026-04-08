@@ -2,12 +2,43 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+/**
+ * 权限检查：确保仅管理员可以重置密码
+ */
+async function checkIsAdmin(adminId: string): Promise<boolean> {
+  try {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', adminId)
+      .single();
+
+    return !!(profile && ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(profile.role));
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const { userId, newPassword } = await req.json();
+    const { userId, newPassword, adminId } = await req.json();
 
     if (!userId || !newPassword || newPassword.length < 6) {
       return NextResponse.json({ error: "密码长度必须至少为 6 位" }, { status: 400 });
+    }
+
+    // 权限检查：只有管理员可以重置他人密码
+    if (!adminId || !(await checkIsAdmin(adminId))) {
+      return NextResponse.json(
+        { error: '无权限重置用户密码' },
+        { status: 403 }
+      );
     }
 
     // 使用 Service Role Key 初始化，绕过 RLS 并在 Admin 模式下操作
