@@ -234,7 +234,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const drawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
       
       offCtx.save();
-      offCtx.translate(width - 280 * scale, 875 * scale);
+      offCtx.translate(width - 260 * scale, 875 * scale);
       offCtx.rotate(-0.06); 
       offCtx.globalAlpha = 0.88;
       offCtx.drawImage(sealImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
