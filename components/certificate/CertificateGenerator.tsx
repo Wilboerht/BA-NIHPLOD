@@ -655,7 +655,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         </div>
 
         <div className="pt-12 pb-2 flex items-center gap-3 flex-wrap">
-           {!isVoided && (
+           {!isVoided && !isIssued && (
              <>
                <button 
                  onClick={handleDownload}
@@ -694,7 +694,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                <button 
                  onClick={handleDownloadPDF}
                  disabled={isDownloading}
-                 className="h-11 px-6 bg-emerald-600 text-white rounded-xl text-[13px] font-bold animate-bounce shadow-xl shadow-emerald-100 tracking-wide flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                 className="h-11 px-6 bg-emerald-600 text-white rounded-xl text-[13px] font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 tracking-wide flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                >
                  <File className="w-4 h-4" /> PDF
                </button>
