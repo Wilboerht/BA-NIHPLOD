@@ -43,6 +43,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedCertForView, setSelectedCertForView] = useState<Certificate | null>(null);
   const [selectedCertInitialData, setSelectedCertInitialData] = useState<any>(null);
@@ -194,7 +195,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${cert.cert_number}.png`;
+      link.download = `授权书_${cert.dealers?.company_name || cert.cert_number}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -220,6 +221,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
     const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
     if (isPlaceholder) {
       console.log("检测到占位符图片，后台生成真实证书");
+      setIsGenerating(true);
       // 准备 CertificateGenerator 的初始数据
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
@@ -295,7 +297,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
       pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
 
       // 保存 PDF
-      const fileName = `授权书_${cert.cert_number}.pdf`;
+      const fileName = `授权书_${cert.dealers?.company_name || cert.cert_number}.pdf`;
       pdf.save(fileName);
       console.log("PDF 下载完成:", fileName);
     } catch (error) {
@@ -346,20 +348,20 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
               const y = margin + (contentHeight - height) / 2;
 
               pdf.addImage(dataUrl, "PNG", x, y, width, height);
-              pdf.save(`${selectedCertForView.cert_number}.pdf`);
+              pdf.save(`授权书_${selectedCertInitialData.shopName}.pdf`);
               console.log("PDF自动下载完成");
             } else {
               // 下载为PNG
               const link = document.createElement('a');
               link.href = dataUrl;
-              link.download = `${selectedCertForView.cert_number}.png`;
+              link.download = `授权书_${selectedCertInitialData.shopName}.png`;
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);
               console.log("PNG自动下载完成");
             }
 
-            // 下载完成后关闭
+            // 下载完成后关闭setIsGenerating(false);
             setShowCertificateModal(false);
             setSelectedCertForView(null);
             setSelectedCertInitialData(null);
@@ -371,6 +373,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
             setSelectedCertForView(null);
             setSelectedCertInitialData(null);
             setIsPdfMode(false);
+            setIsGenerating(false);
           }
         }
       }, 800); // 延迟800ms确保canvas渲染完成
@@ -427,10 +430,10 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
 
             {/* Loading State */}
             {isLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-                  <p className="text-slate-600 text-sm font-medium">加载证书中...</p>
+              <div className="flex-1 flex items-center justify-center min-h-96 px-8 py-12">
+                <div className="text-center space-y-6">
+                  <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-500" />
+                  <p className="text-slate-600 text-base font-medium">加载证书中...</p>
                 </div>
               </div>
             ) : (
@@ -450,6 +453,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                       <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80 sticky top-0 z-10">
                         <tr>
                           <th className="px-6 py-4 border-b border-slate-100">证书编号</th>
+                          <th className="px-6 py-4 border-b border-slate-100">主体名称</th>
                           <th className="px-6 py-4 border-b border-slate-100">有效期</th>
                           <th className="px-6 py-4 border-b border-slate-100 text-center">状态</th>
                           <th className="px-6 py-4 border-b border-slate-100 text-right">操作</th>
@@ -464,6 +468,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                           return (
                             <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors group border-b border-slate-50">
                               <td className="px-6 py-4 font-mono text-xs text-slate-600 uppercase tracking-tighter">{cert.cert_number}</td>
+                              <td className="px-6 py-4 text-xs text-slate-900 font-semibold">{cert.dealers?.company_name || "-"}</td>
                               <td className="px-6 py-4 text-xs text-slate-600">
                                 {cert.start_date.replace(/-/g, ".")} — {cert.end_date.replace(/-/g, ".")}
                               </td>
@@ -485,7 +490,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                                     onClick={() => handleDownload(cert)}
                                     disabled={isDownloading === cert.id || !cert.final_image_url}
                                     title={!cert.final_image_url ? "证书图片未生成" : "下载 PNG"}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 disabled:hover:bg-slate-300 text-white font-bold text-xs rounded-lg transition-all active:scale-95 disabled:cursor-not-allowed whitespace-nowrap"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 hover:text-blue-500 font-bold text-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
                                   >
                                     {isDownloading === cert.id ? (
                                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -498,7 +503,7 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
                                     onClick={() => handleDownloadPDF(cert)}
                                     disabled={isDownloading === cert.id || !cert.final_image_url}
                                     title={!cert.final_image_url ? "证书文件未生成" : "下载 PDF"}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-300 disabled:hover:bg-slate-300 text-white font-bold text-xs rounded-lg transition-all active:scale-95 disabled:cursor-not-allowed whitespace-nowrap"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 hover:text-indigo-500 font-bold text-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
                                   >
                                     {isDownloading === cert.id ? (
                                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -552,6 +557,18 @@ export default function DealerModalPanel({ isOpen, onClose }: DealerModalPanelPr
             mode="view"
           />
         </div>
+      )}
+      {/* 证书生成中的提示 */}
+      {isGenerating && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 whitespace-nowrap"
+        >
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm font-medium">正在生成证书，请稍候...</span>
+        </motion.div>
       )}
     </AnimatePresence>
   );
