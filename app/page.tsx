@@ -604,13 +604,13 @@ export default function VerificationPage() {
                  <button 
                    onClick={handleReportSubmit}
                    disabled={isSubmittingReport || reportSuccess}
-                   className="w-full bg-[#2C2A29] text-white h-12 rounded-2xl hover:bg-[#1A1918] active:scale-[0.98] transition-all shadow-lg shadow-[#2C2A29]/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase disabled:opacity-75 disabled:active:scale-100">
+                   className="w-full bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/40 rounded-xl py-3.5 font-bold tracking-widest text-[13px] hover:bg-[#8B7355]/20 hover:border-[#8B7355]/70 active:scale-[0.98] mt-6 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmittingReport ? (
-                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                     ) : reportSuccess ? (
-                      <><CheckCircle2 className="w-5 h-5 text-emerald-400" /> 已收到您的请求</>
+                      <><CheckCircle2 className="w-4 h-4" /> 已收到您的请求</>
                     ) : (
-                      <><ShieldAlert className="w-4.5 h-4.5 opacity-80" /> 提交核查请求</>
+                      <><ShieldAlert className="w-4 h-4 opacity-80" /> 提交核查请求</>
                     )}
                  </button>
               </div>
