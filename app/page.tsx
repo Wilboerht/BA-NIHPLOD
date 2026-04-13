@@ -248,24 +248,6 @@ export default function VerificationPage() {
     }
   };
 
-  // 下载证书函数
-  const downloadCertificate = (certNumber: string) => {
-    // 如果有最终图片URL，直接下载
-    if (result && (result as any).final_image_url) {
-      const link = document.createElement('a');
-      link.href = (result as any).final_image_url;
-      link.download = `${certNumber}-防伪授权证书.png`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      // 否则跳转到验证页面（那里可以从完整的证书数据中获取图片）
-      const verifyUrl = `/verify?cert=${encodeURIComponent(certNumber)}`;
-      window.open(verifyUrl, '_blank');
-    }
-  };
-
   return (
     <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
           style={{ background: "#FAFAFA" }}>
@@ -454,42 +436,38 @@ export default function VerificationPage() {
                   </div>
                 </div>
               ) : result ? (
-                <div className="flex flex-col md:flex-row justify-between items-start gap-8 md:gap-12">
-                  <div className="flex-1 space-y-10">
-                    <div className="flex items-center gap-3 text-[#8B7355] text-[10px] font-bold tracking-[0.2em] bg-[#8B7355]/5 px-4 py-1.5 rounded-full border border-[#8B7355]/10 w-fit">
-                       <CheckCircle2 className="w-3.5 h-3.5" /> 官方授权核验结果
-                    </div>
-                    
-                    <div className="space-y-4">
-                       <h2 className="text-3xl md:text-[38px] font-black text-[#2C2A29] tracking-[0.05em] leading-tight">{result.dealerName}</h2>
-                       <p className="text-[#8B7355]/70 text-[11px] font-bold tracking-[0.3em]">授权编号：{result.id}</p>
-                    </div>
-                    
-                    <div className="flex flex-col gap-8 md:gap-10 pt-8 md:pt-12 border-t border-[#8B7355]/10">
-                       <div className="space-y-2">
-                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block">截止日期</span>
-                          <p className="text-sm md:text-lg text-[#2C2A29] tracking-widest">{result.duration}</p>
-                       </div>
-                       <div className="space-y-2">
-                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block">授权区域及许可范围</span>
-                          <p className="text-sm md:text-[15px] text-[#2C2A29] leading-[1.8] font-medium opacity-90 whitespace-pre-wrap break-words">{result.scope}</p>
-                       </div>
-                    </div>
-
-                    <div className="pt-10 flex flex-wrap gap-5">
-                      <button 
-                        onClick={() => downloadCertificate(result.id)}
-                        className="bg-[#2C2A29] text-white h-12 px-10 rounded-2xl text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#1A1918] transition-all shadow-xl shadow-[#2C2A29]/10 active:scale-95 w-full md:w-auto">
-                        <Download className="w-4 h-4 opacity-70" /> 保存防伪证书
-                      </button>
-                    </div>
+                <div className="relative w-full flex flex-col">
+                  {/* 高端内嵌暗水印（弥补右侧删去的图案空白） */}
+                  <div className="absolute right-0 top-0 opacity-[0.02] pointer-events-none select-none grayscale w-64 md:w-80 -mt-4 -mr-4 md:-mt-8 md:-mr-8">
+                     <img src="/NIHPLOD-logo.svg" alt="" className="w-full h-auto" />
                   </div>
 
-                  <div className="hidden md:flex flex-col items-center gap-6 p-10 bg-slate-50/80 rounded-[40px] border border-slate-100 self-stretch justify-center">
-                     <div className="w-24 h-24 bg-white/80 border border-white/90 rounded-[28px] shadow-sm flex items-center justify-center p-6 grayscale opacity-30">
-                        <img src="/NIHPLOD-logo.svg" alt="LOGO" className="w-full h-auto" />
-                     </div>
-                     <p className="text-[9px] text-[#8B7355]/40 font-bold tracking-[0.4em] text-center leading-loose">品牌安全认证</p>
+                  <div className="flex flex-col space-y-8 md:space-y-10 relative z-10">
+                    <div className="space-y-5 px-2">
+                      <div className="flex items-center gap-2 text-[#8B7355] text-[10px] font-bold tracking-[0.2em] bg-[#8B7355]/5 px-3 py-1.5 rounded-full border border-[#8B7355]/10 w-fit">
+                         <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> 官方授权企业资质认证
+                      </div>
+                      
+                      <div>
+                         <h2 className="text-2xl md:text-[34px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{result.dealerName}</h2>
+                         <div className="flex items-center gap-3 mt-4">
+                           <span className="text-[9px] md:text-[10px] bg-[#2C2A29] text-white px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
+                           <p className="text-[#8B7355]/80 text-[11px] md:text-sm font-bold tracking-[0.2em] md:tracking-[0.25em]">{result.id}</p>
+                         </div>
+                      </div>
+                    </div>
+                    
+                    {/* 分割线下半截：票据风格 */}
+                    <div className="flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-8 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
+                       <div className="space-y-3 md:space-y-4">
+                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">法定核准授权期限</span>
+                          <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
+                       </div>
+                       <div className="space-y-3 md:space-y-4">
+                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">严正许可声明与经营范畴</span>
+                          <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium opacity-80 whitespace-pre-wrap break-words">{result.scope}</p>
+                       </div>
+                    </div>
                   </div>
                 </div>
               ) : null}
