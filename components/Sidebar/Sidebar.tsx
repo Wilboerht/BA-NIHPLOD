@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe, LogOut as LogOutIcon, AlertCircle } from "lucide-react";
 
 export default function Sidebar({
   isCollapsed,
@@ -18,7 +19,7 @@ export default function Sidebar({
   const [userEmail, setUserEmail] = useState("admin@nihplod.co");
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     // 从 sessionStorage 获取当前登录用户信息
@@ -119,18 +120,56 @@ export default function Sidebar({
           {!isCollapsed && (
             <div
               className={styles.settingsBtn}
-              onClick={(e) => { e.stopPropagation(); handleLogout(); }}
-              style={{ padding: isConfirmingLogout ? '4px 10px' : '' }}
+              onClick={(e) => { e.stopPropagation(); setShowLogoutModal(true); }}
             >
-              {isConfirmingLogout ? (
-                <span className="text-[10px] font-bold text-[#eb5757]">再按退出</span>
-              ) : (
-                <LogOut size={16} className={styles.settingsIcon} />
-              )}
+              <LogOut size={16} className={styles.settingsIcon} />
             </div>
           )}
         </div>
       </footer>
+
+      <AnimatePresence>
+        {showLogoutModal && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-[340px] bg-white rounded-[24px] p-8 shadow-2xl flex flex-col items-center text-center"
+            >
+              <div className="w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-5 text-[24px]">
+                <AlertCircle size={28} />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 tracking-wider mb-2">确认退出登录？</h3>
+              <p className="text-[13px] text-slate-400 font-medium leading-relaxed mb-8">
+                退出后您将需要重新验证身份<br />才能访问管理后台。
+              </p>
+              
+              <div className="flex flex-col w-full gap-3">
+                <button 
+                  onClick={handleLogout}
+                  className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[13px] font-bold tracking-widest transition-all active:scale-[0.98]"
+                >
+                  确认退出
+                </button>
+                <button 
+                  onClick={() => setShowLogoutModal(false)}
+                  className="w-full py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl text-[13px] font-bold tracking-widest transition-all"
+                >
+                  取消
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

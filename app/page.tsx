@@ -357,7 +357,7 @@ export default function VerificationPage() {
       />
 
       {/* 顶部导航 */}
-      <nav className="w-full max-w-7xl px-6 md:px-12 py-6 md:py-10 flex justify-between items-center z-20 shrink-0">
+      <nav className="hidden md:flex w-full max-w-7xl px-6 md:px-12 py-6 md:py-10 justify-between items-center z-20 shrink-0">
          <div className="flex items-center gap-3 md:gap-5 transition-all hover:opacity-80">
             <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-6 md:h-8 w-auto" />
             <div className="w-px h-4 md:h-5 bg-slate-300/60 mx-0.5 md:mx-1" />
@@ -376,7 +376,7 @@ export default function VerificationPage() {
       </nav>
 
       {/* 核心内容区 */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10 -mt-10 md:-mt-20">
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10 md:-mt-20">
         <div className="w-full flex flex-col items-center">
           <motion.div 
             initial={{ opacity: 0, y: 12 }}
@@ -384,11 +384,12 @@ export default function VerificationPage() {
             className="text-center space-y-6 mb-12"
           >
             <div className="space-y-6">
+              <img src="/NIHPLOD-logo.svg" alt="Logo" className="h-[34px] mx-auto md:hidden mb-8 opacity-90" />
               <h1 className="text-3xl md:text-[44px] font-black tracking-[0.12em] text-[#2C2A29] leading-tight">
                 授权资质官方核查
               </h1>
               <p className="text-[#8B7355] text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-80 tracking-[0.05em] font-medium">
-                输入授权证书编号 (SN) 或经销主体名称，<br className="hidden md:block" /> 核实官方资质及合法经营区域。
+                输入授权证书编号 (SN) 或经销主体名称，<br /> 核实官方资质及合法经营区域。
               </p>
             </div>
           </motion.div>
