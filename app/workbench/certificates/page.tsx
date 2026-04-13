@@ -244,15 +244,15 @@ export default function CertificatesPage() {
                             onClick={() => {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
-                                id: cert.id, // 核心：传入 ID 用于编辑
+                                id: cert.id,
                                 cert_number: cert.cert_number,
-                                platformId: scopeParts[0],
+                                platformId: scopeParts[0] || "",
                                 platformLabel: "识别码", 
                                 shopName: cert.dealers?.company_name,
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-                                authorizer: "旎柏（上海）商贸有限公司",
+                                authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
                                 sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
@@ -274,13 +274,13 @@ export default function CertificatesPage() {
                               setSelectedCertData({
                                 id: cert.id,
                                 cert_number: cert.cert_number,
-                                platformId: scopeParts[0],
+                                platformId: scopeParts[0] || "",
                                 platformLabel: "识别码", 
                                 shopName: cert.dealers?.company_name,
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-                                authorizer: "旎柏（上海）商贸有限公司",
+                                authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
                                 sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });

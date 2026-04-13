@@ -216,7 +216,7 @@ export async function POST(req: Request) {
         const { data: cert, error: certErr } = await supabaseAdmin.from('certificates').insert({
           cert_number: certNumber,
           dealer_id: dealerId,
-          auth_scope: certData.platformId + ' | ' + certData.scopeText,
+          auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || "旎柏（上海）商贸有限公司"),
           start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
           end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
           status: 'PENDING', // 待审核
@@ -289,7 +289,7 @@ export async function POST(req: Request) {
         const { data: newCert, error: certErr } = await supabaseAdmin.from('certificates').insert({
             cert_number: certNumber,
             dealer_id: dealerId,
-            auth_scope: certData.platformId + ' | ' + certData.scopeText,
+            auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || "旎柏（上海）商贸有限公司"),
             start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 
@@ -462,7 +462,7 @@ export async function POST(req: Request) {
       const { error: updateCertErr } = await supabaseAdmin
         .from('certificates')
         .update({
-          auth_scope: certData.platformId + ' | ' + certData.scopeText,
+          auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || "旎柏（上海）商贸有限公司"),
           start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
           end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
           final_image_url: finalImageUrl,
