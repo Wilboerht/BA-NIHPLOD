@@ -20,6 +20,33 @@ interface UserSession {
   is_first_login?: boolean;
 }
 
+const getDurationStatus = (durationStr?: string) => {
+  if (!durationStr) return null;
+  try {
+    const parts = durationStr.split('-');
+    if (parts.length !== 2) return null;
+    
+    // 将 YYYY.MM.DD 转换为 Safari 安全解析格式 YYYY/MM/DD
+    const startStr = parts[0].trim().replace(/\./g, '/');
+    const endStr = parts[1].trim().replace(/\./g, '/');
+    
+    const startDate = new Date(startStr);
+    const endDate = new Date(endStr);
+    // 把结束日期的时间拨到当天的 23:59:59 保证精准包容整天
+    endDate.setHours(23, 59, 59, 999);
+    
+    const now = new Date();
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
+    
+    if (now < startDate) return { text: '未生效', style: 'bg-amber-50 text-amber-600 border-amber-200' };
+    if (now > endDate) return { text: '已过期', style: 'bg-red-50 text-red-600 border-red-200' };
+    return { text: '生效中', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
+  } catch {
+    return null;
+  }
+};
+
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<CertificateVerifyResult | null>(null);
@@ -451,8 +478,8 @@ export default function VerificationPage() {
                       <div>
                          <h2 className="text-2xl md:text-[34px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{result.dealerName}</h2>
                          <div className="flex items-center gap-3 mt-4">
-                           <span className="text-[9px] md:text-[10px] bg-[#2C2A29] text-white px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
-                           <p className="text-[#8B7355]/80 text-[11px] md:text-sm font-bold tracking-[0.2em] md:tracking-[0.25em]">{result.id}</p>
+                           <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
+                           <p className="text-[#8B7355] text-[11px] md:text-[13px] font-bold tracking-widest font-mono pt-[1px]">{result.id}</p>
                          </div>
                       </div>
                     </div>
@@ -461,7 +488,18 @@ export default function VerificationPage() {
                     <div className="flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-8 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
                        <div className="space-y-3 md:space-y-4">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
-                          <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
+                          <div className="flex items-center gap-3">
+                            <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
+                            {(() => {
+                              const status = getDurationStatus(result.duration);
+                              if (!status) return null;
+                              return (
+                                <span className={`text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap ${status.style}`}>
+                                  {status.text}
+                                </span>
+                              );
+                            })()}
+                          </div>
                        </div>
                        <div className="space-y-3 md:space-y-4">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
