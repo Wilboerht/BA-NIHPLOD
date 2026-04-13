@@ -382,59 +382,96 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium">{data.cert_number}</div>
             </div>
           )}
+          {/* 平台属性 */}
           <div className="flex items-center gap-3">
-            <input
-              type="text"
-              className="w-24 bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none"
-              value={data.platformLabel}
-              onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
-              disabled={mode === 'view'}
-            />
-            <input
-              type="text"
-              placeholder="请输入 ID"
-              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none"
-              value={data.platformId}
-              onChange={(e) => setData({ ...data, platformId: e.target.value })}
-              disabled={mode === 'view'}
-            />
+            <div className="w-24 shrink-0">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-500 font-medium">{data.platformLabel}</div>
+              ) : (
+                <input
+                  type="text"
+                  className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none focus:bg-white focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.platformLabel}
+                  onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
+                />
+              )}
+            </div>
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium">{data.platformId}</div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="请输入 ID"
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.platformId}
+                  onChange={(e) => setData({ ...data, platformId: e.target.value })}
+                />
+              )}
+            </div>
           </div>
+
+          {/* 店铺属性 */}
           <div className="flex items-center gap-3">
-            <input
-              type="text"
-              className="w-24 bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none"
-              value={data.shopLabel}
-              onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
-              disabled={mode === 'view'}
-            />
-            <input
-              type="text"
-              placeholder="请输入名称"
-              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none"
-              value={data.shopName}
-              onChange={(e) => setData({ ...data, shopName: e.target.value })}
-              disabled={mode === 'view'}
-            />
+            <div className="w-24 shrink-0">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-500 font-medium">{data.shopLabel}</div>
+              ) : (
+                <input
+                  type="text"
+                  className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none focus:bg-white focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.shopLabel}
+                  onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
+                />
+              )}
+            </div>
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium">{data.shopName}</div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="请输入名称"
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.shopName}
+                  onChange={(e) => setData({ ...data, shopName: e.target.value })}
+                />
+              )}
+            </div>
           </div>
+
+          {/* 联系电话 */}
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">联系电话</div>
-            <input 
-              type="tel" 
-              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none"
-              value={data.phone} 
-              onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })} 
-              disabled={mode === 'view'}
-            />
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight">{data.phone}</div>
+              ) : (
+                <input 
+                  type="tel" 
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.phone} 
+                  onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })} 
+                />
+              )}
+            </div>
           </div>
+
+          {/* 授权范围 */}
           <div className="flex items-start gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">授权范围</div>
-            <textarea 
-              rows={4} 
-              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none resize-none h-28" 
-              value={data.scopeText} 
-              onChange={(e) => setData({ ...data, scopeText: e.target.value })} 
-              disabled={mode === 'view'}
-            />
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2">{data.scopeText}</div>
+              ) : (
+                <textarea 
+                  rows={4} 
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28" 
+                  value={data.scopeText} 
+                  onChange={(e) => setData({ ...data, scopeText: e.target.value })} 
+                />
+              )}
+            </div>
           </div>
         </div>
 
@@ -471,19 +508,59 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-2xl">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowFullPreview(false); setZoomScale(1); }} className="absolute inset-0 cursor-zoom-out z-[201]" />
             <motion.div 
-               initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-               className="absolute top-10 z-[210] flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/10 rounded-full backdrop-blur-xl shadow-2xl pointer-events-auto"
+               initial={{ opacity: 0, y: -20, x: '-50%' }} 
+               animate={{ opacity: 1, y: 0, x: '-50%' }} 
+               exit={{ opacity: 0, y: -20, x: '-50%' }}
+               className="absolute top-10 left-1/2 z-[210] flex items-center h-12 px-2 bg-black/60 border border-white/5 rounded-full backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto"
                onClick={(e) => e.stopPropagation()}
             >
-               <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
-                  <button onClick={() => setZoomScale(Math.max(0.2, zoomScale - 0.2))} className="w-8 h-8 flex items-center justify-center text-white/50 hover:text-white"><ZoomOut className="w-4 h-4" /></button>
-                  <div className="min-w-[48px] text-center text-[11px] font-mono font-bold text-white">{(zoomScale * 100).toFixed(0)}%</div>
-                  <button onClick={() => setZoomScale(Math.min(5, zoomScale + 0.2))} className="w-8 h-8 flex items-center justify-center text-white/50 hover:text-white"><ZoomIn className="w-4 h-4" /></button>
+               {/* 缩放控制组 */}
+               <div className="flex items-center px-2">
+                  <button 
+                    onClick={() => setZoomScale(Math.max(0.2, zoomScale - 0.2))} 
+                    className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90"
+                  >
+                    <ZoomOut size={15} />
+                  </button>
+                  <div className="min-w-[54px] text-center text-[12px] font-bold text-white tabular-nums tracking-tight">
+                    {(zoomScale * 100).toFixed(0)}%
+                  </div>
+                  <button 
+                    onClick={() => setZoomScale(Math.min(5, zoomScale + 0.2))} 
+                    className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90"
+                  >
+                    <ZoomIn size={15} />
+                  </button>
                </div>
-               <button onClick={() => setZoomScale(1)} className="px-3 py-1.5 text-[11px] font-bold text-white/40 hover:text-white">100%</button>
-               <div className="w-px h-4 bg-white/10 mx-1" />
-               <button onClick={(e) => { e.stopPropagation(); handleDownload(); }} className="flex items-center gap-2 px-4 py-1.5 bg-white text-black rounded-full text-[11px] font-bold hover:bg-slate-200"><Download size={14} /> 保存</button>
-               <button onClick={() => { setShowFullPreview(false); setZoomScale(1); }} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-red-400 ml-1"><X size={16} /></button>
+
+               <div className="w-px h-4 bg-white/10" />
+
+               {/* 重置组 */}
+               <button 
+                 onClick={() => setZoomScale(1)} 
+                 className="px-4 h-full text-[12px] font-bold text-white/40 hover:text-white transition-all active:opacity-60"
+               >
+                 100%
+               </button>
+
+               <div className="w-px h-4 bg-white/10" />
+
+               {/* 操作组 */}
+               <div className="flex items-center pl-3 pr-1 gap-2">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDownload(); }} 
+                    className="flex items-center gap-2 px-4 h-8 bg-white text-black rounded-full text-[12px] font-bold hover:bg-slate-200 transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    <Download size={14} strokeWidth={2.5} /> 保存图片
+                  </button>
+
+                  <button 
+                    onClick={() => { setShowFullPreview(false); setZoomScale(1); }} 
+                    className="w-8 h-8 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
+                  >
+                    <X size={16} />
+                  </button>
+               </div>
             </motion.div>
             <div className="w-full h-full flex items-center justify-center overflow-hidden touch-none" onWheel={(e) => setZoomScale(prev => e.deltaY < 0 ? Math.min(5, prev + 0.1) : Math.max(0.2, prev - 0.1))}>
               <motion.div drag dragConstraints={{ left: -1200, right: 1200, top: -1200, bottom: 1200 }} animate={{ scale: zoomScale }} transition={{ type: "spring", damping: 30, stiffness: 200 }} className="relative z-[205]">
