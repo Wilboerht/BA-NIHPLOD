@@ -331,8 +331,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   };
 
   const handleIssueSubmit = async () => {
-    if (!data.platformId || !data.shopName || !data.phone) {
-      alert("请填写完整的基本信息（平台ID、店铺名称、联系电话）");
+    if (!data.shopName) {
+      alert("请填写必填字段：授权主体名称");
       return;
     }
     setIsSubmitting(true);
@@ -385,7 +385,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               ) : (
                 <input
                   type="text"
-                  placeholder="请输入识别码 (如: 平台 ID)"
+                  placeholder="请输入识别码 (如: 平台 ID) - 选填"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.platformId}
                   onChange={(e) => setData({ ...data, platformId: e.target.value })}
