@@ -124,10 +124,10 @@ export default function LoginModal({
               <button
                 type="button"
                 onClick={() => setLoginType('dealer')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all duration-300 ${
                   loginType === 'dealer'
-                    ? 'bg-[#C6A87C] text-white shadow-sm'
-                    : 'bg-slate-50 text-slate-600 hover:bg-[#C6A87C]/10 hover:text-[#C6A87C]'
+                    ? 'bg-[#8B7355]/10 text-[#8B7355]'
+                    : 'bg-transparent text-slate-400 hover:bg-[#8B7355]/5 hover:text-[#8B7355]'
                 }`}
               >
                 经销商
@@ -135,10 +135,10 @@ export default function LoginModal({
               <button
                 type="button"
                 onClick={() => setLoginType('admin')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all duration-300 ${
                   loginType === 'admin'
-                    ? 'bg-[#C6A87C] text-white shadow-sm'
-                    : 'bg-slate-50 text-slate-600 hover:bg-[#C6A87C]/10 hover:text-[#C6A87C]'
+                    ? 'bg-[#8B7355]/10 text-[#8B7355]'
+                    : 'bg-transparent text-slate-400 hover:bg-[#8B7355]/5 hover:text-[#8B7355]'
                 }`}
               >
                 管理员
@@ -186,7 +186,7 @@ export default function LoginModal({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-[#C6A87C] text-white rounded-xl py-3.5 font-semibold text-[13px] hover:bg-[#B3966D] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                className="w-full bg-[#8B7355]/10 text-[#8B7355] rounded-xl py-3.5 font-bold tracking-widest text-[13px] hover:bg-[#8B7355]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

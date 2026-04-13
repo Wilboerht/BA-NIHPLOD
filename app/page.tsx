@@ -368,8 +368,8 @@ export default function VerificationPage() {
                 <Search className="w-4 h-4 md:w-[22px] md:h-[22px] flex-shrink-0 text-slate-400 group-focus-within:text-[#8B7355] transition-colors" />
                 <input 
                   type="text" 
-                  placeholder="输入编号 (SN) / 主体名称" 
-                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[14px] md:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
+                  placeholder="输入证书编号或名称" 
+                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
