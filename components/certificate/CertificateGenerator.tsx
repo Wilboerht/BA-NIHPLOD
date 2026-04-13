@@ -51,7 +51,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isVoided, setIsVoided] = useState(initialVoided);
   const [isDownloading, setIsDownloading] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
-  
+
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
 
@@ -95,7 +95,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
+
     const currentId = ++renderRequestId.current;
     setIsGenerating(true);
 
@@ -135,7 +135,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.textAlign = "center";
     offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
-    
+
     if (data.platformId && data.shopName) {
       offCtx.fillText(data.platformId, width / 2, 530 * scale);
       offCtx.fillText(data.shopName, width / 2, 578 * scale);
@@ -148,8 +148,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
     const scopeLines = (data.scopeText || "").split('\n');
-    let startY = 630 * scale; 
-    
+    let startY = 630 * scale;
+
     const parseMarkdownBold = (line: string) => {
       const parts = [];
       const regex = /\*\*(.*?)\*\*/g;
@@ -167,7 +167,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       }
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
-    
+
     scopeLines.forEach((line) => {
       const parts = parseMarkdownBold(line.trim());
       if (parts.some(p => p.bold)) {
@@ -203,7 +203,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(data.authorizer || "", width - 435 * scale, 848 * scale);
+    offCtx.fillText(data.authorizer || "", width - 345 * scale, 848 * scale);
 
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
@@ -220,7 +220,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const drawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
       offCtx.save();
       offCtx.translate(width - 260 * scale, 875 * scale);
-      offCtx.rotate(-0.06); 
+      offCtx.rotate(-0.06);
       offCtx.globalAlpha = 0.88;
       offCtx.drawImage(sealImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
       offCtx.restore();
@@ -256,17 +256,17 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         offCtx.textAlign = "center";
         offCtx.textBaseline = "middle";
         offCtx.font = `bold ${80 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillStyle = "rgba(220, 38, 38, 0.25)"; 
+        offCtx.fillStyle = "rgba(220, 38, 38, 0.25)";
         offCtx.fillText("已 作 废", 0, 0);
         offCtx.strokeStyle = "rgba(220, 38, 38, 0.35)";
         offCtx.lineWidth = 4 * scale;
         offCtx.strokeRect(-240 * scale, -70 * scale, 480 * scale, 140 * scale);
         offCtx.strokeRect(-230 * scale, -60 * scale, 460 * scale, 120 * scale);
       } else {
-        offCtx.rotate(-Math.PI / 4); 
+        offCtx.rotate(-Math.PI / 4);
         offCtx.textAlign = "center";
         offCtx.font = `bold ${18 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillStyle = "rgba(100, 116, 139, 0.15)"; 
+        offCtx.fillStyle = "rgba(100, 116, 139, 0.15)";
         const stepX = 220 * scale;
         const stepY = 160 * scale;
         for (let x = -width; x < width * 2; x += stepX) {
@@ -279,11 +279,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     if (currentId === renderRequestId.current) {
-        canvas.width = width;
-        canvas.height = height;
-        ctx.clearRect(0, 0, width, height); 
-        ctx.drawImage(offCanvas, 0, 0);
-        setIsGenerating(false);
+      canvas.width = width;
+      canvas.height = height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(offCanvas, 0, 0);
+      setIsGenerating(false);
     }
   };
 
@@ -348,7 +348,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       if (!userStr) throw new Error("未找到登录信息");
       const user = JSON.parse(userStr);
       const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(user.role);
-      
+
       const response = await fetch("/api/certificates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -426,18 +426,18 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <input 
-                    type="date" 
-                    className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums" 
-                    value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""} 
-                    onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })} 
+                  <input
+                    type="date"
+                    className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
+                    value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""}
+                    onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })}
                   />
                   <span className="text-slate-300">/</span>
-                  <input 
-                    type="date" 
-                    className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums" 
-                    value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""} 
-                    onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })} 
+                  <input
+                    type="date"
+                    className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
+                    value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
+                    onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })}
                   />
                 </div>
               )}
@@ -451,11 +451,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight pl-3">{data.phone}</div>
               ) : (
-                <input 
-                  type="tel" 
+                <input
+                  type="tel"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all font-mono"
-                  value={data.phone} 
-                  onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })} 
+                  value={data.phone}
+                  onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })}
                 />
               )}
             </div>
@@ -468,12 +468,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium pl-3">{data.authorizer}</div>
               ) : (
-                <input 
+                <input
                   type="text"
                   placeholder="请输入授权方主体名称"
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all" 
-                  value={data.authorizer} 
-                  onChange={(e) => setData({ ...data, authorizer: e.target.value })} 
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.authorizer}
+                  onChange={(e) => setData({ ...data, authorizer: e.target.value })}
                 />
               )}
             </div>
@@ -497,11 +497,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2 pl-3">{data.scopeText}</div>
               ) : (
-                <textarea 
-                  rows={4} 
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28" 
-                  value={data.scopeText} 
-                  onChange={(e) => setData({ ...data, scopeText: e.target.value })} 
+                <textarea
+                  rows={4}
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28"
+                  value={data.scopeText}
+                  onChange={(e) => setData({ ...data, scopeText: e.target.value })}
                 />
               )}
             </div>
@@ -509,23 +509,23 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         </div>
 
         <div className="pt-12 pb-2 flex items-center gap-6 flex-wrap">
-           {!isVoided && !isIssued && (
-             <>
-               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
-               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>
-             </>
-           )}
-           {mode !== 'view' && (
-             <button onClick={handleIssueSubmit} disabled={isSubmitting} className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13px] font-bold hover:bg-black transition-all shadow-xl active:scale-95">
-               {isSubmitting ? "正在提交..." : (mode === 'edit' ? "确认修改" : "签发授权")}
-             </button>
-           )}
-           {isIssued && !isVoided && (
-             <div className="flex gap-4">
-               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><Download size={16} /> PNG</button>
-               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><File size={16} /> PDF</button>
-             </div>
-           )}
+          {!isVoided && !isIssued && (
+            <>
+              <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
+              <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>
+            </>
+          )}
+          {mode !== 'view' && (
+            <button onClick={handleIssueSubmit} disabled={isSubmitting} className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13px] font-bold hover:bg-black transition-all shadow-xl active:scale-95">
+              {isSubmitting ? "正在提交..." : (mode === 'edit' ? "确认修改" : "签发授权")}
+            </button>
+          )}
+          {isIssued && !isVoided && (
+            <div className="flex gap-4">
+              <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><Download size={16} /> PNG</button>
+              <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><File size={16} /> PDF</button>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -540,60 +540,60 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         {showFullPreview && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-2xl">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowFullPreview(false); setZoomScale(1); }} className="absolute inset-0 cursor-zoom-out z-[201]" />
-            <motion.div 
-               initial={{ opacity: 0, y: -20, x: '-50%' }} 
-               animate={{ opacity: 1, y: 0, x: '-50%' }} 
-               exit={{ opacity: 0, y: -20, x: '-50%' }}
-               className="absolute top-10 left-1/2 z-[210] flex items-center h-12 px-2 bg-black/60 border border-white/5 rounded-full backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto"
-               onClick={(e) => e.stopPropagation()}
+            <motion.div
+              initial={{ opacity: 0, y: -20, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: -20, x: '-50%' }}
+              className="absolute top-10 left-1/2 z-[210] flex items-center h-12 px-2 bg-black/60 border border-white/5 rounded-full backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-               {/* 缩放控制组 */}
-               <div className="flex items-center px-2">
-                  <button 
-                    onClick={() => setZoomScale(Math.max(0.2, zoomScale - 0.2))} 
-                    className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90"
-                  >
-                    <ZoomOut size={15} />
-                  </button>
-                  <div className="min-w-[54px] text-center text-[12px] font-bold text-white tabular-nums tracking-tight">
-                    {(zoomScale * 100).toFixed(0)}%
-                  </div>
-                  <button 
-                    onClick={() => setZoomScale(Math.min(5, zoomScale + 0.2))} 
-                    className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90"
-                  >
-                    <ZoomIn size={15} />
-                  </button>
-               </div>
+              {/* 缩放控制组 */}
+              <div className="flex items-center px-2">
+                <button
+                  onClick={() => setZoomScale(Math.max(0.2, zoomScale - 0.2))}
+                  className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90"
+                >
+                  <ZoomOut size={15} />
+                </button>
+                <div className="min-w-[54px] text-center text-[12px] font-bold text-white tabular-nums tracking-tight">
+                  {(zoomScale * 100).toFixed(0)}%
+                </div>
+                <button
+                  onClick={() => setZoomScale(Math.min(5, zoomScale + 0.2))}
+                  className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90"
+                >
+                  <ZoomIn size={15} />
+                </button>
+              </div>
 
-               <div className="w-px h-4 bg-white/10" />
+              <div className="w-px h-4 bg-white/10" />
 
-               {/* 重置组 */}
-               <button 
-                 onClick={() => setZoomScale(1)} 
-                 className="px-4 h-full text-[12px] font-bold text-white/40 hover:text-white transition-all active:opacity-60"
-               >
-                 100%
-               </button>
+              {/* 重置组 */}
+              <button
+                onClick={() => setZoomScale(1)}
+                className="px-4 h-full text-[12px] font-bold text-white/40 hover:text-white transition-all active:opacity-60"
+              >
+                100%
+              </button>
 
-               <div className="w-px h-4 bg-white/10" />
+              <div className="w-px h-4 bg-white/10" />
 
-               {/* 操作组 */}
-               <div className="flex items-center pl-3 pr-1 gap-2">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDownload(); }} 
-                    className="flex items-center gap-2 px-4 h-8 bg-white text-black rounded-full text-[12px] font-bold hover:bg-slate-200 transition-all active:scale-95 whitespace-nowrap"
-                  >
-                    <Download size={14} strokeWidth={2.5} /> 保存图片
-                  </button>
+              {/* 操作组 */}
+              <div className="flex items-center pl-3 pr-1 gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                  className="flex items-center gap-2 px-4 h-8 bg-white text-black rounded-full text-[12px] font-bold hover:bg-slate-200 transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <Download size={14} strokeWidth={2.5} /> 保存图片
+                </button>
 
-                  <button 
-                    onClick={() => { setShowFullPreview(false); setZoomScale(1); }} 
-                    className="w-8 h-8 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
-                  >
-                    <X size={16} />
-                  </button>
-               </div>
+                <button
+                  onClick={() => { setShowFullPreview(false); setZoomScale(1); }}
+                  className="w-8 h-8 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </motion.div>
             <div className="w-full h-full flex items-center justify-center overflow-hidden touch-none" onWheel={(e) => setZoomScale(prev => e.deltaY < 0 ? Math.min(5, prev + 0.1) : Math.max(0.2, prev - 0.1))}>
               <motion.div drag dragConstraints={{ left: -1200, right: 1200, top: -1200, bottom: 1200 }} animate={{ scale: zoomScale }} transition={{ type: "spring", damping: 30, stiffness: 200 }} className="relative z-[205]">
