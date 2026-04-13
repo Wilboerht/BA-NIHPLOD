@@ -120,15 +120,14 @@ export default function LoginModal({
               <h2 className="text-xl font-bold text-slate-900 tracking-[0.14em]">统一登录</h2>
             </div>
             
-            {/* 登录类型选择 */}
             <div className="px-10 pb-4 flex gap-3">
               <button
                 type="button"
                 onClick={() => setLoginType('dealer')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                   loginType === 'dealer'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-[#C6A87C] text-white shadow-sm'
+                    : 'bg-slate-50 text-slate-600 hover:bg-[#C6A87C]/10 hover:text-[#C6A87C]'
                 }`}
               >
                 经销商
@@ -138,8 +137,8 @@ export default function LoginModal({
                 onClick={() => setLoginType('admin')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                   loginType === 'admin'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-[#C6A87C] text-white shadow-sm'
+                    : 'bg-slate-50 text-slate-600 hover:bg-[#C6A87C]/10 hover:text-[#C6A87C]'
                 }`}
               >
                 管理员
@@ -152,7 +151,7 @@ export default function LoginModal({
                   type="text" 
                   required 
                   placeholder={loginType === 'dealer' ? "请输入手机号" : "请输入电子邮箱"}
-                  className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5 placeholder:text-slate-300"
+                  className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -164,7 +163,7 @@ export default function LoginModal({
                     type={showPassword ? "text" : "password"} 
                     required 
                     placeholder={loginType === 'dealer' ? "请输入密码" : "请输入密码"}
-                    className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5 placeholder:text-slate-300"
+                    className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -187,7 +186,7 @@ export default function LoginModal({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-slate-900 text-white rounded-xl py-3.5 font-semibold text-[13px] hover:bg-slate-800 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                className="w-full bg-[#C6A87C] text-white rounded-xl py-3.5 font-semibold text-[13px] hover:bg-[#B3966D] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
