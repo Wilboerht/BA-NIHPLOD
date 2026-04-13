@@ -67,7 +67,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           final_image_url,
           dealers!inner ( company_name )
         `)
-        .ilike('dealers.company_name', `%${cleanQuery}%`)
+        .eq('dealers.company_name', cleanQuery)
         .order('end_date', { ascending: false })
         .limit(1)
         .maybeSingle();
