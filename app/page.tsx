@@ -442,6 +442,22 @@ export default function VerificationPage() {
                 </button>
               </div>
             </form>
+            
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="md:hidden mt-14 flex justify-center"
+            >
+              <Link 
+                href="https://nihplod.cn"
+                target="_blank"
+                className="flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] uppercase text-[#8B7355]/50 hover:text-[#8B7355] transition-all"
+              >
+                <Globe className="w-4 h-4" />
+                返回品牌官网
+              </Link>
+            </motion.div>
           </motion.div>
         </div>
       </div>
@@ -496,8 +512,8 @@ export default function VerificationPage() {
               ) : result ? (
                 <div className="relative w-full flex flex-col">
                   <div className="flex flex-col space-y-8 md:space-y-10 relative z-10">
-                    <div className="space-y-5 px-2">
-                      <div className="flex items-center gap-2 text-[#8B7355] text-[10px] font-bold tracking-[0.2em] bg-[#8B7355]/5 px-3 py-1.5 rounded-full border border-[#8B7355]/10 w-fit">
+                    <div className="space-y-5 px-0">
+                      <div className="flex items-center gap-1.5 md:gap-2 text-[#8B7355] text-[10px] md:text-[11px] font-bold tracking-[0.15em] md:tracking-[0.2em] bg-[#8B7355]/5 px-2.5 md:px-3 py-1.5 rounded-full border border-[#8B7355]/20 w-fit shadow-sm shadow-[#8B7355]/5">
                          <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> 官方授权企业资质认证
                       </div>
                       
@@ -583,7 +599,7 @@ export default function VerificationPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full max-w-xl bg-white rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14 overflow-hidden"
+               className="relative w-full max-w-xl bg-white rounded-[28px] shadow-2xl p-10 overflow-hidden"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
@@ -594,8 +610,8 @@ export default function VerificationPage() {
                 </button>
               </div>
 
-              <div className="text-center mb-10 pt-2">
-                 <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-[34px] mx-auto mb-7" />
+              <div className="text-center mb-6 pt-2 md:mb-10">
+                 <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-[34px] mx-auto mb-4 md:mb-7" />
                  <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">官方维权申诉与核查</h2>
               </div>
 
@@ -604,7 +620,7 @@ export default function VerificationPage() {
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述</label>
                     <textarea 
                        placeholder="请简要描述您的维权申诉内容，我们将进行后台核查..."
-                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all h-32 resize-none"
+                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all h-24 md:h-32 resize-none"
                     />
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -617,7 +633,7 @@ export default function VerificationPage() {
                     </div>
                     <div className="space-y-2">
                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">证据图片 (可选)</label>
-                       <label className="w-full aspect-square md:aspect-auto md:h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden group">
+                       <label className="w-full h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden group">
                           <input 
                             type="file" 
                             accept="image/*" 

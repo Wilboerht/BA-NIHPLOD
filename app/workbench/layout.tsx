@@ -22,6 +22,18 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<UserSession | null>(null);
   const [userType, setUserType] = useState<'admin' | 'dealer' | null>(null);
   const router = useRouter();
+  
+  // 移动端自动收起侧边栏
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {

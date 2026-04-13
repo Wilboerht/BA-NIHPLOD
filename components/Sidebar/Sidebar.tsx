@@ -114,7 +114,7 @@ export default function Sidebar({
           {!isCollapsed && (
             <div className={styles.userInfo}>
               <div className={styles.userName}>{userName}</div>
-              <div className={styles.userEmail}>{userEmail}</div>
+              <div className={`${styles.userEmail} hidden md:block`}>{userEmail}</div>
             </div>
           )}
           {!isCollapsed && (
