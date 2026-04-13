@@ -175,7 +175,7 @@ export default function DealersPage() {
     
     const nameMap: Record<string, string> = {};
     const phoneMap: Record<string, string> = {};
-    dealerGroup.allDealerIds.forEach(id => {
+    dealerGroup.allDealerIds.forEach((id: string) => {
       const dealer = dealers.find(d => d.id === id);
       if (dealer) {
         nameMap[id] = dealer.company_name;
