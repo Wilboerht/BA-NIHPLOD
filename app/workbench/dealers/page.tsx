@@ -247,7 +247,7 @@ export default function DealersPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="搜索经销商名称、登录账号..."
+              placeholder="搜索经销商名称、手机号..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
@@ -271,7 +271,7 @@ export default function DealersPage() {
               <tr>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商主体（名称）</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">ID</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">登录账号 (手机号)</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">手机号</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">持有证书</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">注册时间</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">账户状态</th>
@@ -331,105 +331,15 @@ export default function DealersPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <AnimatePresence mode="wait" initial={false}>
-                      {confirmBanId === dealerGroup.phone ? (
-                        /* ── 二次确认条 ── */
-                        <motion.div
-                          key="confirm"
-                          initial={{ opacity: 0, scale: 0.95, x: 8 }}
-                          animate={{ opacity: 1, scale: 1, x: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, x: 8 }}
-                          transition={{ duration: 0.15 }}
-                          className="flex items-center justify-end gap-2"
-                        >
-                          <span className={`text-[11px] font-bold tracking-wide ${
-                            dealerGroup.isBanned ? 'text-emerald-600' : 'text-rose-500'
-                          }`}>
-                            {dealerGroup.isBanned ? '确认解封？' : '确认封禁？'}
-                          </span>
-                          <button
-                            onClick={() => setConfirmBanId(null)}
-                            className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-all"
-                          >
-                            取消
-                          </button>
-                          <button
-                            onClick={() => executeBan(dealerGroup)}
-                            className={`px-3 py-1 text-[11px] font-bold text-white rounded-md transition-all active:scale-95 ${
-                              dealerGroup.isBanned
-                                ? 'bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-100'
-                                : 'bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-100'
-                            }`}
-                          >
-                            {dealerGroup.isBanned ? '解封' : '封禁'}
-                          </button>
-                        </motion.div>
-                      ) : (
-                        /* ── 常态操作按钮组 ── */
-                        <motion.div
-                          key="actions"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.1 }}
-                          className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                      {/* 重置密码 */}
-                      {dealerGroup.profile && userRole === 'SUPER_ADMIN' && (
-                        <button
-                          onClick={() => resetDealerPassword(dealerGroup.profile!.username)}
-                          title="重置初始密码"
-                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-all"
-                        >
-                          <Key className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {/* 封禁 / 解封 */}
-                      {dealerGroup.profile && userRole === 'SUPER_ADMIN' && (
-                        dealerGroup.isBanned ? (
-                          /* 已封禁 → 显示绿色"解封"胶囊 */
-                          <button
-                            onClick={() => triggerBanConfirm(dealerGroup)}
-                            disabled={banningId === dealerGroup.phone}
-                            title="解除封禁"
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all disabled:opacity-40 disabled:pointer-events-none"
-                          >
-                            {banningId === dealerGroup.phone ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            )}
-                            解封
-                          </button>
-                        ) : (
-                          /* 正常账户 → 显示灰色"封禁"图标按钮，悬停变红 */
-                          <button
-                            onClick={() => triggerBanConfirm(dealerGroup)}
-                            disabled={banningId === dealerGroup.phone}
-                            title="封禁账户"
-                            className="p-1.5 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all disabled:opacity-40 disabled:pointer-events-none"
-                          >
-                            {banningId === dealerGroup.phone ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <ShieldOff className="w-4 h-4" />
-                            )}
-                          </button>
-                        )
-                      )}
-
-                      {/* 查看证书 (显示该 phone 下所有 dealer 的证书) */}
+                    <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => fetchDealerCerts(dealerGroup)}
                         title="查看名下证书"
-                        className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-blue-500 transition-all"
+                        className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-blue-500 transition-all flex items-center gap-2"
                       >
                         <FileText className="w-4 h-4" />
                       </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    </div>
                   </td>
                 </tr>
               ))}
