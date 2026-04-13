@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -128,7 +128,7 @@ export default function ComplaintsPage() {
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
               {!isLoading && filteredComplaints.map((complaint) => (
                   <tr key={complaint.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-[10px] text-slate-400">{complaint.id.split('-')[0]}...</td>
+                    <td className="px-6 py-4 font-mono text-[10px] text-slate-400" title={complaint.id}>{complaint.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{complaint.channel || "-"}</td>
                     <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={complaint.description}>{complaint.description}</td>
                     <td className="px-6 py-4">
@@ -146,11 +146,15 @@ export default function ComplaintsPage() {
                     <td className="px-6 py-4 text-center">
                       {getStatusBadge(complaint.status)}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                       <button onClick={() => setActiveReviewId(complaint.id)} className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 justify-end w-full uppercase tracking-wide">
-                          进入审核 <ExternalLink className="w-3 h-3" />
-                       </button>
-                    </td>
+                     <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => setActiveReviewId(complaint.id)} 
+                          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
+                        >
+                           进入审核
+                           <ExternalLink className="w-3 h-3 opacity-60" />
+                        </button>
+                     </td>
                   </tr>
                 ))
               }
@@ -181,39 +185,75 @@ export default function ComplaintsPage() {
       )}
 
       {/* 审核面板模态框 */}
-      {activeReviewId && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm" onClick={() => setActiveReviewId(null)}>
-            <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Megaphone className="w-4 h-4 text-[#eb5757]" /> 工单审核操作面板</h3>
-                  <button onClick={() => setActiveReviewId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+      <AnimatePresence>
+        {activeReviewId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+               initial={{ opacity: 0 }} 
+               animate={{ opacity: 1 }} 
+               exit={{ opacity: 0 }}
+               onClick={() => setActiveReviewId(null)}
+               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.98, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.98, y: 10 }}
+               className="relative max-w-lg w-full bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden" 
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="flex justify-between items-start mb-8">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                      <Megaphone className="w-5 h-5 text-rose-500" />
+                      工单审核处理
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">工单 ID: {activeReviewId.split('-')[0]}...</p>
+                  </div>
+                  <button 
+                    onClick={() => setActiveReviewId(null)} 
+                    className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
                </div>
-               <div className="p-6 space-y-6">
-                 <div>
-                   <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest block mb-2">内部审核备注 (可选)</label>
+
+               <div className="space-y-6">
+                 <div className="space-y-3">
+                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">内部审核备注</label>
                    <textarea 
-                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-[13px] outline-none focus:border-blue-500 transition-all font-medium h-24" 
-                     placeholder="请填写调查和处理记录..."
+                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all font-medium h-28 resize-none placeholder:text-slate-300" 
+                     placeholder="请填写详细的调查结果及处理记录，以便后续复盘..."
                      value={reviewNote}
                      onChange={e => setReviewNote(e.target.value)}
                    />
                  </div>
                  
-                 <div className="grid grid-cols-1 gap-2 pt-2">
-                    <button onClick={() => handleStatusUpdate('INVESTIGATING')} className="py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2 block">
-                       <AlertTriangle className="w-4 h-4" /> 标记为【调查中】
+                 <div className="flex flex-col gap-3 pt-4">
+                    <button 
+                      onClick={() => handleStatusUpdate('INVESTIGATING')} 
+                      className="w-full py-3 bg-blue-50 text-blue-700 hover:bg-blue-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                       <AlertTriangle className="w-4 h-4" /> 标记为“调查中”
                     </button>
-                    <button onClick={() => handleStatusUpdate('RESOLVED')} className="py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2 block">
-                       <CheckCircle2 className="w-4 h-4" /> 投诉核实，标记【已解决】
+                    <button 
+                      onClick={() => handleStatusUpdate('RESOLVED')} 
+                      className="w-full py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                       <CheckCircle2 className="w-4 h-4" /> 确认违规，标记已解决
                     </button>
-                    <button onClick={() => handleStatusUpdate('REJECTED')} className="py-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2 block">
-                       <X className="w-4 h-4" /> 证据不足，直接【驳回】
+                    <button 
+                      onClick={() => handleStatusUpdate('REJECTED')} 
+                      className="w-full py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                       <X className="w-4 h-4" /> 证据不足，拒绝工单
                     </button>
                  </div>
                </div>
-            </div>
-         </div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

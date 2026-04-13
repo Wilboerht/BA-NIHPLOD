@@ -8,7 +8,8 @@ import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
 import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
-import { verifyCertificateAction, type CertificateVerifyResult } from "@/app/actions";
+import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
+import { supabase } from "@/lib/supabase";
 import { Html5QrcodeScanner, Html5QrcodeScannerState } from "html5-qrcode";
 
 interface UserSession {
@@ -66,23 +67,64 @@ export default function VerificationPage() {
   const prevShowLoginModalRef = useRef(false);
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   
-  // 维权申诉提交状态
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [reportDesc, setReportDesc] = useState("");
+  const [reportChannel, setReportChannel] = useState("");
 
-  const handleReportSubmit = () => {
+  const handleReportSubmit = async () => {
+    if (!reportDesc.trim()) {
+      alert("请填写维权描述");
+      return;
+    }
+    
     setIsSubmittingReport(true);
-    // 模拟数据提交过程
-    setTimeout(() => {
-      setIsSubmittingReport(false);
+    
+    try {
+      let evidence_url = "";
+      
+      // 1. 如果有上传文件，先处理上传
+      if (evidenceFile) {
+        const fileExt = evidenceFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `appeals/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('complaints')
+          .upload(filePath, evidenceFile);
+          
+        if (uploadError) throw new Error("图片上传失败: " + uploadError.message);
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('complaints')
+          .getPublicUrl(filePath);
+          
+        evidence_url = publicUrl;
+      }
+      
+      // 2. 提交数据
+      const res = await submitComplaintAction({
+        description: reportDesc,
+        channel: reportChannel,
+        evidence_image_url: evidence_url
+      });
+      
+      if (!res.success) throw new Error(res.error);
+      
       setReportSuccess(true);
       // 成功展示2秒后自动清空数据并关闭弹窗
       setTimeout(() => {
         setReportSuccess(false);
         setShowReportModal(false);
         setEvidenceFile(null);
+        setReportDesc("");
+        setReportChannel("");
       }, 2000);
-    }, 1500);
+    } catch (err: any) {
+      alert("提交失败：" + err.message);
+    } finally {
+      setIsSubmittingReport(false);
+    }
   };
   
   // 二维码扫描相关状态
@@ -619,6 +661,8 @@ export default function VerificationPage() {
                  <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述</label>
                     <textarea 
+                       value={reportDesc}
+                       onChange={(e) => setReportDesc(e.target.value)}
                        placeholder="请简要描述您的维权申诉内容，我们将进行后台核查..."
                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all h-24 md:h-32 resize-none"
                     />
@@ -627,7 +671,10 @@ export default function VerificationPage() {
                     <div className="space-y-2">
                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌违规渠道/商铺</label>
                        <input 
-                          type="text" placeholder="如: 天猫 XXX 旗舰店"
+                          type="text" 
+                          value={reportChannel}
+                          onChange={(e) => setReportChannel(e.target.value)}
+                          placeholder="如: 天猫 XXX 旗舰店"
                           className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all"
                        />
                     </div>

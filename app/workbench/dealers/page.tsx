@@ -331,7 +331,7 @@ export default function DealersPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end">
                       <button
                         onClick={() => fetchDealerCerts(dealerGroup)}
                         title="查看名下证书"

@@ -112,3 +112,30 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     return { success: false, error: "系统查询出错，请稍后再试。" };
   }
 }
+
+/**
+ * 提交维权申诉工单
+ */
+export async function submitComplaintAction(formData: {
+  description: string;
+  channel: string;
+  evidence_image_url?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('complaints')
+      .insert({
+        description: formData.description,
+        channel: formData.channel,
+        evidence_image_url: formData.evidence_image_url,
+        status: 'PENDING',
+        created_at: new Date().toISOString()
+      });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to submit complaint:", err);
+    return { success: false, error: err.message || "提交失败" };
+  }
+}
