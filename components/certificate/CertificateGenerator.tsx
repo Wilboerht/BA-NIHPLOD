@@ -238,7 +238,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       if (qrImg) {
         const qrSize = 100 * scale;
         const qrX = 210 * scale;
-        const qrY = height - 320 * scale;
+        const qrY = height - 310 * scale;
         offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
