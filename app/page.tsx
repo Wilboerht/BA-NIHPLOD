@@ -134,6 +134,7 @@ export default function VerificationPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [scannerTrigger, setScannerTrigger] = useState(0);
 
   // 页面加载时检查登录状态
   useEffect(() => {
@@ -164,6 +165,13 @@ export default function VerificationPage() {
 
     checkLoginStatus();
   }, []);
+
+  // 当产生扫描错误时，开启独立生命周期的 3 秒自动回收机制
+  useEffect(() => {
+    if (!scanError) return;
+    const timer = setTimeout(() => setScanError(null), 3000);
+    return () => clearTimeout(timer);
+  }, [scanError]);
 
   // 初始化和清理扫描器
   useEffect(() => {
@@ -237,7 +245,7 @@ export default function VerificationPage() {
         setScannerReady(false);
       }
     };
-  }, [showScanner]);
+  }, [showScanner, scannerTrigger]);
 
   // 处理扫描验证
   const handleScanVerify = async (certNumber: string) => {
@@ -301,14 +309,34 @@ export default function VerificationPage() {
       handleScanVerify(certNumber);
     } catch (err) {
       console.error("File scan error:", err);
-      setScanError("未能在图片中识别到有效的授权二维码。");
       setIsScanning(false);
+      setScanError("未能在图片中识别到有效的授权二维码。");
       
       // 如果识别失败，重新启动摄像头（如果模态框还开着）
       if (showScanner) {
-        // 这里不需要手动重启，useEffect 会因为 scannerRef.current 被修改或重新渲染而处理，
-        // 或者我们可以直接提示。为了简化，这里只报错提示。
-        setScanError("识别失败，请确保图片清晰或尝试重新扫描。");
+        const restartScanner = async () => {
+          try {
+            const html5QrCode = scannerRef.current || new Html5Qrcode("qr-scanner-container");
+            scannerRef.current = html5QrCode;
+            await html5QrCode.start(
+              { facingMode: "environment" }, 
+              { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
+              (decodedText: string) => {
+                // ... 重复之前的成功逻辑 ...
+                // 为了避免代码重复，这里其实可以提取出 startScanner 函数，但为了保持逻辑紧凑先这样处理
+                // 实际上 useEffect 里的 startScanner 是闭包，这里无法直接调用
+                // 简单起见，提示用户手动刷新或这里由于 useEffect 依赖 [showScanner]，
+                // 我们可以通过一个 state 触发 useEffect 重新执行。
+                setScannerTrigger(prev => prev + 1);
+              },
+              () => {}
+            );
+          } catch (e) {
+            console.error("Failed to restart scanner:", e);
+          }
+        };
+        // 这里最好的做法是重新触发 useEffect
+        setScannerTrigger(prev => prev + 1);
       }
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -793,6 +821,23 @@ export default function VerificationPage() {
                onClick={handleCloseScanner}
                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
+
+            {/* 浮动错误提示 */}
+            <AnimatePresence>
+              {scanError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-12 left-1/2 -translate-x-1/2 z-[100] bg-white text-slate-800 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 text-xs md:text-[13px] font-bold tracking-widest whitespace-nowrap"
+                >
+                  <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-[14px] h-[14px] text-red-500" />
+                  </div>
+                  {scanError}
+                </motion.div>
+              )}
+            </AnimatePresence>
             <motion.div 
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -827,12 +872,6 @@ export default function VerificationPage() {
                 )}
                 <div id="qr-scanner-container" style={{ width: '100%', aspectRatio: '1/1' }}></div>
               </div>
-
-              {scanError && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                  <p className="text-xs text-red-700">{scanError}</p>
-                </div>
-              )}
 
               <div className="flex flex-col gap-4 mt-4">
                 <button 
