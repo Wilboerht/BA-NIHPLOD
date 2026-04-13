@@ -80,16 +80,25 @@ export default function WorkbenchPage() {
       supabase.from('certificates').select('*', { count: 'exact', head: true }).eq('status', 'ISSUED').gte('end_date', new Date().toISOString().split('T')[0]),
     ]);
 
-    // 待审核证书（仅 SUPER_ADMIN 需要加载）
+    // 待核发审批面板 / 我的提报记录
     let pendingList: PendingCert[] = [];
     let pendingCount = 0;
-    if (role === 'SUPER_ADMIN' || role === 'MANAGER' || role === 'PROJECT_MANAGER') {
-      const { data: pd, count: pc } = await supabase
+    
+    // 获取证书列表的逻辑
+    if (isAdmin || role === 'AUDITOR') {
+      let query = supabase
         .from('certificates')
-        .select('id, cert_number, auth_scope, start_date, end_date, status, created_at, auditor_id, dealers(company_name, phone)', { count: 'exact' })
-        .eq('status', 'PENDING')
-        .order('created_at', { ascending: true });
+        .select('id, cert_number, auth_scope, start_date, end_date, status, created_at, auditor_id, dealers(company_name, phone)', { count: 'exact' });
 
+      if (isAdmin) {
+        // 管理员：仅看待审核
+        query = query.eq('status', 'PENDING').order('created_at', { ascending: true });
+      } else {
+        // 审核员：看自己最近的提报（不限状态）
+        query = query.eq('auditor_id', userId).order('created_at', { ascending: false }).limit(6);
+      }
+
+      const { data: pd, count: pc } = await query;
       pendingCount = pc || 0;
 
       if (pd && pd.length > 0) {
@@ -210,9 +219,9 @@ export default function WorkbenchPage() {
         >
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">当前有效授权</h3>
-            <p className="text-3xl font-bold text-emerald-600 tracking-tight">{isLoading ? '-' : stats.validCerts}</p>
+            <p className="text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.validCerts}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
             <CheckCircle2 className="w-6 h-6" />
           </div>
         </motion.div>
@@ -225,9 +234,9 @@ export default function WorkbenchPage() {
         >
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">待审投诉工单</h3>
-            <p className="text-3xl font-bold text-red-600 tracking-tight">{isLoading ? '-' : stats.pendingComplaints}</p>
+            <p className="text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.pendingComplaints}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-300">
+          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
             <Megaphone className="w-6 h-6" />
           </div>
         </motion.div>
@@ -241,11 +250,11 @@ export default function WorkbenchPage() {
           >
             <div>
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">待我核发授权</h3>
-              <p className={`text-3xl font-bold tracking-tight ${stats.pendingCerts > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+              <p className="text-3xl font-bold text-slate-900 tracking-tight">
                 {isLoading ? '-' : stats.pendingCerts}
               </p>
             </div>
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stats.pendingCerts > 0 ? 'bg-amber-50 text-amber-500' : 'bg-slate-50 text-slate-300'}`}>
+            <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
               <AlertCircle className="w-6 h-6" />
             </div>
           </motion.div>
@@ -254,8 +263,8 @@ export default function WorkbenchPage() {
 
       {/* 双向待办工作台 (并排对齐且垂直撑满) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch flex-1 min-h-0">
-        {/* 待核发审批面板（仅管理员可见） */}
-        {isAdmin && (
+        {/* 待核发审批面板 / 我最近的提报（左侧面板） */}
+        {(isAdmin || userRole === 'AUDITOR') && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -265,12 +274,16 @@ export default function WorkbenchPage() {
           >
             <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4 text-slate-900" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">审核员提交 · 待核发授权</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5 font-medium tracking-tight">以下申请由审核员初审提报</p>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    {isAdmin ? "审核员提交 · 待核发授权" : "我提交的授权申请"}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5 font-medium tracking-tight">
+                    {isAdmin ? "以下申请由审核员初审提报" : "实时跟踪您的提报与审核进度"}
+                  </p>
                 </div>
               </div>
               <Link
@@ -289,8 +302,8 @@ export default function WorkbenchPage() {
                 </div>
               ) : pendingCerts.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
-                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
-                    <CheckCircle2 className="w-7 h-7 text-emerald-200" />
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                    <CheckCircle2 className="w-7 h-7 text-slate-200" />
                   </div>
                   <div className="text-center">
                     <p className="text-[13px] font-bold text-slate-600">审核队列已清空</p>
@@ -317,8 +330,8 @@ export default function WorkbenchPage() {
                           className={`bg-white rounded-xl border transition-all flex flex-col gap-4 p-4 ${isBusy ? 'border-slate-100 opacity-70' : 'border-slate-100 hover:border-amber-100 hover:shadow-sm'}`}
                         >
                           <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded-lg bg-amber-50 flex-shrink-0 flex items-center justify-center">
-                               <span className="text-[11px] font-black text-amber-600 font-mono">{cert.cert_number.slice(-4)}</span>
+                             <div className="w-8 h-8 rounded-lg bg-slate-50 flex-shrink-0 flex items-center justify-center">
+                               <span className="text-[11px] font-black text-slate-900 font-mono">{cert.cert_number.slice(-4)}</span>
                              </div>
                              <div className="flex-1 min-w-0">
                                <p className="text-[13px] font-bold text-slate-900 truncate">{cert.dealers?.company_name || '未知经销商'}</p>
@@ -338,12 +351,32 @@ export default function WorkbenchPage() {
                                 </div>
                              </div>
                              <div className="flex items-center gap-2">
-                                <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
-                                  {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold hover:bg-black transition-all active:scale-95 shadow-sm">
-                                  {isApproving ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "核发授权"}
-                                </button>
+                                {isAdmin ? (
+                                  <>
+                                    <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
+                                      {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold hover:bg-black transition-all active:scale-95 shadow-sm">
+                                      {isApproving ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "核发授权"}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <div className="flex items-center">
+                                    {cert.status === 'ISSUED' ? (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest">
+                                        已生效
+                                      </span>
+                                    ) : cert.status === 'REJECTED' ? (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-slate-200">
+                                        未通过
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-200 shadow-sm">
+                                         待审核
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                              </div>
                           </div>
                         </motion.div>
@@ -360,8 +393,8 @@ export default function WorkbenchPage() {
         <div className="flex-1 notion-card flex flex-col p-0 overflow-hidden h-full bg-white border border-slate-100 shadow-sm transition-all">
           <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center">
-                 <Megaphone className="w-4 h-4 text-rose-500" />
+               <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
+                 <Megaphone className="w-4 h-4 text-slate-900" />
                </div>
                <div>
                  <h3 className="text-sm font-bold text-slate-800">最新待处理举报</h3>
@@ -381,8 +414,8 @@ export default function WorkbenchPage() {
               </div>
             ) : recentComplaints.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
-                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
-                  <Clock className="w-7 h-7 text-blue-200" />
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                  <Clock className="w-7 h-7 text-slate-200" />
                 </div>
                 <div className="text-center">
                   <p className="text-[13px] font-bold text-slate-600">一切井然有序</p>
