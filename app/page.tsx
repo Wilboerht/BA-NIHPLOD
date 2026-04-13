@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, QrCode } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
@@ -504,13 +504,22 @@ export default function VerificationPage() {
                          <h2 className="text-2xl md:text-[34px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{result.dealerName}</h2>
                          <div className="flex items-center gap-3 mt-4">
                            <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
-                           <p className="text-[#8B7355] text-[11px] md:text-[13px] font-bold tracking-widest font-mono pt-[1px]">{result.id}</p>
+                           <p 
+                             className="text-[#8B7355] text-[11px] md:text-[13px] font-bold tracking-widest font-mono pt-[1px] cursor-pointer hover:underline decoration-dotted transition-all"
+                             onClick={() => {
+                               navigator.clipboard.writeText(result.id);
+                               // 可以加个简单的 toast 效果，但先保持极简
+                             }}
+                             title="点击复制编号"
+                           >
+                              {result.id}
+                           </p>
                          </div>
                       </div>
                     </div>
                     
                     {/* 分割线下半截：票据风格 */}
-                    <div className="relative flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-8 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
+                    <div className="relative flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
                        <div className="space-y-3 md:space-y-4 relative z-10">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <div className="flex items-center gap-3">
@@ -537,29 +546,23 @@ export default function VerificationPage() {
                 </div>
               ) : null}
               </div>
-              
               {results && results.length > 1 && !error && (
-                <div className="flex items-center justify-center gap-6">
+                <>
                   <button 
                     onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
                     disabled={currentIndex === 0}
-                    className="flex items-center gap-2 text-[11px] md:text-xs font-bold tracking-[0.2em] text-[#8B7355] disabled:opacity-40 disabled:cursor-not-allowed hover:text-[#2C2A29] px-4 py-2.5 bg-white/60 backdrop-blur-md rounded-xl shadow-sm border border-white/80 transition-all uppercase"
+                    className="absolute top-1/2 left-3 md:-left-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-all z-[60]"
                   >
-                    上一版本
+                    <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 -ml-0.5" />
                   </button>
-                  <div className="flex space-x-2 bg-white/40 backdrop-blur-md px-4 py-3 rounded-full border border-white/50 shadow-sm">
-                    {results.map((_, idx) => (
-                      <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-[#8B7355] w-4 shadow-sm shadow-[#8B7355]/20' : 'bg-[#8B7355]/30 w-1.5'}`} />
-                    ))}
-                  </div>
                   <button 
                     onClick={() => setCurrentIndex(Math.min(results.length - 1, currentIndex + 1))}
                     disabled={currentIndex === results.length - 1}
-                    className="flex items-center gap-2 text-[11px] md:text-xs font-bold tracking-[0.2em] text-[#8B7355] disabled:opacity-40 disabled:cursor-not-allowed hover:text-[#2C2A29] px-4 py-2.5 bg-white/60 backdrop-blur-md rounded-xl shadow-sm border border-white/80 transition-all uppercase"
+                    className="absolute top-1/2 right-3 md:-right-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-all z-[60]"
                   >
-                    下一版本
+                    <ChevronRight className="w-5 h-5 md:w-6 md:h-6 -mr-0.5" />
                   </button>
-                </div>
+                </>
               )}
             </motion.div>
           </div>

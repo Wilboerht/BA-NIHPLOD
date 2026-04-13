@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog } from "lucide-react";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe } from "lucide-react";
 
 export default function Sidebar({
   isCollapsed,
@@ -93,6 +93,10 @@ export default function Sidebar({
       </div>
 
       <footer className={styles.footer}>
+        <a href="/" target="_blank" rel="noopener noreferrer" className={styles.menuLink}>
+          <span className={styles.icon}><Globe size={17} /></span>
+          {!isCollapsed && "前往核验大厅"}
+        </a>
         <button className={styles.toggleBtn} onClick={onToggle}>
           {isCollapsed ? <PanelLeftOpen size={18} /> : (
             <div className={styles.toggleInner}>
