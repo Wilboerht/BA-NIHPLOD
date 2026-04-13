@@ -20,6 +20,18 @@ interface UserSession {
   is_first_login?: boolean;
 }
 
+// 极其轻量的简易 Markdown 加粗解析器
+const renderSimpleMarkdown = (text?: string) => {
+  if (!text) return null;
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, index) => {
+    if (index % 2 === 1) {
+      return <strong key={index} className="font-black text-[#2C2A29]">{part}</strong>;
+    }
+    return <span key={index} className="opacity-80">{part}</span>;
+  });
+};
+
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<CertificateVerifyResult | null>(null);
@@ -460,12 +472,14 @@ export default function VerificationPage() {
                     {/* 分割线下半截：票据风格 */}
                     <div className="flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-8 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
                        <div className="space-y-3 md:space-y-4">
-                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">法定核准授权期限</span>
+                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
                        </div>
                        <div className="space-y-3 md:space-y-4">
-                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">严正许可声明与经营范畴</span>
-                          <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium opacity-80 whitespace-pre-wrap break-words">{result.scope}</p>
+                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
+                          <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium whitespace-pre-wrap break-words">
+                            {renderSimpleMarkdown(result.scope)}
+                          </p>
                        </div>
                     </div>
                   </div>
