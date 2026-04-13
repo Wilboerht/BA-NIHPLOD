@@ -10,7 +10,7 @@ import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { supabase } from "@/lib/supabase";
-import { Html5QrcodeScanner, Html5QrcodeScannerState } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 interface UserSession {
   id: string;
@@ -131,8 +131,9 @@ export default function VerificationPage() {
   const [showScanner, setShowScanner] = useState(false);
   const [scannerReady, setScannerReady] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 页面加载时检查登录状态
   useEffect(() => {
@@ -166,60 +167,74 @@ export default function VerificationPage() {
 
   // 初始化和清理扫描器
   useEffect(() => {
-    if (showScanner && !scannerRef.current) {
-      const scanner = new Html5QrcodeScanner(
-        "qr-scanner-container",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true,
-          showTorchButtonIfSupported: true,
-          aspectRatio: 1,
-          useBarCodeDetectorIfSupported: false // 只识别二维码，不识别条形码
-        },
-        false
-      );
+    let html5QrCode: Html5Qrcode | null = null;
 
-      scanner.render(
-        (decodedText: string) => {
-          // 扫描成功
-          setScanError(null);
-          setIsScanning(true);
+    if (showScanner) {
+      const startScanner = async () => {
+        try {
+          html5QrCode = new Html5Qrcode("qr-scanner-container");
+          scannerRef.current = html5QrCode;
           
-          // 从 URL 中提取证书编号
-          let certNumber = decodedText;
-          const urlParams = new URL(decodedText, "http://localhost").searchParams;
-          if (urlParams.has("cert")) {
-            certNumber = urlParams.get("cert") || decodedText;
-          }
-          
-          // 停止扫描
-          scanner.pause();
-          
-          // 执行验证查询
-          handleScanVerify(certNumber);
-        },
-        (error: any) => {
-          // 扫描持续中 - 忽略这些错误
-          if (!error.toString().includes("NotAllowedError") && !error.toString().includes("PermissionDenied")) {
-            console.log("Scanning...");
+          await html5QrCode.start(
+            { facingMode: "environment" }, 
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+              aspectRatio: 1
+            },
+            (decodedText: string) => {
+              // 扫描成功
+              setScanError(null);
+              setIsScanning(true);
+              
+              // 从 URL 中提取证书编号
+              let certNumber = decodedText;
+              try {
+                const urlParams = new URL(decodedText, "http://localhost").searchParams;
+                if (urlParams.has("cert")) {
+                  certNumber = urlParams.get("cert") || decodedText;
+                }
+              } catch (e) {
+                // Not a URL, use raw text
+              }
+              
+              // 停止扫描并执行验证
+              if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                  handleScanVerify(certNumber);
+                }).catch(err => {
+                  console.error("Failed to stop scanner:", err);
+                  handleScanVerify(certNumber);
+                });
+              } else {
+                handleScanVerify(certNumber);
+              }
+            },
+            (error: any) => {
+              // 扫描中的反馈，忽略
+            }
+          );
+          setScannerReady(true);
+        } catch (err: any) {
+          console.error("Failed to start scanner:", err);
+          if (err.toString().includes("NotAllowedError") || err.toString().includes("PermissionDenied")) {
+            setScanError("请在浏览器设置中允许摄像头权限以进行扫描。");
+          } else {
+            setScanError("无法启动摄像头，请检查设备连接。");
           }
         }
-      );
+      };
 
-      scannerRef.current = scanner;
-      setScannerReady(true);
+      startScanner();
     }
 
     return () => {
-      if (scannerRef.current && !showScanner) {
-        try {
-          scannerRef.current.clear();
-          scannerRef.current = null;
-          setScannerReady(false);
-        } catch (e) {
-          console.error("Failed to clean up scanner:", e);
+      if (html5QrCode) {
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop().catch(err => console.error("Failed to stop scanner in cleanup:", err));
         }
+        scannerRef.current = null;
+        setScannerReady(false);
       }
     };
   }, [showScanner]);
@@ -250,15 +265,64 @@ export default function VerificationPage() {
     }
   };
 
+  // 从相册等文件扫描
+  const handleFileScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    setScanError(null);
+
+    // 如果当前正在进行摄像头扫描，先停止
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+      } catch (err) {
+        console.warn("Failed to stop camera scanner before file scan", err);
+      }
+    }
+
+    const html5QrCode = scannerRef.current || new Html5Qrcode("qr-scanner-container");
+    
+    try {
+      const decodedText = await html5QrCode.scanFile(file, true);
+      
+      // 提取证书编号逻辑
+      let certNumber = decodedText;
+      try {
+        const urlParams = new URL(decodedText, "http://localhost").searchParams;
+        if (urlParams.has("cert")) {
+          certNumber = urlParams.get("cert") || decodedText;
+        }
+      } catch (e) {
+        // 非 URL
+      }
+      
+      handleScanVerify(certNumber);
+    } catch (err) {
+      console.error("File scan error:", err);
+      setScanError("未能在图片中识别到有效的授权二维码。");
+      setIsScanning(false);
+      
+      // 如果识别失败，重新启动摄像头（如果模态框还开着）
+      if (showScanner) {
+        // 这里不需要手动重启，useEffect 会因为 scannerRef.current 被修改或重新渲染而处理，
+        // 或者我们可以直接提示。为了简化，这里只报错提示。
+        setScanError("识别失败，请确保图片清晰或尝试重新扫描。");
+      }
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   // 关闭扫描器
   const handleCloseScanner = () => {
     if (scannerRef.current) {
-      try {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      } catch (e) {
-        console.error("Failed to close scanner:", e);
+      const scanner = scannerRef.current;
+      if (scanner.isScanning) {
+        scanner.stop().catch(err => console.error("Failed to stop scanner:", err));
       }
+      scannerRef.current = null;
     }
     setShowScanner(false);
     setScannerReady(false);
@@ -752,14 +816,17 @@ export default function VerificationPage() {
                  <p className="text-xs text-slate-500 mt-2">将摄像头对准授权书上的二维码</p>
               </div>
 
-              {isScanning && (
-                <div className="text-center py-4">
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2" />
-                  <p className="text-sm text-slate-600">正在验证...</p>
-                </div>
-              )}
-
-              <div id="qr-scanner-container" className="mb-6" style={{ width: '100%' }}></div>
+              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner">
+                {(!scannerReady || isScanning) && !scanError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
+                    <RefreshCw className="w-8 h-8 animate-spin text-[#8B7355] mb-4" />
+                    <p className="text-xs text-[#8B7355] font-bold tracking-widest uppercase">
+                      {isScanning ? "正在核验授权信息..." : "正在启动安全摄像头..."}
+                    </p>
+                  </div>
+                )}
+                <div id="qr-scanner-container" style={{ width: '100%', aspectRatio: '1/1' }}></div>
+              </div>
 
               {scanError && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
@@ -767,12 +834,30 @@ export default function VerificationPage() {
                 </div>
               )}
 
-              <button 
-                onClick={handleCloseScanner}
-                className="w-full mt-4 bg-slate-100 text-slate-700 h-11 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-all"
-              >
-                关闭
-              </button>
+              <div className="flex flex-col gap-4 mt-4">
+                <button 
+                  onClick={handleCloseScanner}
+                  className="w-full bg-[#2C2A29] text-white h-12 rounded-xl text-sm font-bold tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"
+                >
+                  关闭
+                </button>
+                <div className="text-center">
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 text-[10px] md:text-[11px] text-[#8B7355] font-black tracking-widest uppercase hover:text-black transition-all group"
+                  >
+                    <Download className="w-3.5 h-3.5 rotate-180 group-hover:-translate-y-0.5 transition-transform" />
+                    <span>从相册选择图片扫描</span>
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleFileScan} 
+                  />
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
