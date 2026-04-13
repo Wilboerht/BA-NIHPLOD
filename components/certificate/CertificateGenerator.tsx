@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, File } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import jsPDF from 'jspdf';
 
@@ -51,6 +51,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isIssued, setIsIssued] = useState(false);
   const [isVoided, setIsVoided] = useState(initialVoided);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
   
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -701,14 +702,102 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         </div>
       </motion.div>
 
-      {showFullPreview && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md" onClick={() => setShowFullPreview(false)}>
-           <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="relative max-w-5xl h-full flex items-center justify-center">
-              <button className="absolute -top-12 right-0 text-white p-2" onClick={() => setShowFullPreview(false)}><XCircle className="w-8 h-8" /></button>
-              {previewImageUrl && <img src={previewImageUrl} className="max-w-full max-h-full object-contain shadow-2xl" />}
-           </motion.div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showFullPreview && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 md:p-10">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowFullPreview(false);
+                setZoomScale(1);
+              }}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl" 
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full h-full flex flex-col items-center justify-center z-10 pointer-events-none overflow-auto custom-scrollbar"
+            >
+               {/* 顶部操作条 */}
+                <div className="absolute top-0 left-0 right-0 flex justify-between items-center pointer-events-auto px-6 py-8">
+                  <div className="flex items-center gap-3">
+                     <div className="flex items-center bg-white/10 rounded-full p-1 border border-white/10 backdrop-blur-md">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setZoomScale(Math.max(0.5, zoomScale - 0.25)); }}
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-all"
+                          title="缩小"
+                        >
+                          <ZoomIn className="w-4 h-4 rotate-180" strokeWidth={3} />
+                        </button>
+                        <div className="px-2 text-[11px] font-bold text-white/50 min-w-[45px] text-center tabular-nums">
+                          {Math.round(zoomScale * 100)}%
+                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setZoomScale(Math.min(3, zoomScale + 0.25)); }}
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-all"
+                          title="放大"
+                        >
+                          <ZoomIn className="w-4 h-4" strokeWidth={3} />
+                        </button>
+                     </div>
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); setZoomScale(1); }}
+                       className="h-10 px-4 rounded-full text-white/70 text-[11px] font-bold hover:text-white transition-all bg-white/5 hover:bg-white/10 border border-white/5"
+                     >
+                       原始大小
+                     </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                       className="h-10 px-5 bg-white text-black rounded-full font-bold text-[12px] flex items-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
+                     >
+                       <Download size={16} /> 保存证书
+                     </button>
+                     <button 
+                       onClick={() => { setShowFullPreview(false); setZoomScale(1); }}
+                       className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all border border-white/10 backdrop-blur-md"
+                     >
+                       <X size={20} />
+                     </button>
+                  </div>
+               </div>
+
+               {/* 图片主体 - 专业滚动容器方案 */}
+               <div className="flex-1 w-full h-full overflow-auto flex flex-col items-center justify-start p-12 md:p-32 custom-scrollbar pointer-events-auto">
+                  <motion.div 
+                    animate={{ 
+                      width: `${Math.max(400, 800 * zoomScale)}px`,
+                      scale: 1 // 物理尺寸变化，不再使用整体 scale
+                    }}
+                    transition={{ type: "spring", damping: 30, stiffness: 200 }}
+                    className="relative bg-white shadow-[0_0_100px_rgba(0,0,0,0.5)] ring-1 ring-white/20 rounded-sm overflow-hidden shrink-0"
+                  >
+                     {previewImageUrl && (
+                       <img 
+                         src={previewImageUrl} 
+                         className="w-full h-auto block" 
+                         style={{ imageRendering: 'auto' }}
+                         alt="证书预览"
+                       />
+                     )}
+                     
+                     {/* 放大倍率水印提示 */}
+                     {zoomScale !== 1 && (
+                       <div className="absolute top-4 left-4 px-2 py-1 bg-black/50 backdrop-blur-md rounded text-white/80 text-[10px] font-mono pointer-events-none">
+                         {(zoomScale * 100).toFixed(0)}% ZOOM
+                       </div>
+                     )}
+                  </motion.div>
+               </div>
+
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
