@@ -20,7 +20,9 @@ interface UserSession {
   is_first_login?: boolean;
 }
 
-const getDurationStatus = (durationStr?: string) => {
+const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
+  if (rawStatus === 'REVOKED' || rawStatus === '已撤销') return { text: '已撤销', style: 'bg-stone-50 text-stone-500 border-stone-200' };
+
   if (!durationStr) return null;
   try {
     const parts = durationStr.split('-');
@@ -40,7 +42,7 @@ const getDurationStatus = (durationStr?: string) => {
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
     
     if (now < startDate) return { text: '未生效', style: 'bg-amber-50 text-amber-600 border-amber-200' };
-    if (now > endDate) return { text: '已过期', style: 'bg-red-50 text-red-600 border-red-200' };
+    if (now > endDate || rawStatus === 'EXPIRED' || rawStatus === '已失效') return { text: '已过期', style: 'bg-red-50 text-red-600 border-red-200' };
     return { text: '生效中', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
   } catch {
     return null;
@@ -49,7 +51,9 @@ const getDurationStatus = (durationStr?: string) => {
 
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<CertificateVerifyResult | null>(null);
+  const [results, setResults] = useState<CertificateVerifyResult[] | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const result = results ? results[currentIndex] : null;
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -181,14 +185,16 @@ export default function VerificationPage() {
   // 处理扫描验证
   const handleScanVerify = async (certNumber: string) => {
     setIsSearching(true);
-    setResult(null);
+    setResults(null);
+    setCurrentIndex(0);
     setError(null);
     setScanError(null);
 
     try {
       const res = await verifyCertificateAction(certNumber.trim());
       if (res.success && res.data) {
-        setResult(res.data);
+        setResults(res.data);
+        setCurrentIndex(0);
       } else {
         setError(res.error || "未查询到相关授权信息。");
       }
@@ -264,25 +270,29 @@ export default function VerificationPage() {
 
     if (cleanQuery.length < 2) {
       setError("输入内容过短。");
-      setResult(null);
+      setResults(null);
+      setCurrentIndex(0);
       return;
     }
     
     if (cleanQuery.length > 50) {
       setError("输入内容过长。");
-      setResult(null);
+      setResults(null);
+      setCurrentIndex(0);
       return;
     }
 
     setIsSearching(true);
-    setResult(null);
+    setResults(null);
+    setCurrentIndex(0);
     setError(null);
     
     try {
       // 传入清洗后的 query 数据
       const res = await verifyCertificateAction(cleanQuery);
       if (res.success && res.data) {
-        setResult(res.data);
+        setResults(res.data);
+        setCurrentIndex(0);
       } else {
         setError(res.error || "未查询到相关授权信息。");
       }
@@ -441,7 +451,7 @@ export default function VerificationPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 md:p-12">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => { setResult(null); setError(null); }}
+              onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
               className="absolute inset-0 bg-slate-900/10 backdrop-blur-sm"
             />
             
@@ -449,16 +459,17 @@ export default function VerificationPage() {
               initial={{ opacity: 0, scale: 0.96, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
-              className="relative w-full max-w-2xl bg-white border border-white/60 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14 overflow-hidden"
+              className="relative w-full max-w-2xl flex flex-col gap-4 md:gap-6 z-10"
             >
-              <div className="absolute top-4 right-4 md:top-6 md:right-6">
-                <button 
-                  onClick={() => { setResult(null); setError(null); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                >
-                  <X size={16} strokeWidth={2.5} />
-                </button>
-              </div>
+              <div className="relative w-full bg-white border border-white/60 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14 overflow-hidden">
+                <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50">
+                  <button 
+                    onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <X size={16} strokeWidth={2.5} />
+                  </button>
+                </div>
 
               {error ? (
                 <div className="flex flex-col items-center text-center py-10 gap-8">
@@ -505,7 +516,7 @@ export default function VerificationPage() {
                           <div className="flex items-center gap-3">
                             <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
                             {(() => {
-                              const status = getDurationStatus(result.duration);
+                              const status = getDurationStatus(result.duration, result.status);
                               if (!status) return null;
                               return (
                                 <span className={`text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap ${status.style}`}>
@@ -521,10 +532,35 @@ export default function VerificationPage() {
                             {result.scope?.replace(/\*\*/g, '')}
                           </p>
                        </div>
-                    </div>
+                     </div>
                   </div>
                 </div>
               ) : null}
+              </div>
+              
+              {results && results.length > 1 && !error && (
+                <div className="flex items-center justify-center gap-6">
+                  <button 
+                    onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+                    disabled={currentIndex === 0}
+                    className="flex items-center gap-2 text-[11px] md:text-xs font-bold tracking-[0.2em] text-[#8B7355] disabled:opacity-40 disabled:cursor-not-allowed hover:text-[#2C2A29] px-4 py-2.5 bg-white/60 backdrop-blur-md rounded-xl shadow-sm border border-white/80 transition-all uppercase"
+                  >
+                    上一版本
+                  </button>
+                  <div className="flex space-x-2 bg-white/40 backdrop-blur-md px-4 py-3 rounded-full border border-white/50 shadow-sm">
+                    {results.map((_, idx) => (
+                      <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-[#8B7355] w-4 shadow-sm shadow-[#8B7355]/20' : 'bg-[#8B7355]/30 w-1.5'}`} />
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setCurrentIndex(Math.min(results.length - 1, currentIndex + 1))}
+                    disabled={currentIndex === results.length - 1}
+                    className="flex items-center gap-2 text-[11px] md:text-xs font-bold tracking-[0.2em] text-[#8B7355] disabled:opacity-40 disabled:cursor-not-allowed hover:text-[#2C2A29] px-4 py-2.5 bg-white/60 backdrop-blur-md rounded-xl shadow-sm border border-white/80 transition-all uppercase"
+                  >
+                    下一版本
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

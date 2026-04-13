@@ -20,7 +20,7 @@ export interface CertificateVerifyResult {
 
 export interface VerifyActionResponse {
   success: boolean;
-  data?: CertificateVerifyResult;
+  data?: CertificateVerifyResult[];
   error?: string;
 }
 
@@ -36,7 +36,9 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
   }
 
   try {
-    // 1. First, attempt to match the certificate number exactly (it's the most common and precise lookup)
+    let results: any[] | null = null;
+
+    // 1. First, attempt to match the certificate number exactly
     const { data: certMatch, error: certError } = await supabaseAdmin
       .from('certificates')
       .select(`
@@ -48,14 +50,14 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         final_image_url,
         dealers ( company_name )
       `)
-      .eq('cert_number', cleanQuery.toUpperCase())
-      .limit(1)
-      .maybeSingle();
+      .eq('cert_number', cleanQuery.toUpperCase());
 
-    let data = certMatch;
+    if (certMatch && certMatch.length > 0) {
+      results = certMatch;
+    }
 
-    // 2. If no exact certificate match, attempt to search by company name (fuzzy match)
-    if (!data) {
+    // 2. If no exact certificate match, attempt to search by exact company name
+    if (!results) {
       const { data: companyMatch, error: companyError } = await supabaseAdmin
         .from('certificates')
         .select(`
@@ -68,63 +70,42 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           dealers!inner ( company_name )
         `)
         .eq('dealers.company_name', cleanQuery)
-        .order('end_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('end_date', { ascending: false });
       
-      data = companyMatch;
+      if (companyMatch && companyMatch.length > 0) {
+        results = companyMatch;
+      }
     }
     
-    if (!data) {
+    if (!results || results.length === 0) {
       return { success: false, error: "未检索到相关的官方授权记录" };
     }
 
-    // --- 异常风控拦截：提供极其细颗粒度的警报 ---
-    const rawStatus = data.status?.toUpperCase() || '';
-    
-    if (rawStatus === 'REVOKED' || rawStatus === '已撤销') {
-      return { 
-        success: false, 
-        error: "该主体的商业授权已被品牌官方撤销终止" 
-      };
-    }
+    const finalData: CertificateVerifyResult[] = [];
 
-    const isExpired = rawStatus === 'EXPIRED' || rawStatus === '已失效' || new Date() > new Date((data.end_date || '') + 'T23:59:59');
-    if (isExpired) {
-      return { 
-        success: false, 
-        error: `曾有授权，但该证书已于 ${data.end_date} 过期失效` 
-      };
-    }
-
-    // 如果状态为非正常或非过期/撤销（可能有的其他异常，兜底拦截）
-    if (rawStatus !== 'ISSUED' && rawStatus !== '已生效' && rawStatus !== 'ISSUING') {
-      return {
-        success: false,
-        error: "该授权状态异常，请核查资质"
-      };
-    }
-    
-    // 安全地提取经销商名称，替代此前的 (data.dealers[0] as any)?.company_name
-    let companyName = "未知经销商";
-    if (data.dealers) {
-      if (Array.isArray(data.dealers)) {
-         companyName = data.dealers[0]?.company_name || companyName;
-      } else {
-         companyName = (data.dealers as { company_name: string }).company_name || companyName;
+    for (const data of results) {
+      let companyName = "未知经销商";
+      if (data.dealers) {
+        if (Array.isArray(data.dealers)) {
+           companyName = data.dealers[0]?.company_name || companyName;
+        } else {
+           companyName = (data.dealers as { company_name: string }).company_name || companyName;
+        }
       }
-    }
 
-    return {
-      success: true,
-      data: {
+      finalData.push({
         id: data.cert_number,
         dealerName: companyName,
         duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
         scope: data.auth_scope || '-',
-        status: data.status,
+        status: data.status?.toUpperCase() || '',
         final_image_url: data.final_image_url || undefined
-      }
+      });
+    }
+
+    return {
+      success: true,
+      data: finalData
     };
   } catch (err) {
     console.error("Certificate verification error:", err);
