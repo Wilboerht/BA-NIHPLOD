@@ -25,6 +25,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
   
   // 移动端自动收起侧边栏
   useEffect(() => {
+    document.title = "NIHPLOD 品牌授权管理平台";
     const handleResize = () => {
       if (window.innerWidth < 1024) {
         setIsCollapsed(true);

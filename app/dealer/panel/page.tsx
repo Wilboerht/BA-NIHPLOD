@@ -18,6 +18,7 @@ export default function DealerPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "NIHPLOD 品牌授权管理平台";
     const userStr = sessionStorage.getItem("user");
     if (!userStr) {
       router.push("/");
