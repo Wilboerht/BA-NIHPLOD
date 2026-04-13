@@ -154,11 +154,16 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.fillStyle = "#1e293b";
     
     // 只显示值，不显示标签
-    if (data.platformId) {
+    if (data.platformId && data.shopName) {
+      // 两行都存在：按原坐标排列
       offCtx.fillText(data.platformId, width / 2, 530 * scale);
-    }
-    if (data.shopName) {
       offCtx.fillText(data.shopName, width / 2, 578 * scale);
+    } else if (data.platformId) {
+      // 仅存在平台ID：居中显示 ( (530+578)/2 = 554 )
+      offCtx.fillText(data.platformId, width / 2, 554 * scale);
+    } else if (data.shopName) {
+      // 仅存在店铺名称：居中显示
+      offCtx.fillText(data.shopName, width / 2, 554 * scale);
     }
 
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
