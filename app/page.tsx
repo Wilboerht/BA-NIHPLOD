@@ -555,9 +555,7 @@ export default function VerificationPage() {
               </div>
 
               <div className="text-center mb-10 pt-2">
-                 <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
-                    <AlertTriangle size={24} />
-                 </div>
+                 <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-[34px] mx-auto mb-7" />
                  <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">官方维权申诉与核查</h2>
               </div>
 
