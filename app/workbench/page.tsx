@@ -181,17 +181,17 @@ export default function WorkbenchPage() {
   const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'MANAGER' || userRole === 'PROJECT_MANAGER';
 
   return (
-    <div className="px-6 md:px-10 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 gap-8">
+    <div className="px-4 md:px-10 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 gap-6 md:gap-8">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-          <Home className="w-7 h-7 text-slate-900" />
+        <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2 md:gap-3">
+          <Home className="w-5 h-5 md:w-7 md:h-7 text-slate-900" />
           工作台首页
         </h1>
-        <p className="text-slate-500 text-[13px]">欢迎来到 NIHPLOD 品牌授权核查系统的管理大盘。</p>
+        <p className="text-slate-500 text-[11px] md:text-[13px]">欢迎来到 NIHPLOD 品牌授权管理大盘。</p>
       </motion.div>
 
       {/* 统计卡片 */}
@@ -203,11 +203,11 @@ export default function WorkbenchPage() {
           className="notion-card flex items-center justify-between transition-all"
         >
           <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">累计核发证书</h3>
-            <p className="text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.certs}</p>
+            <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">累计核发证书</h3>
+            <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.certs}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-            <ShieldCheck className="w-6 h-6" />
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+            <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
           </div>
         </motion.div>
 
@@ -218,11 +218,11 @@ export default function WorkbenchPage() {
           className="notion-card flex items-center justify-between transition-all"
         >
           <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">当前有效授权</h3>
-            <p className="text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.validCerts}</p>
+            <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">当前有效授权</h3>
+            <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.validCerts}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+            <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
           </div>
         </motion.div>
 
@@ -233,11 +233,11 @@ export default function WorkbenchPage() {
           className="notion-card flex items-center justify-between transition-all"
         >
           <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">待审投诉工单</h3>
-            <p className="text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.pendingComplaints}</p>
+            <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">待审投诉工单</h3>
+            <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.pendingComplaints}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-            <Megaphone className="w-6 h-6" />
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+            <Megaphone className="w-5 h-5 md:w-6 md:h-6" />
           </div>
         </motion.div>
 
@@ -249,13 +249,13 @@ export default function WorkbenchPage() {
             className="notion-card flex items-center justify-between transition-all"
           >
             <div>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">待我核发授权</h3>
-              <p className="text-3xl font-bold text-slate-900 tracking-tight">
+              <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">待我核发授权</h3>
+              <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
                 {isLoading ? '-' : stats.pendingCerts}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-              <AlertCircle className="w-6 h-6" />
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+              <AlertCircle className="w-5 h-5 md:w-6 md:h-6" />
             </div>
           </motion.div>
         )}
