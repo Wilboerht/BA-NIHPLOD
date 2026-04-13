@@ -378,31 +378,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         <div className="space-y-8 mb-4 pt-1">
           {mode === 'view' && data.cert_number && (
             <div className="flex items-center gap-3">
-              <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">证书编号</div>
-              <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium">{data.cert_number}</div>
+              <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium tracking-tight">证书编号</div>
+              <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium pl-3">{data.cert_number}</div>
             </div>
           )}
-          {/* 平台属性 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-500 font-medium">{data.platformLabel}</div>
-              ) : (
-                <input
-                  type="text"
-                  className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none focus:bg-white focus:ring-1 focus:ring-slate-200 transition-all"
-                  value={data.platformLabel}
-                  onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
-                />
-              )}
-            </div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">识别码</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium">{data.platformId}</div>
+                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.platformId}</div>
               ) : (
                 <input
                   type="text"
-                  placeholder="请输入 ID"
+                  placeholder="请输入识别码 (如: 平台 ID)"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.platformId}
                   onChange={(e) => setData({ ...data, platformId: e.target.value })}
@@ -411,31 +399,48 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             </div>
           </div>
 
-          {/* 店铺属性 */}
+          {/* 授权主体/经销商 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-500 font-medium">{data.shopLabel}</div>
-              ) : (
-                <input
-                  type="text"
-                  className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none focus:bg-white focus:ring-1 focus:ring-slate-200 transition-all"
-                  value={data.shopLabel}
-                  onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
-                />
-              )}
-            </div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权主体</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium">{data.shopName}</div>
+                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.shopName}</div>
               ) : (
                 <input
                   type="text"
-                  placeholder="请输入名称"
+                  placeholder="请输入授权主体名称"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.shopName}
                   onChange={(e) => setData({ ...data, shopName: e.target.value })}
                 />
+              )}
+            </div>
+          </div>
+
+          {/* 有效期 */}
+          <div className="flex items-center gap-3">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">有效期</div>
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium tabular-nums pl-3">
+                  {data.duration?.replace(/-/g, ' 至 ').replace(/\./g, '/')}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="date" 
+                    className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums" 
+                    value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""} 
+                    onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })} 
+                  />
+                  <span className="text-slate-300">/</span>
+                  <input 
+                    type="date" 
+                    className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums" 
+                    value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""} 
+                    onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })} 
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -445,11 +450,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">联系电话</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight">{data.phone}</div>
+                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight pl-3">{data.phone}</div>
               ) : (
                 <input 
                   type="tel" 
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all font-mono"
                   value={data.phone} 
                   onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })} 
                 />
@@ -457,12 +462,40 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             </div>
           </div>
 
-          {/* 授权范围 */}
-          <div className="flex items-start gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">授权范围</div>
+          {/* 授权方 */}
+          <div className="flex items-center gap-3">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权方</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2">{data.scopeText}</div>
+                <div className="text-[13px] text-slate-900 font-bold pl-3">{data.authorizer}</div>
+              ) : (
+                <input 
+                  type="text"
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-bold focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all" 
+                  value={data.authorizer} 
+                  onChange={(e) => setData({ ...data, authorizer: e.target.value })} 
+                />
+              )}
+            </div>
+          </div>
+
+          {/* 签字盖章 */}
+          <div className="flex items-center gap-3">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">签字盖章</div>
+            <div className="flex-1 flex items-center gap-2 pl-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+              <div className="text-[12px] text-slate-900 font-medium">
+                {data.sealImage ? "自定义签章文件" : "使用系统默认公章"}
+              </div>
+            </div>
+          </div>
+
+          {/* 授权业务范围 */}
+          <div className="flex items-start gap-3">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">授权业务范围</div>
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2 pl-3">{data.scopeText}</div>
               ) : (
                 <textarea 
                   rows={4} 
