@@ -62,6 +62,25 @@ export default function VerificationPage() {
   const prevShowLoginModalRef = useRef(false);
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   
+  // 维权申诉提交状态
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+
+  const handleReportSubmit = () => {
+    setIsSubmittingReport(true);
+    // 模拟数据提交过程
+    setTimeout(() => {
+      setIsSubmittingReport(false);
+      setReportSuccess(true);
+      // 成功展示2秒后自动清空数据并关闭弹窗
+      setTimeout(() => {
+        setReportSuccess(false);
+        setShowReportModal(false);
+        setEvidenceFile(null);
+      }, 2000);
+    }, 1500);
+  };
+  
   // 二维码扫描相关状态
   const [showScanner, setShowScanner] = useState(false);
   const [scannerReady, setScannerReady] = useState(false);
@@ -464,11 +483,6 @@ export default function VerificationPage() {
                 </div>
               ) : result ? (
                 <div className="relative w-full flex flex-col">
-                  {/* 高端内嵌暗水印（弥补右侧删去的图案空白） */}
-                  <div className="absolute right-0 top-0 opacity-[0.02] pointer-events-none select-none grayscale w-64 md:w-80 -mt-4 -mr-4 md:-mt-8 md:-mr-8">
-                     <img src="/NIHPLOD-logo.svg" alt="" className="w-full h-auto" />
-                  </div>
-
                   <div className="flex flex-col space-y-8 md:space-y-10 relative z-10">
                     <div className="space-y-5 px-2">
                       <div className="flex items-center gap-2 text-[#8B7355] text-[10px] font-bold tracking-[0.2em] bg-[#8B7355]/5 px-3 py-1.5 rounded-full border border-[#8B7355]/10 w-fit">
@@ -485,8 +499,8 @@ export default function VerificationPage() {
                     </div>
                     
                     {/* 分割线下半截：票据风格 */}
-                    <div className="flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-8 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
-                       <div className="space-y-3 md:space-y-4">
+                    <div className="relative flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-8 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
+                       <div className="space-y-3 md:space-y-4 relative z-10">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <div className="flex items-center gap-3">
                             <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
@@ -501,7 +515,7 @@ export default function VerificationPage() {
                             })()}
                           </div>
                        </div>
-                       <div className="space-y-3 md:space-y-4">
+                       <div className="space-y-3 md:space-y-4 relative z-10">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
                           <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium opacity-80 whitespace-pre-wrap break-words">
                             {result.scope?.replace(/\*\*/g, '')}
@@ -587,9 +601,17 @@ export default function VerificationPage() {
                        </label>
                     </div>
                  </div>
-                 <button className="w-full bg-[#2C2A29] text-white h-12 rounded-2xl hover:bg-[#1A1918] active:scale-[0.98] transition-all shadow-lg shadow-[#2C2A29]/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase">
-                    <ShieldAlert className="w-4.5 h-4.5 opacity-80" />
-                    提交核查请求
+                 <button 
+                   onClick={handleReportSubmit}
+                   disabled={isSubmittingReport || reportSuccess}
+                   className="w-full bg-[#2C2A29] text-white h-12 rounded-2xl hover:bg-[#1A1918] active:scale-[0.98] transition-all shadow-lg shadow-[#2C2A29]/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase disabled:opacity-75 disabled:active:scale-100">
+                    {isSubmittingReport ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : reportSuccess ? (
+                      <><CheckCircle2 className="w-5 h-5 text-emerald-400" /> 已收到您的请求</>
+                    ) : (
+                      <><ShieldAlert className="w-4.5 h-4.5 opacity-80" /> 提交核查请求</>
+                    )}
                  </button>
               </div>
             </motion.div>
