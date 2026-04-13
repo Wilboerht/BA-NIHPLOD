@@ -465,14 +465,14 @@ export default function VerificationPage() {
                        <p className="text-[#8B7355]/70 text-[11px] font-bold tracking-[0.3em]">授权编号：{result.id}</p>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-6 md:gap-16 pt-8 md:pt-12 border-t border-[#8B7355]/10">
+                    <div className="flex flex-col gap-8 md:gap-10 pt-8 md:pt-12 border-t border-[#8B7355]/10">
                        <div className="space-y-2">
-                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none w-full block truncate">截止日期</span>
+                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block">截止日期</span>
                           <p className="text-sm md:text-lg text-[#2C2A29] tracking-widest">{result.duration}</p>
                        </div>
                        <div className="space-y-2">
-                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none w-full block truncate">授权区域</span>
-                          <p className="text-sm md:text-lg text-[#2C2A29] tracking-widest">{result.scope}</p>
+                          <span className="text-[10px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block">授权区域及许可范围</span>
+                          <p className="text-sm md:text-[15px] text-[#2C2A29] leading-[1.8] font-medium opacity-90 whitespace-pre-wrap break-words">{result.scope}</p>
                        </div>
                     </div>
 
