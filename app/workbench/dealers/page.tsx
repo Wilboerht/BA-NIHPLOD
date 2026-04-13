@@ -335,9 +335,10 @@ export default function DealersPage() {
                       <button
                         onClick={() => fetchDealerCerts(dealerGroup)}
                         title="查看名下证书"
-                        className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-blue-500 transition-all flex items-center gap-2"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
                       >
-                        <FileText className="w-4 h-4" />
+                        <FileText className="w-3.5 h-3.5 opacity-60" />
+                        查看证书
                       </button>
                     </div>
                   </td>
