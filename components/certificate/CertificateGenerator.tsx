@@ -170,23 +170,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     scopeLines.forEach((line) => {
       const parts = parseMarkdownBold(line.trim());
+      const leftMargin = 210 * scale;
       if (parts.some(p => p.bold)) {
-        let totalWidth = 0;
-        parts.forEach(part => {
-          offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
-          totalWidth += offCtx.measureText(part.text).width;
-        });
-        let currentX = (width - totalWidth) / 2;
         offCtx.textAlign = "left";
+        let currentX = leftMargin;
         parts.forEach(part => {
           offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
           offCtx.fillText(part.text, currentX, startY);
           currentX += offCtx.measureText(part.text).width;
         });
       } else {
-        offCtx.textAlign = "center";
+        offCtx.textAlign = "left";
         offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillText(line.trim(), width / 2, startY);
+        offCtx.fillText(line.trim(), leftMargin, startY);
       }
       startY += 30 * scale;
     });
@@ -197,9 +193,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return parts.length === 3 ? `${parts[0]}年${parts[1]}月${parts[2]}日` : dateStr;
     };
     const dateRange = data.duration.split(' - ');
-    offCtx.textAlign = "center";
+    offCtx.textAlign = "left";
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, width / 2, startY + 25 * scale);
+    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, 210 * scale, startY + 25 * scale);
 
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
