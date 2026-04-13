@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, File } from "lucide-react";
+import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, ZoomOut, File } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import jsPDF from 'jspdf';
+import QRCode from "qrcode";
 
 interface CertData {
   platformId: string;
@@ -18,8 +19,6 @@ interface CertData {
   phone: string;
   cert_number?: string; // 证书编号
 }
-
-import QRCode from "qrcode";
 
 interface CertificateGeneratorProps {
   initialData?: any;
@@ -58,19 +57,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  // 证书状态翻译
-  const getStatusLabel = (status: string | undefined) => {
-    const statusMap: { [key: string]: string } = {
-      'PENDING': '待审核',
-      'AUDITED': '已审核',
-      'ISSUED': '生效中',
-      'REJECTED': '已拒绝',
-      'EXPIRED': '已失效',
-      'ACTIVE': '生效中'
-    };
-    return statusMap[status || ''] || status || '';
-  };
-
   useEffect(() => {
     fetchUserRole();
   }, []);
@@ -103,10 +89,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       }
     }
   }, [initialData, mode, initialVoided]);
-
-  useEffect(() => {
-    renderCertificate();
-  }, [data, isFontLoaded]);
 
   const renderCertificate = async () => {
     const canvas = canvasRef.current;
@@ -154,16 +136,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
     
-    // 只显示值，不显示标签
     if (data.platformId && data.shopName) {
-      // 两行都存在：按原坐标排列
       offCtx.fillText(data.platformId, width / 2, 530 * scale);
       offCtx.fillText(data.shopName, width / 2, 578 * scale);
     } else if (data.platformId) {
-      // 仅存在平台ID：居中显示 ( (530+578)/2 = 554 )
       offCtx.fillText(data.platformId, width / 2, 554 * scale);
     } else if (data.shopName) {
-      // 仅存在店铺名称：居中显示
       offCtx.fillText(data.shopName, width / 2, 554 * scale);
     }
 
@@ -172,52 +150,40 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const scopeLines = (data.scopeText || "").split('\n');
     let startY = 630 * scale; 
     
-    // 解析 Markdown 加粗语法 (**text**)
     const parseMarkdownBold = (line: string) => {
       const parts = [];
       const regex = /\*\*(.*?)\*\*/g;
       let lastIndex = 0;
       let match;
-      
       while ((match = regex.exec(line)) !== null) {
-        // 加粗前的文本
         if (match.index > lastIndex) {
           parts.push({ text: line.substring(lastIndex, match.index), bold: false });
         }
-        // 加粗的文本
         parts.push({ text: match[1], bold: true });
         lastIndex = regex.lastIndex;
       }
-      
-      // 加粗后的剩余文本
       if (lastIndex < line.length) {
         parts.push({ text: line.substring(lastIndex), bold: false });
       }
-      
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
     
     scopeLines.forEach((line) => {
       const parts = parseMarkdownBold(line.trim());
-      
       if (parts.some(p => p.bold)) {
-        // 有加粗内容，需要计算宽度并分段绘制
         let totalWidth = 0;
         parts.forEach(part => {
           offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
           totalWidth += offCtx.measureText(part.text).width;
         });
-        
         let currentX = (width - totalWidth) / 2;
         offCtx.textAlign = "left";
-        
         parts.forEach(part => {
           offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
           offCtx.fillText(part.text, currentX, startY);
           currentX += offCtx.measureText(part.text).width;
         });
       } else {
-        // 没有加粗内容，居中绘制
         offCtx.textAlign = "center";
         offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
         offCtx.fillText(line.trim(), width / 2, startY);
@@ -240,7 +206,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.fillText(`授权方：${data.authorizer || ""}`, width - 435 * scale, 848 * scale);
     offCtx.fillText("签字/盖章：", width - 435 * scale, 892 * scale);
 
-    // 显示证书编号
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
       offCtx.textAlign = "right";
@@ -254,7 +219,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const aspect = sealImg.width / sealImg.height;
       const drawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
       const drawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
-      
       offCtx.save();
       offCtx.translate(width - 260 * scale, 875 * scale);
       offCtx.rotate(-0.06); 
@@ -263,26 +227,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.restore();
     }
 
-    // 生成并绘制二维码
     try {
-      const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
-      // 使用相对路径，避免硬编码域名
       const verifyUrl = `/verify?cert=${encodeURIComponent(certNumber)}`;
       const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
-        width: 80,  // 固定尺寸 80px，不根据 scale 缩放
+        width: 80,
         margin: 1,
         color: { dark: '#000000', light: '#ffffff' },
-        errorCorrectionLevel: 'M'  // 改为 M 级别，足以应对二维码被部分遮挡
+        errorCorrectionLevel: 'M'
       });
-      
       const qrImg = await loadImage(qrDataUrl);
       if (qrImg) {
-        const qrSize = 100 * scale;  // 保持缩放，但基数减小
-        const qrX = 210 * scale; // 从左边向内移动
-        const qrY = height - 320 * scale; // 距离底部
+        const qrSize = 100 * scale;
+        const qrX = 210 * scale;
+        const qrY = height - 320 * scale;
         offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-        
-        // 添加二维码标签
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
@@ -295,16 +253,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (!isIssued || isVoided) {
       offCtx.save();
       if (isVoided) {
-        offCtx.restore(); 
-        offCtx.save();
         offCtx.translate(width / 2, height / 2);
         offCtx.textAlign = "center";
         offCtx.textBaseline = "middle";
-        
         offCtx.font = `bold ${80 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "rgba(220, 38, 38, 0.25)"; 
         offCtx.fillText("已 作 废", 0, 0);
-        
         offCtx.strokeStyle = "rgba(220, 38, 38, 0.35)";
         offCtx.lineWidth = 4 * scale;
         offCtx.strokeRect(-240 * scale, -70 * scale, 480 * scale, 140 * scale);
@@ -326,10 +280,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     if (currentId === renderRequestId.current) {
-        if (canvas.width !== width || canvas.height !== height) {
-            canvas.width = width;
-            canvas.height = height;
-        }
+        canvas.width = width;
+        canvas.height = height;
         ctx.clearRect(0, 0, width, height); 
         ctx.drawImage(offCanvas, 0, 0);
         setIsGenerating(false);
@@ -355,37 +307,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       setIsDownloading(true);
       const canvas = canvasRef.current;
       if (!canvas) return;
-
-      // canvas 尺寸：800x1131 (实际 1600x2262)
       const imgData = canvas.toDataURL("image/png");
-      const pdfWidth = 210; // A4 宽度 mm
-      const pdfHeight = 297; // A4 高度 mm
-      
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      // 计算缩放后的尺寸（限制在 A4 页面内）
-      const maxWidth = pdfWidth - 10; // 留出边距
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const maxWidth = pdfWidth - 10;
       const maxHeight = pdfHeight - 10;
-      
       let imgWidth = maxWidth;
       let imgHeight = (maxWidth * canvas.height) / canvas.width;
-      
       if (imgHeight > maxHeight) {
         imgHeight = maxHeight;
         imgWidth = (maxHeight * canvas.width) / canvas.height;
       }
-
-      const x = (pdfWidth - imgWidth) / 2;
-      const y = (pdfHeight - imgHeight) / 2;
-
-      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-      
-      const fileName = `授权书_${data.shopName}.pdf`;
-      pdf.save(fileName);
+      pdf.addImage(imgData, 'PNG', (pdfWidth - imgWidth) / 2, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
+      pdf.save(`授权书_${data.shopName}.pdf`);
     } catch (err: any) {
       alert("PDF 下载失败：" + err.message);
     } finally {
@@ -405,63 +340,33 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       alert("请填写完整的基本信息（平台ID、店铺名称、联系电话）");
       return;
     }
-
     setIsSubmitting(true);
     try {
       const canvas = canvasRef.current;
       if (!canvas) throw new Error("证书图像生成失败");
-
       const certImageDataUrl = canvas.toDataURL("image/png");
-      const certNumber = tempCertNumberRef.current;
-
-      // 从 sessionStorage 获取当前用户
       const userStr = sessionStorage.getItem('user');
-      if (!userStr) {
-        alert("❌ 未找到登录信息，请重新登录");
-        return;
-      }
-
+      if (!userStr) throw new Error("未找到登录信息");
       const user = JSON.parse(userStr);
-      const userRole = user.role;
-      const managerId = user.id;
-      
-      // 判断是否为负责人级别的角色
-      const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole);
+      const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(user.role);
       
       const response = await fetch("/api/certificates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),  // 编辑模式用更新动作
-          certId: initialData?.id, // 编辑模式传入 ID
-          certData: {
-            ...data,
-            sealImage: "",  // 不使用自定义签章，只用默认公章
-            cert_number: certNumber,
-            certImageDataUrl: certImageDataUrl  // 添加生成的证书图像数据
-          },
-          managerId: managerId
+          action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),
+          certId: initialData?.id,
+          certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current, certImageDataUrl },
+          managerId: user.id
         })
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "签发失败");
-
-      if (mode === 'edit') {
-        alert(`✅ 授权信息已成功更新并生效。\n防伪核验图已同步刷新。`);
-      } else if (isManager) {
-        alert(`✅ 证书已签发\n证书号：${certNumber}\n\n经销商账户已开通，可直接登陆。`);
-      } else {
-        alert(`✅ 证书已提报\n证书号：${certNumber}\n\n请等待负责人审核并核发。`);
-      }
+      if (!response.ok) throw new Error("操作失败");
+      alert(mode === 'edit' ? "✅ 授权信息已更新" : "✅ 证书已处理");
       setIsIssued(true);
-      
-      // 签发成功后，调用 onSuccess 回调关闭 modal
-      if (onSuccess) {
-        setTimeout(onSuccess, 800); // 延迟一点，让用户看到成功提示
-      }
+      if (onSuccess) setTimeout(onSuccess, 800);
     } catch (err: any) {
-      alert("签发失败：" + err.message);
+      alert("操作失败：" + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -469,228 +374,87 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   return (
     <div className="grid lg:grid-cols-[400px_1fr] gap-12 items-start h-full pb-2">
-      {/* 控制面板 */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex flex-col h-full"
-      >
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col h-full">
         <div className="space-y-8 mb-4 pt-1">
-          {/* 证书编号 - 仅在查看模式下显示 */}
           {mode === 'view' && data.cert_number && (
             <div className="flex items-center gap-3">
               <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">证书编号</div>
               <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium">{data.cert_number}</div>
             </div>
           )}
-
-          {/* 属性 1：平台ID */}
           <div className="flex items-center gap-3">
-            {data.platformLabel && (
-              <div className="w-24 shrink-0">
-                {mode === 'view' ? (
-                  <div className="text-[13px] text-slate-500 font-medium">{data.platformLabel}</div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="请输入标签"
-                    className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all"
-                    value={data.platformLabel}
-                    onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
-                  />
-                )}
-              </div>
-            )}
-            <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium">{data.platformId}</div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="请输入 ID"
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all"
-                  value={data.platformId}
-                  onChange={(e) => setData({ ...data, platformId: e.target.value })}
-                />
-              )}
-            </div>
+            <input
+              type="text"
+              className="w-24 bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none"
+              value={data.platformLabel}
+              onChange={(e) => setData({ ...data, platformLabel: e.target.value })}
+              disabled={mode === 'view'}
+            />
+            <input
+              type="text"
+              placeholder="请输入 ID"
+              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none"
+              value={data.platformId}
+              onChange={(e) => setData({ ...data, platformId: e.target.value })}
+              disabled={mode === 'view'}
+            />
           </div>
-
           <div className="flex items-center gap-3">
-            {data.shopLabel && (
-              <div className="w-24 shrink-0">
-                {mode === 'view' ? (
-                  <div className="text-[13px] text-slate-500 font-medium">{data.shopLabel}</div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="请输入标签"
-                    className="w-full bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all"
-                    value={data.shopLabel}
-                    onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
-                  />
-                )}
-              </div>
-            )}
-            <div className="flex-1">
-               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium">{data.shopName}</div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="请输入名称"
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all"
-                  value={data.shopName}
-                  onChange={(e) => setData({ ...data, shopName: e.target.value })}
-                />
-              )}
-            </div>
+            <input
+              type="text"
+              className="w-24 bg-slate-50/50 px-2 py-1.5 rounded-lg text-[13px] text-slate-500 font-medium border border-transparent outline-none"
+              value={data.shopLabel}
+              onChange={(e) => setData({ ...data, shopLabel: e.target.value })}
+              disabled={mode === 'view'}
+            />
+            <input
+              type="text"
+              placeholder="请输入名称"
+              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none"
+              value={data.shopName}
+              onChange={(e) => setData({ ...data, shopName: e.target.value })}
+              disabled={mode === 'view'}
+            />
           </div>
-
-          {/* 属性 3：有效期 */}
-          <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">有效期</div>
-            <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium">
-                  {data.duration?.replace(/-/g, ' 至 ').replace(/\./g, '/')}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="date" 
-                    className="w-[135px] bg-slate-50/50 px-2.5 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all tabular-nums" 
-                    value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""} 
-                    onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })} 
-                  />
-                  <span className="text-slate-300">/</span>
-                  <input 
-                    type="date" 
-                    className="w-[135px] bg-slate-50/50 px-2.5 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all tabular-nums" 
-                    value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""} 
-                    onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })} 
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 属性：联系电话 */}
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">联系电话</div>
-            <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium tabular-nums">{data.phone}</div>
-              ) : (
-                <input 
-                  type="tel" 
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all tabular-nums" 
-                  value={data.phone} 
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^\d]/g, '').substring(0, 11);
-                    setData({ ...data, phone: val });
-                  }} 
-                  placeholder="11位中国大陆手机号码" 
-                />
-              )}
-            </div>
+            <input 
+              type="tel" 
+              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none"
+              value={data.phone} 
+              onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })} 
+              disabled={mode === 'view'}
+            />
           </div>
-
-          {/* 属性 4：授权方主体 */}
-          <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权方主体</div>
-            <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium">{data.authorizer}</div>
-              ) : (
-                <input 
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all" 
-                  value={data.authorizer} 
-                  onChange={(e) => setData({ ...data, authorizer: e.target.value })} 
-                />
-              )}
-            </div>
-          </div>
-
-          {/* 属性 5：签字盖章 */}
           <div className="flex items-start gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">签字盖章</div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center">
-                  <img src="/default-seal.svg" className="w-10 h-10 object-contain" alt="默认公章" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">默认公章</div>
-                  <div className="text-[10px] text-slate-400">使用系统默认公章签署</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 属性 6：范围条款 */}
-          <div className="flex items-start gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2.5">授权范围条款</div>
-            <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 leading-relaxed whitespace-pre-wrap pt-2.5">{data.scopeText}</div>
-              ) : (
-                <textarea 
-                  rows={4} 
-                  className="w-full bg-slate-50/50 px-3 py-2.5 rounded-xl text-[13px] leading-relaxed text-slate-900 font-medium focus:bg-white focus:ring-1 focus:ring-slate-200 border border-transparent outline-none transition-all resize-none h-28 overflow-y-auto" 
-                  value={data.scopeText} 
-                  onChange={(e) => setData({ ...data, scopeText: e.target.value })} 
-                />
-              )}
-            </div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">授权范围</div>
+            <textarea 
+              rows={4} 
+              className="flex-1 bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none resize-none h-28" 
+              value={data.scopeText} 
+              onChange={(e) => setData({ ...data, scopeText: e.target.value })} 
+              disabled={mode === 'view'}
+            />
           </div>
         </div>
 
         <div className="pt-12 pb-2 flex items-center gap-6 flex-wrap">
            {!isVoided && !isIssued && (
              <>
-               <button 
-                 onClick={handleDownload}
-                 disabled={isDownloading}
-                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                 <Download className="w-4 h-4 opacity-70" /> 下载 PNG
-               </button>
-               <button 
-                 onClick={handleDownloadPDF}
-                 disabled={isDownloading}
-                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                 <File className="w-4 h-4 opacity-70" /> 下载 PDF
-               </button>
+               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
+               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>
              </>
            )}
            {mode !== 'view' && (
-             <button 
-               onClick={handleIssueSubmit}
-               disabled={isSubmitting}
-               className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13.5px] font-bold hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 tracking-[0.1em] disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               {isSubmitting ? "处理中..." : (mode === 'edit' ? "确认修改授权" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "正式签发授权" : "确认提交审核"))}
+             <button onClick={handleIssueSubmit} disabled={isSubmitting} className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13px] font-bold hover:bg-black transition-all shadow-xl active:scale-95">
+               {isSubmitting ? "正在提交..." : (mode === 'edit' ? "确认修改" : "签发授权")}
              </button>
            )}
            {isIssued && !isVoided && (
-             <>
-               <button 
-                 onClick={handleDownload}
-                 disabled={isDownloading}
-                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                 <Download className="w-4 h-4" /> 下载 PNG
-               </button>
-               <button 
-                 onClick={handleDownloadPDF}
-                 disabled={isDownloading}
-                 className="text-slate-600 text-[13px] font-bold transition-all hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                 <File className="w-4 h-4" /> 下载 PDF
-               </button>
-             </>
+             <div className="flex gap-4">
+               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><Download size={16} /> PNG</button>
+               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><File size={16} /> PDF</button>
+             </div>
            )}
         </div>
       </motion.div>
@@ -704,97 +468,29 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
       <AnimatePresence>
         {showFullPreview && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 md:p-10">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-2xl">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowFullPreview(false); setZoomScale(1); }} className="absolute inset-0 cursor-zoom-out z-[201]" />
             <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => {
-                setShowFullPreview(false);
-                setZoomScale(1);
-              }}
-              className="absolute inset-0 bg-black/90 backdrop-blur-xl" 
-            />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full h-full flex flex-col items-center justify-center z-10 pointer-events-none overflow-auto custom-scrollbar"
+               initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+               className="absolute top-10 z-[210] flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/10 rounded-full backdrop-blur-xl shadow-2xl pointer-events-auto"
+               onClick={(e) => e.stopPropagation()}
             >
-               {/* 顶部操作条 */}
-                <div className="absolute top-0 left-0 right-0 flex justify-between items-center pointer-events-auto px-6 py-8">
-                  <div className="flex items-center gap-3">
-                     <div className="flex items-center bg-white/10 rounded-full p-1 border border-white/10 backdrop-blur-md">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setZoomScale(Math.max(0.5, zoomScale - 0.25)); }}
-                          className="w-8 h-8 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-all"
-                          title="缩小"
-                        >
-                          <ZoomIn className="w-4 h-4 rotate-180" strokeWidth={3} />
-                        </button>
-                        <div className="px-2 text-[11px] font-bold text-white/50 min-w-[45px] text-center tabular-nums">
-                          {Math.round(zoomScale * 100)}%
-                        </div>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setZoomScale(Math.min(3, zoomScale + 0.25)); }}
-                          className="w-8 h-8 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-all"
-                          title="放大"
-                        >
-                          <ZoomIn className="w-4 h-4" strokeWidth={3} />
-                        </button>
-                     </div>
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); setZoomScale(1); }}
-                       className="h-10 px-4 rounded-full text-white/70 text-[11px] font-bold hover:text-white transition-all bg-white/5 hover:bg-white/10 border border-white/5"
-                     >
-                       原始大小
-                     </button>
-                  </div>
-                  <div className="flex items-center gap-3">
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-                       className="h-10 px-5 bg-white text-black rounded-full font-bold text-[12px] flex items-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
-                     >
-                       <Download size={16} /> 保存证书
-                     </button>
-                     <button 
-                       onClick={() => { setShowFullPreview(false); setZoomScale(1); }}
-                       className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all border border-white/10 backdrop-blur-md"
-                     >
-                       <X size={20} />
-                     </button>
-                  </div>
+               <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
+                  <button onClick={() => setZoomScale(Math.max(0.2, zoomScale - 0.2))} className="w-8 h-8 flex items-center justify-center text-white/50 hover:text-white"><ZoomOut className="w-4 h-4" /></button>
+                  <div className="min-w-[48px] text-center text-[11px] font-mono font-bold text-white">{(zoomScale * 100).toFixed(0)}%</div>
+                  <button onClick={() => setZoomScale(Math.min(5, zoomScale + 0.2))} className="w-8 h-8 flex items-center justify-center text-white/50 hover:text-white"><ZoomIn className="w-4 h-4" /></button>
                </div>
-
-               {/* 图片主体 - 专业滚动容器方案 */}
-               <div className="flex-1 w-full h-full overflow-auto flex flex-col items-center justify-start p-12 md:p-32 custom-scrollbar pointer-events-auto">
-                  <motion.div 
-                    animate={{ 
-                      width: `${Math.max(400, 800 * zoomScale)}px`,
-                      scale: 1 // 物理尺寸变化，不再使用整体 scale
-                    }}
-                    transition={{ type: "spring", damping: 30, stiffness: 200 }}
-                    className="relative bg-white shadow-[0_0_100px_rgba(0,0,0,0.5)] ring-1 ring-white/20 rounded-sm overflow-hidden shrink-0"
-                  >
-                     {previewImageUrl && (
-                       <img 
-                         src={previewImageUrl} 
-                         className="w-full h-auto block" 
-                         style={{ imageRendering: 'auto' }}
-                         alt="证书预览"
-                       />
-                     )}
-                     
-                     {/* 放大倍率水印提示 */}
-                     {zoomScale !== 1 && (
-                       <div className="absolute top-4 left-4 px-2 py-1 bg-black/50 backdrop-blur-md rounded text-white/80 text-[10px] font-mono pointer-events-none">
-                         {(zoomScale * 100).toFixed(0)}% ZOOM
-                       </div>
-                     )}
-                  </motion.div>
-               </div>
-
-
+               <button onClick={() => setZoomScale(1)} className="px-3 py-1.5 text-[11px] font-bold text-white/40 hover:text-white">100%</button>
+               <div className="w-px h-4 bg-white/10 mx-1" />
+               <button onClick={(e) => { e.stopPropagation(); handleDownload(); }} className="flex items-center gap-2 px-4 py-1.5 bg-white text-black rounded-full text-[11px] font-bold hover:bg-slate-200"><Download size={14} /> 保存</button>
+               <button onClick={() => { setShowFullPreview(false); setZoomScale(1); }} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-red-400 ml-1"><X size={16} /></button>
             </motion.div>
+            <div className="w-full h-full flex items-center justify-center overflow-hidden touch-none" onWheel={(e) => setZoomScale(prev => e.deltaY < 0 ? Math.min(5, prev + 0.1) : Math.max(0.2, prev - 0.1))}>
+              <motion.div drag dragConstraints={{ left: -1200, right: 1200, top: -1200, bottom: 1200 }} animate={{ scale: zoomScale }} transition={{ type: "spring", damping: 30, stiffness: 200 }} className="relative z-[205]">
+                <img src={previewImageUrl} className="max-w-[85vw] max-h-[85vh] object-contain shadow-2xl rounded-sm pointer-events-none select-none ring-1 ring-white/10" alt="HD" />
+              </motion.div>
+            </div>
+
           </div>
         )}
       </AnimatePresence>
