@@ -203,8 +203,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(`授权方：${data.authorizer || ""}`, width - 435 * scale, 848 * scale);
-    offCtx.fillText("签字/盖章：", width - 435 * scale, 892 * scale);
+    offCtx.fillText(data.authorizer || "", width - 435 * scale, 848 * scale);
 
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
@@ -467,11 +466,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权方</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-bold pl-3">{data.authorizer}</div>
+                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.authorizer}</div>
               ) : (
                 <input 
                   type="text"
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-bold focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all" 
+                  placeholder="请输入授权方主体名称"
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all" 
                   value={data.authorizer} 
                   onChange={(e) => setData({ ...data, authorizer: e.target.value })} 
                 />
