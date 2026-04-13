@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
 
 /**
  * POST /api/admin/delete-user
@@ -17,33 +17,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
     // 1. 权限检查 - 确保调用者是管理员
-    const { data: adminProfile, error: adminError } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', adminId)
-      .single();
-
-    if (adminError || !adminProfile) {
+    if (!(await checkIsAdmin(adminId))) {
       return NextResponse.json(
-        { error: "管理员身份验证失败" },
-        { status: 403 }
-      );
-    }
-
-    if (!['SUPER_ADMIN', 'AUDITOR', 'MANAGER'].includes(adminProfile.role)) {
-      return NextResponse.json(
-        { error: "无权限删除用户" },
+        { error: "无权限执行此操作或身份验证失败" },
         { status: 403 }
       );
     }

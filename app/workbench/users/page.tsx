@@ -65,24 +65,46 @@ export default function AdminsManagementPage() {
     // 从 sessionStorage 获取当前用户信息
     const userStr = sessionStorage.getItem('user');
     if (userStr) {
-      const user = JSON.parse(userStr);
-      setCurrentUser(user);
-      
-      // 查询当前用户在 profiles 表中的完整信息（用于权限检查）
-      if (user?.phone) {
-        const { data: currentProfile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("phone", user.phone)
-          .single();
-      
-        if (currentProfile) {
-          // 将 profile 信息保存到 currentUser 中
-          setCurrentUser((prev: any) => ({ ...prev, profileId: currentProfile.id, role: currentProfile.role }));
+      try {
+        const user = JSON.parse(userStr);
+        setCurrentUser(user);
+        
+        // 查询当前用户在 profiles 表中的完整信息（确保权限实时生效）
+        // 这里基于 phone 或 id 查询，建议用 id 更稳健
+        const searchKey = user.id ? "id" : "phone";
+        const searchValue = user.id || user.phone;
+
+        if (searchValue) {
+          const { data: currentProfile, error: profileErr } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq(searchKey, searchValue)
+            .single();
+        
+          if (currentProfile) {
+            // 如果查出来的角色是 DEALER，说明没有权限访问管理后台
+            if (currentProfile.role === 'DEALER') {
+              alert("权限不足：您的账号非管理人员，请重新登录。");
+              sessionStorage.clear();
+              window.location.href = "/login";
+              return;
+            }
+            // 将最新的实时的 profile 信息同步到 currentUser 状态中
+            setCurrentUser((prev: any) => ({ ...prev, ...currentProfile, profileId: currentProfile.id }));
+          } else if (profileErr) {
+            console.error("Profile check failed:", profileErr);
+          }
         }
+      } catch (e) {
+        console.error("Session parse error:", e);
       }
+    } else {
+      // 无会话信息，跳回登录
+      window.location.href = "/login";
+      return;
     }
 
+    // 获取所有管理员列表
     const { data, error } = await supabase
       .from("profiles")
       .select("*")

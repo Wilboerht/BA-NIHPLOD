@@ -1,29 +1,6 @@
-
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-/**
- * 权限检查：确保仅管理员可以重置密码
- */
-async function checkIsAdmin(adminId: string): Promise<boolean> {
-  try {
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', adminId)
-      .single();
-
-    return !!(profile && ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(profile.role));
-  } catch (error) {
-    return false;
-  }
-}
+import bcrypt from "bcryptjs";
+import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -41,30 +18,36 @@ export async function POST(req: Request) {
       );
     }
 
-    // 使用 Service Role Key 初始化，绕过 RLS 并在 Admin 模式下操作
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    // 生成新密码哈希
+    const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    // 调用 Supabase Admin API 强行更新用户资料
-    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
+    // 直接在 profiles 表中更新密码哈希
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ 
+        password_hash: passwordHash,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select()
+      .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (profileErr) {
+      console.error("[reset-password] Profile update error:", profileErr);
+      return NextResponse.json({ error: `重置失败: ${profileErr.message}` }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, user: data.user });
+    return NextResponse.json({ 
+      success: true, 
+      message: "密码已重置",
+      user: {
+        id: profile.id,
+        username: profile.username,
+        full_name: profile.full_name
+      }
+    });
   } catch (err: any) {
+    console.error("[reset-password]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

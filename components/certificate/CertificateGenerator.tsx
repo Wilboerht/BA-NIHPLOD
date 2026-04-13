@@ -662,7 +662,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                disabled={isSubmitting}
                className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13.5px] font-bold hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 tracking-[0.1em] disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               {isSubmitting ? "处理中..." : "正式签发许可"}
+               {isSubmitting ? "处理中..." : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "正式签发授权" : "确认提交审核")}
              </button>
            )}
            {isIssued && !isVoided && (

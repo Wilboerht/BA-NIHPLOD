@@ -1,29 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-
-/**
- * 权限检查：确保只有管理员可以创建新的管理员账户
- */
-async function checkIsAdmin(adminId: string): Promise<boolean> {
-  try {
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', adminId)
-      .single();
-
-    return !!(profile && ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(profile.role));
-  } catch (error) {
-    return false;
-  }
-}
+import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -47,12 +24,6 @@ export async function POST(req: Request) {
     if (!["SUPER_ADMIN", "AUDITOR"].includes(role)) {
       return NextResponse.json({ error: "无效的角色类型" }, { status: 400 });
     }
-
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
 
     // 使用 username 作为邮箱
     const email = username.trim();

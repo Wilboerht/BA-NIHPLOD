@@ -150,7 +150,9 @@ export default function CertificatesPage() {
           className="text-slate-900 border-b border-slate-900/20 px-0 pb-0.5 flex items-center gap-2 hover:text-slate-500 hover:border-slate-900 transition-all font-bold tracking-wide"
         >
           <Award className="w-3.5 h-3.5" />
-          <span className="font-bold tracking-wide">核发新证书</span>
+          <span className="font-bold tracking-wide">
+            {['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "核发新证书" : "提报新授权"}
+          </span>
         </motion.button>
       </div>
 
@@ -344,9 +346,13 @@ export default function CertificatesPage() {
               <div className="px-10 pt-10 pb-6 flex justify-between items-center bg-white shrink-0">
                   <div className="space-y-1">
                     <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
-                      {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : "官方授权资质签发"}
+                      {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
                     </h3>
-                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">核实经销商主体资质，签发受防伪协议保护的电子证书</p>
+                     <p className="text-[12px] text-slate-400 font-medium tracking-wide">
+                       {['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') 
+                         ? "核实经销商主体资质，签发受防伪协议保护的电子证书" 
+                         : "录入经销商主体资质，提交品牌授权审核申请"}
+                     </p>
                   </div>
                   {!isViewOnly && !isViewVoided && (
                     <button 
