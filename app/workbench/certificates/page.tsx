@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award } from "lucide-react";
+import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
@@ -14,6 +14,7 @@ export default function CertificatesPage() {
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<any>(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isViewVoided, setIsViewVoided] = useState(false);
 
   useEffect(() => {
@@ -144,6 +145,7 @@ export default function CertificatesPage() {
           onClick={() => {
             setSelectedCertData(null);
             setIsViewOnly(false);
+            setIsEditMode(false);
             setIsViewVoided(false);
             setShowIssueModal(true);
           }}
@@ -242,6 +244,7 @@ export default function CertificatesPage() {
                             onClick={() => {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
+                                id: cert.id, // 核心：传入 ID 用于编辑
                                 cert_number: cert.cert_number,
                                 platformId: scopeParts[0],
                                 platformLabel: "识别码", 
@@ -255,12 +258,41 @@ export default function CertificatesPage() {
                               });
                               setIsViewVoided(false);
                               setIsViewOnly(true);
+                              setIsEditMode(false);
                               setShowIssueModal(true);
                             }}
                             className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none"
                           >
                             <FileImage className="w-3.5 h-3.5 opacity-60" />
                             查看证书
+                          </button>
+                        )}
+                        {cert.status === 'ISSUED' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
+                          <button 
+                            onClick={() => {
+                              const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                              setSelectedCertData({
+                                id: cert.id,
+                                cert_number: cert.cert_number,
+                                platformId: scopeParts[0],
+                                platformLabel: "识别码", 
+                                shopName: cert.dealers?.company_name,
+                                shopLabel: "授权主体",
+                                scopeText: scopeParts[1] || "品牌官方经销授权",
+                                duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+                                authorizer: "旎柏（上海）商贸有限公司",
+                                sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                phone: cert.dealers?.phone || ""
+                              });
+                              setIsViewVoided(false);
+                              setIsViewOnly(false);
+                              setIsEditMode(true);
+                              setShowIssueModal(true);
+                            }}
+                            className="text-[#8B7355] hover:bg-amber-50 h-8 w-8 flex items-center justify-center rounded-lg transition-all"
+                            title="修改授权信息"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {cert.status === 'EXPIRED' && (
@@ -281,6 +313,7 @@ export default function CertificatesPage() {
                               });
                               setIsViewVoided(true);
                               setIsViewOnly(true);
+                              setIsEditMode(false);
                               setShowIssueModal(true);
                             }}
                             className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none shadow-sm shadow-slate-200/50"
@@ -330,6 +363,7 @@ export default function CertificatesPage() {
                 setShowIssueModal(false);
                 setSelectedCertData(null);
                 setIsViewOnly(false);
+                setIsEditMode(false);
                 setIsViewVoided(false);
               }}
               className="absolute inset-0 bg-white/60 backdrop-blur-md"
@@ -346,13 +380,15 @@ export default function CertificatesPage() {
               <div className="px-10 pt-10 pb-6 flex justify-between items-center bg-white shrink-0">
                   <div className="space-y-1">
                     <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
-                      {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
+                      {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
                     </h3>
-                     <p className="text-[12px] text-slate-400 font-medium tracking-wide">
-                       {['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') 
-                         ? "核实经销商主体资质，签发受防伪协议保护的电子证书" 
-                         : "录入经销商主体资质，提交品牌授权审核申请"}
-                     </p>
+                      <p className="text-[12px] text-slate-400 font-medium tracking-wide">
+                        {isEditMode 
+                          ? "正在修正现有授权证书中的录入误差，提交后将同步刷新查验图"
+                          : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') 
+                            ? "核实经销商主体资质，签发受防伪协议保护的电子证书" 
+                            : "录入经销商主体资质，提交品牌授权审核申请")}
+                      </p>
                   </div>
                   {!isViewOnly && !isViewVoided && (
                     <button 
@@ -360,6 +396,7 @@ export default function CertificatesPage() {
                         setShowIssueModal(false);
                         setSelectedCertData(null);
                         setIsViewOnly(false);
+                        setIsEditMode(false);
                         setIsViewVoided(false);
                       }} 
                       className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
@@ -372,12 +409,13 @@ export default function CertificatesPage() {
                 <div className="pt-0 pb-4">
                   <CertificateGenerator 
                     initialData={selectedCertData} 
-                    mode={isViewOnly ? 'view' : 'create'} 
+                    mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'} 
                     isVoided={isViewVoided}
                     onSuccess={() => {
                       setShowIssueModal(false);
                       setSelectedCertData(null);
                       setIsViewOnly(false);
+                      setIsEditMode(false);
                       setIsViewVoided(false);
                       fetchCertificates(); // 重新加载证书列表
                     }}

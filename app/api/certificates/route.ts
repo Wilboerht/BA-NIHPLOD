@@ -423,6 +423,58 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
+    // --- 流程 5: 更新证书信息 (管理员修正笔误等) ---
+    if (action === 'update_certificate') {
+      if (!certId) throw new Error("缺少证书 ID");
+      if (!certData) throw new Error("缺少更新数据");
+
+      // 1. 获取原证书记录以找到 dealer_id
+      const { data: oldCert, error: oldErr } = await supabaseAdmin
+        .from('certificates')
+        .select('*')
+        .eq('id', certId)
+        .single();
+      
+      if (oldErr || !oldCert) throw new Error("未找到对应证书记录");
+
+      // 2. 更新经销商资料 (按手机号去重逻辑，如果手机号变了可能涉及迁移，暂时仅更新当前内容)
+      const { error: dealerUpdErr } = await supabaseAdmin
+        .from('dealers')
+        .update({
+          company_name: certData.shopName,
+          phone: certData.phone
+        })
+        .eq('id', oldCert.dealer_id);
+      
+      if (dealerUpdErr) throw dealerUpdErr;
+
+      // 3. 重新生成并上传证书大图
+      let finalImageUrl = oldCert.final_image_url;
+      if (certData.certImageDataUrl) {
+         try {
+           finalImageUrl = await uploadCertificateImage(supabaseAdmin, oldCert.cert_number, certData.certImageDataUrl);
+         } catch (uploadErr: any) {
+           console.warn('证书图片更新上传失败:', uploadErr.message);
+         }
+      }
+
+      // 4. 更新证书核心字段
+      const { error: updateCertErr } = await supabaseAdmin
+        .from('certificates')
+        .update({
+          auth_scope: certData.platformId + ' | ' + certData.scopeText,
+          start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
+          end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
+          final_image_url: finalImageUrl,
+          manager_id: managerId // 记录最后一个修改的人
+        })
+        .eq('id', certId);
+
+      if (updateCertErr) throw updateCertErr;
+
+      return NextResponse.json({ success: true, status: 'UPDATED' });
+    }
+
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (err: any) {
     console.error(err);

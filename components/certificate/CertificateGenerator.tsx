@@ -23,7 +23,7 @@ import QRCode from "qrcode";
 
 interface CertificateGeneratorProps {
   initialData?: any;
-  mode?: 'create' | 'view';
+  mode?: 'create' | 'view' | 'edit';
   isVoided?: boolean;
   onSuccess?: () => void;
 }
@@ -431,7 +431,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: isManager ? "approve_issue" : "create_pending",  // 负责人直接核发，否则待审核
+          action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),  // 编辑模式用更新动作
+          certId: initialData?.id, // 编辑模式传入 ID
           certData: {
             ...data,
             sealImage: "",  // 不使用自定义签章，只用默认公章
@@ -445,7 +446,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "签发失败");
 
-      if (isManager) {
+      if (mode === 'edit') {
+        alert(`✅ 授权信息已成功更新并生效。\n防伪核验图已同步刷新。`);
+      } else if (isManager) {
         alert(`✅ 证书已签发\n证书号：${certNumber}\n\n经销商账户已开通，可直接登陆。`);
       } else {
         alert(`✅ 证书已提报\n证书号：${certNumber}\n\n请等待负责人审核并核发。`);
@@ -667,7 +670,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                disabled={isSubmitting}
                className="h-11 px-8 bg-[#2C2A29] text-white rounded-xl text-[13.5px] font-bold hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 tracking-[0.1em] disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               {isSubmitting ? "处理中..." : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "正式签发授权" : "确认提交审核")}
+               {isSubmitting ? "处理中..." : (mode === 'edit' ? "确认修改授权" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "正式签发授权" : "确认提交审核"))}
              </button>
            )}
            {isIssued && !isVoided && (

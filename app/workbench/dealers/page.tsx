@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Key, FileText, ShieldCheck, XCircle, RefreshCw,
-  Building2, Ban, ShieldOff, Loader2
+  Building2, Ban, ShieldOff, Loader2, Edit
 } from "lucide-react";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +38,7 @@ export default function DealersPage() {
   const [isCertsLoading, setIsCertsLoading] = useState(false);
   const [viewCertData, setViewCertData] = useState<any>(null);
   const [isViewVoided, setIsViewVoided] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [banningId, setBanningId] = useState<string | null>(null); // 正在执行 API 的 dealer.id
   const [confirmBanId, setConfirmBanId] = useState<string | null>(null); // 待二次确认的 dealer.id
 
@@ -158,6 +159,33 @@ export default function DealersPage() {
       };
     });
   }, [filteredDealers]);
+
+  const fetchDealerCerts = async (dealerGroup: any) => {
+    if (!dealerGroup) return;
+    setIsCertsLoading(true);
+    setSelectedDealer(dealerGroup);
+    
+    const { data } = await supabase
+      .from('certificates')
+      .select('*, templates(stamp_url), seal_url')
+      .in('dealer_id', dealerGroup.allDealerIds)
+      .order('created_at', { ascending: false });
+    
+    setDealerCerts(data || []);
+    
+    const nameMap: Record<string, string> = {};
+    const phoneMap: Record<string, string> = {};
+    dealerGroup.allDealerIds.forEach(id => {
+      const dealer = dealers.find(d => d.id === id);
+      if (dealer) {
+        nameMap[id] = dealer.company_name;
+        phoneMap[id] = dealer.phone || '';
+      }
+    });
+    setDealerNameMap(nameMap);
+    setDealerPhoneMap(phoneMap);
+    setIsCertsLoading(false);
+  };
 
   const resetDealerPassword = async (username: string) => {
     if (!username) return;
@@ -393,30 +421,7 @@ export default function DealersPage() {
 
                       {/* 查看证书 (显示该 phone 下所有 dealer 的证书) */}
                       <button
-                        onClick={async () => {
-                          setSelectedDealer(dealerGroup);
-                          setIsCertsLoading(true);
-                          // 查询该 phone 下所有 dealer 的证书，并包含template的公章信息和自定义印章
-                          const { data } = await supabase
-                            .from('certificates')
-                            .select('*, templates(stamp_url), seal_url')
-                            .in('dealer_id', dealerGroup.allDealerIds)
-                            .order('created_at', { ascending: false });
-                          setDealerCerts(data || []);
-                          // 建立dealerId到dealerName和dealerPhone的映射
-                          const nameMap: Record<string, string> = {};
-                          const phoneMap: Record<string, string> = {};
-                          dealerGroup.allDealerIds.forEach(id => {
-                            const dealer = dealers.find(d => d.id === id);
-                            if (dealer) {
-                              nameMap[id] = dealer.company_name;
-                              phoneMap[id] = dealer.phone || '';
-                            }
-                          });
-                          setDealerNameMap(nameMap);
-                          setDealerPhoneMap(phoneMap);
-                          setIsCertsLoading(false);
-                        }}
+                        onClick={() => fetchDealerCerts(dealerGroup)}
                         title="查看名下证书"
                         className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-blue-500 transition-all"
                       >
@@ -460,7 +465,7 @@ export default function DealersPage() {
               initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              className="relative w-full max-w-3xl bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden flex flex-col max-h-[85vh]"
+              className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden flex flex-col max-h-[85vh]"
             >
               <div className="flex justify-between items-start mb-8">
                 <div className="space-y-1">
@@ -504,7 +509,7 @@ export default function DealersPage() {
                         <th className="px-6 py-4">主题名称</th>
                         <th className="px-6 py-4">有效期</th>
                         <th className="px-6 py-4">状态</th>
-                        <th className="px-6 py-4 text-right">预览/存档</th>
+                        <th className="px-6 py-4 text-right">操作</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white/50">
@@ -533,27 +538,58 @@ export default function DealersPage() {
                               )}
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button
-                                onClick={() => {
-                                  const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
-                                  setViewCertData({
-                                    platformId: scopeParts[0],
-                                    platformLabel: "淘宝ID",
-                                    shopName: dealerNameMap[cert.dealer_id] || '-',
-                                    shopLabel: "店铺名称",
-                                    scopeText: scopeParts[1] || "授权经销资格条款",
-                                    duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                    authorizer: "旎柏（上海）商贸有限公司",
-                                    sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
-                                    phone: dealerPhoneMap[cert.dealer_id] || ""
-                                  });
-                                  setIsViewVoided(isVoided || cert.status === 'EXPIRED');
-                                }}
-                                className="inline-flex items-center gap-1.5 text-blue-500 hover:text-blue-700 font-bold text-[11px] transition-all px-2 py-1 hover:bg-blue-50 rounded"
-                              >
-                                <Search className="w-3.5 h-3.5" />
-                                调阅
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                {cert.status === 'ISSUED' && ['SUPER_ADMIN', 'MANAGER', 'PROJECT_MANAGER'].includes(userRole || '') && (
+                                  <button
+                                    onClick={() => {
+                                      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                                      setViewCertData({
+                                        id: cert.id,
+                                        cert_number: cert.cert_number,
+                                        platformId: scopeParts[0],
+                                        platformLabel: "识别码", 
+                                        shopName: dealerNameMap[cert.dealer_id] || '-',
+                                        shopLabel: "授权主体",
+                                        scopeText: scopeParts[1] || "品牌官方经销授权",
+                                        duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
+                                        authorizer: "旎柏（上海）商贸有限公司",
+                                        sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                        phone: dealerPhoneMap[cert.dealer_id] || ""
+                                      });
+                                      setIsViewVoided(false);
+                                      setIsEditMode(true);
+                                    }}
+                                    className="p-1.5 text-[#8B7355] hover:bg-amber-50 rounded transition-all"
+                                    title="修改信息"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                                    setViewCertData({
+                                      id: cert.id,
+                                      cert_number: cert.cert_number,
+                                      platformId: scopeParts[0],
+                                      platformLabel: "识别码", 
+                                      shopName: dealerNameMap[cert.dealer_id] || '-',
+                                      shopLabel: "授权主体",
+                                      scopeText: scopeParts[1] || "品牌官方经销授权",
+                                      duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
+                                      authorizer: "旎柏（上海）商贸有限公司",
+                                      sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                      phone: dealerPhoneMap[cert.dealer_id] || ""
+                                    });
+                                    setIsViewVoided(isVoided || cert.status === 'EXPIRED');
+                                    setIsEditMode(false);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 text-blue-500 hover:text-blue-700 font-bold text-[11px] transition-all px-2 py-1 hover:bg-blue-50 rounded"
+                                >
+                                  <Search className="w-3.5 h-3.5" />
+                                  调阅
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -573,7 +609,15 @@ export default function DealersPage() {
       {/* 高清预览与下载叠加层 */}
       <AnimatePresence>
         {viewCertData && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => {
+                setViewCertData(null);
+                setIsEditMode(false);
+              }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+            />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -581,13 +625,20 @@ export default function DealersPage() {
               className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
             >
               <div className="p-8 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 tracking-tight">调取历史授信档案</h3>
+                <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+                  {isEditMode ? "修正官方授权资质信息" : "核对并调取授权证书"}
+                </h3>
               </div>
               <div className="flex-1 overflow-auto p-10">
                 <CertificateGenerator
                   initialData={viewCertData}
-                  mode="view"
+                  mode={isEditMode ? 'edit' : 'view'}
                   isVoided={isViewVoided}
+                  onSuccess={() => {
+                     setViewCertData(null);
+                     setIsEditMode(false);
+                     fetchDealerCerts(selectedDealer); // 刷新证书列表数据
+                  }}
                 />
               </div>
             </motion.div>
