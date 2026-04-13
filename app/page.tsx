@@ -33,6 +33,7 @@ export default function VerificationPage() {
   const [loggedInUser, setLoggedInUser] = useState<UserSession | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const prevShowLoginModalRef = useRef(false);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   
   // 二维码扫描相关状态
   const [showScanner, setShowScanner] = useState(false);
@@ -444,8 +445,8 @@ export default function VerificationPage() {
                           为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
                         </p>
                      </div>
-                     <button 
-                        onClick={() => { setError(null); setShowReportModal(true); }}
+                      <button 
+                        onClick={() => { setError(null); setShowReportModal(true); setEvidenceFile(null); }}
                         className="bg-[#2C2A29]/5 text-[#2C2A29] border border-[#2C2A29]/10 px-8 py-3 rounded-xl text-sm hover:bg-[#2C2A29]/10 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-8 font-medium"
                       >
                         <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
@@ -503,7 +504,7 @@ export default function VerificationPage() {
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               onClick={() => setShowReportModal(false)}
+               onClick={() => { setShowReportModal(false); setEvidenceFile(null); }}
                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             <motion.div 
@@ -514,7 +515,7 @@ export default function VerificationPage() {
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
-                  onClick={() => setShowReportModal(false)}
+                  onClick={() => { setShowReportModal(false); setEvidenceFile(null); }}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
                   <X size={16} strokeWidth={2.5} />
@@ -546,9 +547,26 @@ export default function VerificationPage() {
                     </div>
                     <div className="space-y-2">
                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">证据图片 (可选)</label>
-                       <div className="w-full aspect-square md:aspect-auto md:h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer">
-                          <Camera className="w-5 h-5" />
-                       </div>
+                       <label className="w-full aspect-square md:aspect-auto md:h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden group">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                setEvidenceFile(e.target.files[0]);
+                              }
+                            }}
+                          />
+                          {evidenceFile ? (
+                            <div className="flex items-center justify-center gap-2 px-4 w-full">
+                               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                               <span className="text-xs text-slate-600 truncate">{evidenceFile.name}</span>
+                            </div>
+                          ) : (
+                            <Camera className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                          )}
+                       </label>
                     </div>
                  </div>
                  <button className="w-full bg-[#2C2A29] text-white h-12 rounded-2xl hover:bg-[#1A1918] active:scale-[0.98] transition-all shadow-lg shadow-[#2C2A29]/10 mt-6 flex items-center justify-center gap-2.5 text-sm tracking-widest uppercase">
@@ -624,12 +642,12 @@ export default function VerificationPage() {
          <p className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 tracking-normal antialiased order-3 md:order-1">
            &copy; 2026 NIHPLOD. All rights reserved
          </p>
-         <div className="flex flex-wrap gap-4 md:gap-12 text-[10px] md:text-[11px] font-bold text-slate-500 md:text-slate-400 uppercase tracking-[0.05em] md:tracking-[0.1em] justify-center md:justify-end order-1 md:order-3 w-full md:w-auto">
-            {/* 官方维权申诉 */}
-            <button 
-              onClick={() => setShowReportModal(true)} 
-              className="text-red-500/70 hover:text-red-600 active:text-red-700 cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap"
-            >
+          <div className="flex flex-wrap gap-4 md:gap-12 text-[10px] md:text-[11px] font-bold text-slate-500 md:text-slate-400 uppercase tracking-[0.05em] md:tracking-[0.1em] justify-center md:justify-end order-1 md:order-3 w-full md:w-auto">
+             {/* 官方维权申诉 */}
+             <button 
+               onClick={() => { setShowReportModal(true); setEvidenceFile(null); }} 
+               className="text-red-500/70 hover:text-red-600 active:text-red-700 cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap"
+             >
                <Megaphone className="w-3.5 h-3.5" /> 官方维权申诉
             </button>
 
