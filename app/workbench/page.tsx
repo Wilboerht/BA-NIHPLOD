@@ -206,8 +206,8 @@ export default function WorkbenchPage() {
             <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">累计核发证书</h3>
             <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.certs}</p>
           </div>
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-            <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
+          <div className="hidden md:flex w-12 h-12 rounded-full bg-slate-50 flex-shrink-0 items-center justify-center text-slate-300">
+            <ShieldCheck className="w-6 h-6" />
           </div>
         </motion.div>
 
@@ -221,8 +221,8 @@ export default function WorkbenchPage() {
             <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">当前有效授权</h3>
             <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.validCerts}</p>
           </div>
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-            <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
+          <div className="hidden md:flex w-12 h-12 rounded-full bg-slate-50 flex-shrink-0 items-center justify-center text-slate-400">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
         </motion.div>
 
@@ -236,8 +236,8 @@ export default function WorkbenchPage() {
             <h3 className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 md:mb-3">待审投诉工单</h3>
             <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{isLoading ? '-' : stats.pendingComplaints}</p>
           </div>
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-            <Megaphone className="w-5 h-5 md:w-6 md:h-6" />
+          <div className="hidden md:flex w-12 h-12 rounded-full bg-slate-50 flex-shrink-0 items-center justify-center text-slate-400">
+            <Megaphone className="w-6 h-6" />
           </div>
         </motion.div>
 
@@ -254,8 +254,8 @@ export default function WorkbenchPage() {
                 {isLoading ? '-' : stats.pendingCerts}
               </p>
             </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-              <AlertCircle className="w-5 h-5 md:w-6 md:h-6" />
+            <div className="hidden md:flex w-12 h-12 rounded-full bg-slate-50 flex-shrink-0 items-center justify-center text-slate-400">
+              <AlertCircle className="w-6 h-6" />
             </div>
           </motion.div>
         )}
@@ -302,7 +302,7 @@ export default function WorkbenchPage() {
                 </div>
               ) : pendingCerts.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
-                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                  <div className="hidden md:flex w-14 h-14 bg-white rounded-2xl items-center justify-center shadow-sm border border-slate-100">
                     <CheckCircle2 className="w-7 h-7 text-slate-200" />
                   </div>
                   <div className="text-center">
@@ -414,7 +414,7 @@ export default function WorkbenchPage() {
               </div>
             ) : recentComplaints.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
-                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                <div className="hidden md:flex w-14 h-14 bg-white rounded-2xl items-center justify-center shadow-sm border border-slate-100">
                   <Clock className="w-7 h-7 text-slate-200" />
                 </div>
                 <div className="text-center">
