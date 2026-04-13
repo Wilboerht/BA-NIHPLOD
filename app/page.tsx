@@ -20,18 +20,6 @@ interface UserSession {
   is_first_login?: boolean;
 }
 
-// 极其轻量的简易 Markdown 加粗解析器
-const renderSimpleMarkdown = (text?: string) => {
-  if (!text) return null;
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return parts.map((part, index) => {
-    if (index % 2 === 1) {
-      return <strong key={index} className="font-black text-[#2C2A29]">{part}</strong>;
-    }
-    return <span key={index} className="opacity-80">{part}</span>;
-  });
-};
-
 export default function VerificationPage() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<CertificateVerifyResult | null>(null);
@@ -477,8 +465,8 @@ export default function VerificationPage() {
                        </div>
                        <div className="space-y-3 md:space-y-4">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
-                          <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium whitespace-pre-wrap break-words">
-                            {renderSimpleMarkdown(result.scope)}
+                          <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium opacity-80 whitespace-pre-wrap break-words">
+                            {result.scope?.replace(/\*\*/g, '')}
                           </p>
                        </div>
                     </div>
