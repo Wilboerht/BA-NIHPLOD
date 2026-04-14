@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Eye, EyeOff, ArrowRight, X, AlertTriangle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 export default function LoginModal({ 
   isOpen, 

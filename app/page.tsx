@@ -9,7 +9,6 @@ import LegalModal from "@/components/LegalModal";
 import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
-import { supabase } from "@/lib/supabase";
 import { Html5Qrcode } from "html5-qrcode";
 
 interface UserSession {
@@ -85,21 +84,21 @@ export default function VerificationPage() {
       
       // 1. 如果有上传文件，先处理上传
       if (evidenceFile) {
-        const fileExt = evidenceFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `appeals/${fileName}`;
+        const formData = new FormData();
+        formData.append('file', evidenceFile);
         
-        const { error: uploadError } = await supabase.storage
-          .from('complaints')
-          .upload(filePath, evidenceFile);
-          
-        if (uploadError) throw new Error("图片上传失败: " + uploadError.message);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
         
-        const { data: { publicUrl } } = supabase.storage
-          .from('complaints')
-          .getPublicUrl(filePath);
-          
-        evidence_url = publicUrl;
+        if (!uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          throw new Error(uploadData.error || "图片上传失败");
+        }
+        
+        const { url } = await uploadResponse.json();
+        evidence_url = url;
       }
       
       // 2. 提交数据

@@ -3,7 +3,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, ZoomOut, File } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
 import jsPDF from 'jspdf';
 import QRCode from "qrcode";
 
