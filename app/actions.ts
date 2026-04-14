@@ -1,14 +1,7 @@
 "use server";
 
-import { createClient } from '@supabase/supabase-js';
 import { USE_LOCAL_DB, sql } from '@/lib/db';
-
-// Create a service-role client strictly for server actions to bypass RLS
-// ensuring we can retrieve revoked/expired certificates for granular error reporting.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -39,27 +32,55 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
   try {
     let results: any[] | null = null;
 
-    // 1. First, attempt to match the certificate number exactly
-    const { data: certMatch, error: certError } = await supabaseAdmin
-      .from('certificates')
-      .select(`
-        cert_number,
-        start_date,
-        end_date,
-        auth_scope,
-        status,
-        final_image_url,
-        dealers ( company_name )
-      `)
-      .eq('cert_number', cleanQuery.toUpperCase());
+    if (USE_LOCAL_DB && sql) {
+      // 1. 尝试按证书编号精确匹配
+      let dbResults = await sql`
+        SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
+               d.company_name
+        FROM certificates c
+        LEFT JOIN dealers d ON c.dealer_id = d.id
+        WHERE c.cert_number = ${cleanQuery.toUpperCase()}
+      `;
 
-    if (certMatch && certMatch.length > 0) {
-      results = certMatch;
-    }
+      if (dbResults && dbResults.length > 0) {
+        results = dbResults.map(r => ({
+          cert_number: r.cert_number,
+          start_date: r.start_date,
+          end_date: r.end_date,
+          auth_scope: r.auth_scope,
+          status: r.status,
+          final_image_url: r.final_image_url,
+          dealers: { company_name: r.company_name }
+        }));
+      }
 
-    // 2. If no exact certificate match, attempt to search by exact company name
-    if (!results) {
-      const { data: companyMatch, error: companyError } = await supabaseAdmin
+      // 2. 如果没有匹配，按公司名称搜索
+      if (!results) {
+        dbResults = await sql`
+          SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
+                 d.company_name
+          FROM certificates c
+          LEFT JOIN dealers d ON c.dealer_id = d.id
+          WHERE d.company_name = ${cleanQuery}
+          ORDER BY c.end_date DESC
+        `;
+
+        if (dbResults && dbResults.length > 0) {
+          results = dbResults.map(r => ({
+            cert_number: r.cert_number,
+            start_date: r.start_date,
+            end_date: r.end_date,
+            auth_scope: r.auth_scope,
+            status: r.status,
+            final_image_url: r.final_image_url,
+            dealers: { company_name: r.company_name }
+          }));
+        }
+      }
+    } else {
+      // 使用 Supabase 查询
+      // 1. 按证书编号精确匹配
+      const { data: certMatch } = await supabaseAdmin
         .from('certificates')
         .select(`
           cert_number,
@@ -68,13 +89,33 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           auth_scope,
           status,
           final_image_url,
-          dealers!inner ( company_name )
+          dealers ( company_name )
         `)
-        .eq('dealers.company_name', cleanQuery)
-        .order('end_date', { ascending: false });
-      
-      if (companyMatch && companyMatch.length > 0) {
-        results = companyMatch;
+        .eq('cert_number', cleanQuery.toUpperCase());
+
+      if (certMatch && certMatch.length > 0) {
+        results = certMatch;
+      }
+
+      // 2. 按公司名称搜索
+      if (!results) {
+        const { data: companyMatch } = await supabaseAdmin
+          .from('certificates')
+          .select(`
+            cert_number,
+            start_date,
+            end_date,
+            auth_scope,
+            status,
+            final_image_url,
+            dealers!inner ( company_name )
+          `)
+          .eq('dealers.company_name', cleanQuery)
+          .order('end_date', { ascending: false });
+        
+        if (companyMatch && companyMatch.length > 0) {
+          results = companyMatch;
+        }
       }
     }
     

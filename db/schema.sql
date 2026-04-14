@@ -19,17 +19,19 @@ CREATE TABLE profiles (
 -- 部分唯一索引：只对非 NULL 的 phone 强制唯一性（允许多个 NULL）
 CREATE UNIQUE INDEX profiles_phone_key ON profiles(phone) WHERE phone IS NOT NULL;
 
--- 2. 经销商表
+-- 2. 经销商表（支持一个 phone 对应多个主体名称）
 CREATE TABLE dealers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    profile_id UUID REFERENCES profiles(id),
-    company_name TEXT NOT NULL,
+    company_name TEXT NOT NULL,  -- 主体/公司名称
+    phone TEXT NOT NULL,  -- 电话号码（非唯一，允许同一phone有多条记录）
     contact_person TEXT,
-    phone TEXT,
     email TEXT,
     address TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 索引：加快按 phone 查询
+CREATE INDEX dealers_phone_idx ON dealers(phone);
 
 -- 3. 证书模板表
 CREATE TABLE templates (
@@ -41,8 +43,7 @@ CREATE TABLE templates (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. 证书主表
-CREATE TYPE certificate_status AS ENUM ('PENDING', 'AUDITED', 'ISSUED', 'REJECTED', 'EXPIRED', 'REVOKED');
+CREATE TYPE certificate_status AS ENUM ('PENDING', 'ISSUED', 'REJECTED', 'EXPIRED', 'REVOKED');
 
 CREATE TABLE certificates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
