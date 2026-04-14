@@ -41,19 +41,47 @@ const getDummyClient = () => {
   };
 };
 
-export const supabaseAdmin = 
-  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          },
-        }
-      )
-    : getDummyClient();
+// 延迟初始化：避免构建时评估问题
+let supabaseAdminInstance: any = null;
+
+function initSupabaseAdmin() {
+  if (supabaseAdminInstance !== null) {
+    return supabaseAdminInstance;
+  }
+
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (url && key) {
+      supabaseAdminInstance = createClient(url, key, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+    } else {
+      supabaseAdminInstance = getDummyClient();
+    }
+  } catch (error) {
+    console.error('[supabase-admin] Initialization error:', error);
+    supabaseAdminInstance = getDummyClient();
+  }
+
+  return supabaseAdminInstance;
+}
+
+// 使用 Proxy 进行延迟初始化
+export const supabaseAdmin = new Proxy({}, {
+  get(target: any, prop: string) {
+    const instance = initSupabaseAdmin();
+    return instance[prop];
+  },
+  apply(target: any, thisArg: any, args: any[]) {
+    const instance = initSupabaseAdmin();
+    return instance(...args);
+  },
+}) as any;
 
 /**
  * 集中化的管理员权限检查逻辑
