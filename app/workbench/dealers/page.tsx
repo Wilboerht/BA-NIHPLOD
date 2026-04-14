@@ -7,7 +7,6 @@ import {
   Building2, Ban, ShieldOff, Loader2, Edit
 } from "lucide-react";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
-import { supabase } from "@/lib/supabase";
 
 interface Dealer {
   id: string;
@@ -57,70 +56,40 @@ export default function DealersPage() {
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-
-    const { data, error } = await supabase
-      .from('dealers')
-      .select('*, certificates(count)')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      /**
-       * 🔑 关键设计决策：经销商账户关联规则
-       * 
-       * ✅ 正确做法（按手机号关联）：
-       * - dealers.phone ↔ profiles.username 进行关联
-       * - 同一手机号下的所有经销商共用一个账户
-       * - 示例：
-       *   - dealer1: 名字="用来测试的门店", phone="11111111111"
-       *   - dealer2: 名字="dsfsffsfdsfdsfsa", phone="11111111111"
-       *   - 都关联到 profile { username: "11111111111" }
-       * 
-       * ❌ 错误做法（已弃用）：
-       * - 不要按 dealers.company_name ↔ profiles.full_name 关联
-       * - 这样会导致同一手机号的不同门店显示为 "待开启"
-       * 
-       * 相关文件：
-       * - app/api/certificates/route.ts (profile 创建处也要按 username 查询)
-       */
-      // 改为按手机号关联 profile（同一手机号为同一账户）
-      const dealerPhones = [...new Set(data.map(d => d.phone))]; // 去重手机号
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('username', dealerPhones)
-        .eq('role', 'DEALER');
-
-      // 批量查询封禁状态（仅有 profile 即有 auth 账号的经销商才需要）
-      const profilesWithId = (profiles || []).filter(p => p.id);
-      let bannedSet = new Set<string>(); // 存放 profile.id（= auth user_id）
-
-      if (profilesWithId.length > 0) {
-        // 并发查询各账户的封禁状态
-        const banResults = await Promise.allSettled(
-          profilesWithId.map(p =>
-            fetch(`/api/admin/ban-user?userId=${p.id}`).then(r => r.json()).then(j => ({ id: p.id, isBanned: j.isBanned }))
-          )
-        );
-        banResults.forEach(res => {
-          if (res.status === 'fulfilled' && res.value.isBanned) {
-            bannedSet.add(res.value.id);
-          }
-        });
-      }
-
-      const enriched: Dealer[] = data.map(d => {
-        // 按手机号匹配对应的 profile
-        const profile = profiles?.find(p => p.username === d.phone);
+    try {
+      // 获取经销商列表
+      const response = await fetch('/api/db/dealers');
+      if (!response.ok) throw new Error('获取经销商列表失败');
+      
+      const result = await response.json();
+      const data = result.data || [];
+      
+      // 获取独特的手机号集合
+      const dealerPhones = [...new Set(data.map((d: any) => d.phone).filter(Boolean))];
+      
+      // 获取对应的 profiles（按手机号关联）
+      const profilesResp = await fetch('/api/admin/list');
+      const profilesResult = profilesResp.ok ? await profilesResp.json() : { data: [] };
+      const profiles = profilesResult.data || [];
+      
+      // 构建 profile 映射（按 username/phone 关联）
+      const enriched = data.map((d: any) => {
+        const profile = profiles.find((p: any) => p.username === d.phone);
         return {
           ...d,
-          profile,
-          isBanned: profile ? bannedSet.has(profile.id) : false,
+          profile: profile || null,
+          certificates: [{ count: 1 }], // 临时设置，后续从 API 获取
+          isBanned: profile?.is_banned || false,
         };
       });
-
+      
       setDealers(enriched);
+    } catch (err) {
+      console.error('Error fetching dealers:', err);
+      setDealers([]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -165,26 +134,45 @@ export default function DealersPage() {
     setIsCertsLoading(true);
     setSelectedDealer(dealerGroup);
     
-    const { data } = await supabase
-      .from('certificates')
-      .select('*, templates(stamp_url), seal_url')
-      .in('dealer_id', dealerGroup.allDealerIds)
-      .order('created_at', { ascending: false });
-    
-    setDealerCerts(data || []);
-    
-    const nameMap: Record<string, string> = {};
-    const phoneMap: Record<string, string> = {};
-    dealerGroup.allDealerIds.forEach((id: string) => {
-      const dealer = dealers.find(d => d.id === id);
-      if (dealer) {
-        nameMap[id] = dealer.company_name;
-        phoneMap[id] = dealer.phone || '';
-      }
-    });
-    setDealerNameMap(nameMap);
-    setDealerPhoneMap(phoneMap);
-    setIsCertsLoading(false);
+    try {
+      // 获取多个经销商的证书
+      const dealerIds = dealerGroup.allDealerIds;
+      const certPromises = dealerIds.map((id: string) =>
+        fetch(`/api/db/dealers/${id}/certificates`).then(r => r.json())
+      );
+      
+      const results = await Promise.allSettled(certPromises);
+      const allCerts: any[] = [];
+      
+      results.forEach((result, idx) => {
+        if (result.status === 'fulfilled' && result.value.data) {
+          allCerts.push(...result.value.data);
+        }
+      });
+      
+      // 按创建时间降序排列
+      allCerts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setDealerCerts(allCerts);
+      
+      // 构建名称和电话映射
+      const nameMap: Record<string, string> = {};
+      const phoneMap: Record<string, string> = {};
+      dealerIds.forEach((id: string) => {
+        const dealer = dealers.find(d => d.id === id);
+        if (dealer) {
+          nameMap[id] = dealer.company_name;
+          phoneMap[id] = dealer.phone || '';
+        }
+      });
+      setDealerNameMap(nameMap);
+      setDealerPhoneMap(phoneMap);
+    } catch (err) {
+      console.error('Error fetching certificates:', err);
+      setDealerCerts([]);
+    } finally {
+      setIsCertsLoading(false);
+    }
   };
 
   const resetDealerPassword = async (username: string) => {
@@ -207,10 +195,17 @@ export default function DealersPage() {
     setBanningId(dealerGroup.phone);
     try {
       // 只需 ban 该 phone 对应的 profile 一次（因为一个 phone 只有一个 profile）
+      const userStr = sessionStorage.getItem("user");
+      const adminId = userStr ? JSON.parse(userStr).id : null;
+      
       const res = await fetch('/api/admin/ban-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: dealerGroup.profile.id, action }),
+        body: JSON.stringify({ 
+          adminId, 
+          profileId: dealerGroup.profile.id, 
+          action 
+        }),
       });
       
       if (!res.ok) {

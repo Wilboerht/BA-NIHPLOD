@@ -11,6 +11,7 @@ CREATE TABLE profiles (
     password_hash TEXT,
     role user_role DEFAULT 'DEALER',
     is_first_login BOOLEAN DEFAULT TRUE,
+    is_banned BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -126,6 +127,7 @@ CREATE TABLE complaints (
     evidence_image_url TEXT, -- 证据图片路径
     status complaint_status DEFAULT 'PENDING',
     handler_id UUID REFERENCES profiles(id), -- 处理此举报的法务/审核人
+    review_note TEXT, -- 审核备注
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

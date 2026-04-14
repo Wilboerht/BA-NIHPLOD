@@ -129,23 +129,28 @@ export async function getDealerById(dealerId: string) {
 }
 
 /**
- * 获取所有经销商列表（带证书计数）
+ * 获取所有经销商列表（带证书计数和 profile_id）
  */
 export async function getAllDealers() {
   if (USE_LOCAL_DB && sql) {
-    const result = await sql`
-      SELECT d.*, COUNT(c.id) as cert_count
-      FROM dealers d
-      LEFT JOIN certificates c ON d.id = c.dealer_id
-      GROUP BY d.id
-      ORDER BY d.created_at DESC
-    `;
-    return { data: result || [], error: null };
+    try {
+      const result = await sql`
+        SELECT d.* FROM dealers d ORDER BY d.created_at DESC
+      `;
+      return { data: result || [], error: null };
+    } catch (err: any) {
+      return { data: [], error: new Error(err.message || '本地数据库查询失败') };
+    }
   } else {
-    return await supabaseAdmin
-      .from('dealers')
-      .select('*, certificates(count)')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('dealers')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return { data, error };
+    } catch (err: any) {
+      return { data: [], error: new Error(err.message || 'Supabase 查询失败') };
+    }
   }
 }
 
@@ -194,6 +199,35 @@ export async function getPendingCertificates(limit?: number) {
       .select('id, cert_number, auth_scope, start_date, end_date, status, created_at, auditor_id, dealers(company_name, phone)')
       .eq('status', 'PENDING')
       .order('created_at', { ascending: true });
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const result = await query;
+    return result;
+  }
+}
+
+/**
+ * 获取所有证书列表（用于管理面板 - 不仅限待审状态）
+ */
+export async function getAllCertificates(limit?: number) {
+  if (USE_LOCAL_DB && sql) {
+    const result = await sql`
+      SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
+      FROM certificates c
+      LEFT JOIN dealers d ON c.dealer_id = d.id
+      LEFT JOIN profiles p ON c.auditor_id = p.id
+      ORDER BY c.created_at DESC
+      ${limit ? sql`LIMIT ${limit}` : sql``}
+    `;
+    return { data: result || [], error: null };
+  } else {
+    let query = supabaseAdmin
+      .from('certificates')
+      .select('id, cert_number, auth_scope, start_date, end_date, status, created_at, auditor_id, dealers(company_name, phone)')
+      .order('created_at', { ascending: false });
     
     if (limit) {
       query = query.limit(limit);

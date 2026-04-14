@@ -37,7 +37,7 @@ export default function CertificatesPage() {
   const fetchCertificates = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/certificates');
+      const response = await fetch('/api/db/certificates?limit=100');
       const result = await response.json();
       
       if (!response.ok) throw new Error(result.error || '获取证书失败');
