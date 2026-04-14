@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
 import {
   Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
   ShieldOff, XCircle, AlertCircle, ChevronRight, User, Calendar,
@@ -68,64 +67,35 @@ export default function WorkbenchPage() {
 
     setIsLoading(true);
 
-    const [
-      { count: certCount },
-      { count: complaintCount },
-      { data: recent },
-      { count: validCount },
-    ] = await Promise.all([
-      supabase.from('certificates').select('*', { count: 'exact', head: true }),
-      supabase.from('complaints').select('*', { count: 'exact', head: true }).eq('status', 'PENDING'),
-      supabase.from('complaints').select('id, channel, description, created_at, status').eq('status', 'PENDING').order('created_at', { ascending: false }).limit(4),
-      supabase.from('certificates').select('*', { count: 'exact', head: true }).eq('status', 'ISSUED').gte('end_date', new Date().toISOString().split('T')[0]),
-    ]);
+    try {
+      // 获取统计数据
+      const statsRes = await fetch('/api/db/stats');
+      const statsData = await statsRes.json();
+      
+      // 获取最近的投诉
+      const complaintsRes = await fetch('/api/db/complaints');
+      const complaintsData = await complaintsRes.json();
+      const recentComplaints = complaintsData.data?.slice(0, 4) || [];
+      
+      // 获取待审证书
+      const pendingRes = await fetch('/api/db/certificates/pending?limit=6');
+      const pendingData = await pendingRes.json();
+      const pendingCerts = pendingData.data || [];
 
-    // 待核发审批面板 / 我的提报记录
-    let pendingList: PendingCert[] = [];
-    let pendingCount = 0;
-    
-    // 获取证书列表的逻辑
-    if (isAdmin || role === 'AUDITOR') {
-      let query = supabase
-        .from('certificates')
-        .select('id, cert_number, auth_scope, start_date, end_date, status, created_at, auditor_id, dealers(company_name, phone)', { count: 'exact' });
-
-      if (isAdmin) {
-        // 管理员：仅看待审核
-        query = query.eq('status', 'PENDING').order('created_at', { ascending: true });
-      } else {
-        // 审核员：看自己最近的提报（不限状态）
-        query = query.eq('auditor_id', userId).order('created_at', { ascending: false }).limit(6);
-      }
-
-      const { data: pd, count: pc } = await query;
-      pendingCount = pc || 0;
-
-      if (pd && pd.length > 0) {
-        // 批量获取 auditor 资料
-        const auditorIds = [...new Set(pd.map((c: any) => c.auditor_id).filter(Boolean))];
-        const { data: auditorProfiles } = auditorIds.length > 0
-          ? await supabase.from('profiles').select('id, full_name, username').in('id', auditorIds)
-          : { data: [] };
-
-        const profileMap = new Map((auditorProfiles || []).map((p: any) => [p.id, p]));
-
-        pendingList = pd.map((c: any) => ({
-          ...c,
-          auditor_profile: c.auditor_id ? profileMap.get(c.auditor_id) ?? null : null,
-        }));
-      }
+      setStats({
+        certs: statsData.data?.totalCertificates || 0,
+        validCerts: statsData.data?.issuedValid || 0,
+        pendingComplaints: statsData.data?.pendingComplaints || 0,
+        pendingCerts: pendingCerts.length,
+      });
+      
+      setRecentComplaints(recentComplaints);
+      setPendingCerts(pendingCerts);
+    } catch (err: any) {
+      console.error('Failed to load dashboard:', err);
+    } finally {
+      setIsLoading(false);
     }
-
-    setStats({
-      certs: certCount || 0,
-      validCerts: validCount || 0,
-      pendingComplaints: complaintCount || 0,
-      pendingCerts: pendingCount,
-    });
-    if (recent) setRecentComplaints(recent);
-    setPendingCerts(pendingList);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { USE_LOCAL_DB, sql, getProfileById, getDealersByProfileId } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req: Request) {
   try {
@@ -10,91 +11,85 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    // 使用 service role key（完全绕过 RLS）从服务器端查询
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    // 获取用户 profile 信息
+    const { data: profile, error: profileError } = await getProfileById(userId);
 
-    console.log("[Dealer Certificates API] Querying for userId:", userId);
-
-    // 首先从 profiles 表获取用户的 phone
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("phone")
-      .eq("id", userId)
-      .single();
-
-    console.log("[Dealer Certificates API] Profile result:", {
-      phone: profile?.phone,
-      error: profileError,
-    });
-
-    if (profileError || !profile?.phone) {
+    if (profileError || !profile) {
+      console.error("[Dealer Certificates API] Profile fetch failed:", profileError);
       return NextResponse.json(
-        { error: "User profile not found or has no phone" },
-        { status: 400 }
+        { error: "User profile not found" },
+        { status: 404 }
       );
     }
 
-    // 1. 根据 phone 获取该用户关联的所有 dealers
-    const { data: dealers, error: dealersError } = await supabaseAdmin
-      .from("dealers")
-      .select("id, phone, company_name")
-      .eq("phone", profile.phone);
+    // 获取用户关联的 dealers
+    const { data: dealers, error: dealersError } = await getDealersByProfileId(userId);
 
-    console.log("[Dealer Certificates API] Dealers result:", {
-      dealersCount: dealers?.length,
-      error: dealersError,
-    });
-
-    if (dealersError) {
-      return NextResponse.json(
-        { error: "Failed to fetch dealers" },
-        { status: 500 }
-      );
-    }
-
-    if (!dealers || dealers.length === 0) {
+    if (dealersError || !dealers || dealers.length === 0) {
       console.log("[Dealer Certificates API] No dealers found for userId:", userId);
-      return NextResponse.json({ certificates: [] });
+      return NextResponse.json({ certificates: [], dealers: [] });
     }
 
-    // 2. 获取所有这些 dealers 的证书
-    const dealerIds = dealers.map((d) => d.id);
-    console.log("[Dealer Certificates API] Query dealer IDs:", dealerIds);
+    // 获取所有这些 dealers 的证书
+    if (USE_LOCAL_DB && sql) {
+      try {
+        const dealerIds = dealers.map((d: any) => d.id);
+        const certs = await sql`
+          SELECT * FROM certificates
+          WHERE dealer_id = ANY(${dealerIds}::uuid[])
+            AND status = 'ISSUED'
+          ORDER BY created_at DESC
+        `;
 
-    const { data: certs, error: certsError } = await supabaseAdmin
-      .from("certificates")
-      .select("id, cert_number, start_date, end_date, status, final_image_url, auth_scope, dealers(*), templates(*)")
-      .in("dealer_id", dealerIds)
-      .eq("status", "ISSUED")
-      .order("created_at", { ascending: false });
+        console.log("[Dealer Certificates API] 本地数据库: 获取证书", {
+          dealerCount: dealers.length,
+          certCount: certs.length
+        });
 
-    console.log("[Dealer Certificates API] Certificates result:", {
-      certsCount: certs?.length,
-      error: certsError,
-    });
+        return NextResponse.json({
+          certificates: certs || [],
+          dealers: dealers
+        });
+      } catch (err: any) {
+        console.error("[Dealer Certificates API] 本地数据库查询失败:", err);
+        return NextResponse.json(
+          { error: "Failed to fetch certificates: " + err.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      try {
+        const dealerIds = dealers.map((d: any) => d.id);
+        const { data: certs, error: certsError } = await supabaseAdmin
+          .from("certificates")
+          .select("*")
+          .in("dealer_id", dealerIds)
+          .eq("status", "ISSUED")
+          .order("created_at", { ascending: false });
 
-    if (certsError) {
-      return NextResponse.json(
-        { error: "Failed to fetch certificates" },
-        { status: 500 }
-      );
+        if (certsError) {
+          throw certsError;
+        }
+
+        console.log("[Dealer Certificates API] Supabase: 获取证书", {
+          dealerCount: dealers.length,
+          certCount: certs?.length
+        });
+
+        return NextResponse.json({
+          certificates: certs || [],
+          dealers: dealers
+        });
+      } catch (err: any) {
+        console.error("[Dealer Certificates API] Supabase 查询失败:", err);
+        return NextResponse.json(
+          { error: "Failed to fetch certificates: " + err.message },
+          { status: 500 }
+        );
+      }
     }
-
-    return NextResponse.json({
-      certificates: certs || [],
-      dealers: dealers,
-    });
   } catch (err: any) {
-    console.error("[Dealer Certificates API] Error:", err);
+    console.error("[Dealer Certificates API] API 错误:", err);
     return NextResponse.json(
       { error: err.message || "Internal server error" },
       { status: 500 }

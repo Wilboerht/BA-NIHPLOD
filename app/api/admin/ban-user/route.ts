@@ -1,103 +1,82 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-function makeAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
-}
-
-/**
- * 权限检查：确保仅管理员可以封禁用户
- */
-async function checkIsAdmin(adminId: string): Promise<boolean> {
-  try {
-    const supabaseAdmin = makeAdmin();
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', adminId)
-      .single();
-
-    return !!(profile && ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(profile.role));
-  } catch (error) {
-    return false;
-  }
-}
-
-/**
- * GET /api/admin/ban-user?userId=xxx&adminId=xxx
- * 查询指定用户的封禁状态（仅管理员可调用）
- */
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
-    const adminId = searchParams.get("adminId");
-
-    if (!userId || !adminId) return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
-
-    // 权限检查
-    if (!(await checkIsAdmin(adminId))) {
-      return NextResponse.json(
-        { error: "无权限查询用户封禁状态" },
-        { status: 403 }
-      );
-    }
-
-    const supabaseAdmin = makeAdmin();
-    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (error) throw error;
-
-    const isBanned = data.user.banned_until
-      ? new Date(data.user.banned_until) > new Date()
-      : false;
-
-    return NextResponse.json({ isBanned, banned_until: data.user.banned_until });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
+import { checkIsAdmin, USE_LOCAL_DB, sql } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
  * POST /api/admin/ban-user
- * Body: { userId: string, action: "ban" | "unban", adminId: string }
+ * Body: { adminId: string, profileId: string, action?: "ban" | "unban" }
  * 封禁或解封指定用户（仅管理员可调用）
  */
 export async function POST(req: Request) {
   try {
-    const { userId, action, adminId } = await req.json();
+    const { adminId, profileId, action = "ban" } = await req.json();
 
-    if (!userId || !["ban", "unban"].includes(action) || !adminId) {
-      return NextResponse.json({ error: "参数无效" }, { status: 400 });
+    if (!adminId || !profileId || !["ban", "unban"].includes(action)) {
+      return NextResponse.json(
+        { error: "参数无效: 需要 adminId, profileId, action" },
+        { status: 400 }
+      );
     }
 
-    // 权限检查
-    if (!(await checkIsAdmin(adminId))) {
+    // 权限检查：确保是管理员
+    const isAdmin = await checkIsAdmin(adminId);
+    if (!isAdmin) {
       return NextResponse.json(
         { error: "无权限执行此操作" },
         { status: 403 }
       );
     }
 
-    const supabaseAdmin = makeAdmin();
+    // 执行封禁/解封操作
+    if (USE_LOCAL_DB && sql) {
+      try {
+        const isBanned = action === "ban";
+        await sql`UPDATE profiles SET is_banned = ${isBanned} WHERE id = ${profileId}`;
+        console.log(`[ban-user] 本地数据库: ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
+        return NextResponse.json({
+          success: true,
+          action,
+          profileId
+        });
+      } catch (err: any) {
+        console.error("[ban-user] 本地数据库操作失败:", err);
+        return NextResponse.json(
+          { error: `操作失败: ${err.message}` },
+          { status: 500 }
+        );
+      }
+    } else {
+      try {
+        const banned_until = action === "ban"
+          ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString()
+          : null;
 
-    // ban: 设置为 100 年后过期（永久封禁）; unban: 清空 banned_until
-    const banned_until = action === "ban"
-      ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString()
-      : "none"; // Supabase 用 "none" 字符串来清除封禁
+        const { error } = await supabaseAdmin
+          .from('profiles')
+          .update({ is_banned: action === "ban" })
+          .eq('id', profileId);
 
-    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      ban_duration: action === "ban" ? "876000h" : "none",
-    });
+        if (error) throw error;
 
-    if (error) throw error;
-
-    return NextResponse.json({ success: true, isBanned: action === "ban" });
+        console.log(`[ban-user] Supabase: ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
+        return NextResponse.json({
+          success: true,
+          action,
+          profileId
+        });
+      } catch (err: any) {
+        console.error("[ban-user] Supabase 操作失败:", err);
+        return NextResponse.json(
+          { error: `操作失败: ${err.message}` },
+          { status: 500 }
+        );
+      }
+    }
   } catch (err: any) {
-    console.error("[ban-user]", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[ban-user] API 错误:", err);
+    return NextResponse.json(
+      { error: "系统错误: " + err.message },
+      { status: 500 }
+    );
   }
 }

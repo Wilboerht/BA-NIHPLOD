@@ -6,7 +6,6 @@ import {
   Search, UserPlus, UserCog, Key, Trash2, Info,
   ChevronDown, X, Eye, EyeOff, ShieldCheck, Loader2, CheckCircle2, Plus
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 const ROLE_OPTIONS = [
   {
@@ -69,31 +68,12 @@ export default function AdminsManagementPage() {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
         
-        // 查询当前用户在 profiles 表中的完整信息（确保权限实时生效）
-        // 这里基于 phone 或 id 查询，建议用 id 更稳健
-        const searchKey = user.id ? "id" : "phone";
-        const searchValue = user.id || user.phone;
-
-        if (searchValue) {
-          const { data: currentProfile, error: profileErr } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq(searchKey, searchValue)
-            .single();
-        
-          if (currentProfile) {
-            // 如果查出来的角色是 DEALER，说明没有权限访问管理后台
-            if (currentProfile.role === 'DEALER') {
-              alert("权限不足：您的账号非管理人员，请重新登录。");
-              sessionStorage.clear();
-              window.location.href = "/login";
-              return;
-            }
-            // 将最新的实时的 profile 信息同步到 currentUser 状态中
-            setCurrentUser((prev: any) => ({ ...prev, ...currentProfile, profileId: currentProfile.id }));
-          } else if (profileErr) {
-            console.error("Profile check failed:", profileErr);
-          }
+        // 如果用户角色是 DEALER，说明没有权限访问管理后台
+        if (user.role === 'DEALER') {
+          alert("权限不足：您的账号非管理人员，请重新登录。");
+          sessionStorage.clear();
+          window.location.href = "/login";
+          return;
         }
       } catch (e) {
         console.error("Session parse error:", e);
@@ -105,14 +85,20 @@ export default function AdminsManagementPage() {
     }
 
     // 获取所有管理员列表
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .neq("role", "DEALER")
-      .order("role", { ascending: true });
-
-    if (!error && data) setUsers(data);
-    setIsLoading(false);
+    try {
+      const res = await fetch('/api/admin/list');
+      const result = await res.json();
+      
+      if (res.ok && result.data) {
+        setUsers(result.data);
+      } else {
+        console.error('Failed to fetch admin list:', result.error);
+      }
+    } catch (err: any) {
+      console.error('Fetch admin list error:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const openCreate = () => {
@@ -157,9 +143,22 @@ export default function AdminsManagementPage() {
   };
 
   const updateUserRole = async (userId: string, newRole: string) => {
-    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId);
-    if (!error) fetchData();
-    else alert("更新失败: " + error.message);
+    try {
+      const res = await fetch('/api/admin/update-user-role', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, newRole })
+      });
+
+      if (res.ok) {
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert("更新失败: " + (data.error || "未知错误"));
+      }
+    } catch (err: any) {
+      alert("更新出错: " + err.message);
+    }
   };
 
   const deleteUser = async (id: string, name: string) => {

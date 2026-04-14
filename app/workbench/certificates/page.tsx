@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
 
 export default function CertificatesPage() {
@@ -37,15 +36,19 @@ export default function CertificatesPage() {
 
   const fetchCertificates = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('certificates')
-      .select('*, dealers(company_name, phone), templates(stamp_url), seal_url')
-      .order('created_at', { ascending: false });
+    try {
+      const response = await fetch('/api/certificates');
+      const result = await response.json();
       
-    if (!error && data) {
-      setCertificates(data);
+      if (!response.ok) throw new Error(result.error || '获取证书失败');
+      
+      setCertificates(result.data || []);
+    } catch (err: any) {
+      console.error('Failed to fetch certificates:', err);
+      setCertificates([]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const revokeCertificate = async (id: string, currentStatus: string) => {

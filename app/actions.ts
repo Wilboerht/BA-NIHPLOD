@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from '@supabase/supabase-js';
+import { USE_LOCAL_DB, sql } from '@/lib/db';
 
 // Create a service-role client strictly for server actions to bypass RLS
 // ensuring we can retrieve revoked/expired certificates for granular error reporting.
@@ -122,20 +123,36 @@ export async function submitComplaintAction(formData: {
   evidence_image_url?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from('complaints')
-      .insert({
-        description: formData.description,
-        channel: formData.channel,
-        evidence_image_url: formData.evidence_image_url,
-        status: 'PENDING',
-        created_at: new Date().toISOString()
-      });
+    // 使用本地数据库支持
+    if (USE_LOCAL_DB && sql) {
+      try {
+        await sql`
+          INSERT INTO complaints (description, channel, evidence_image_url, status, created_at)
+          VALUES (${formData.description}, ${formData.channel}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
+        `;
+        console.log('[submitComplaintAction] 本地数据库: 投诉已提交');
+        return { success: true };
+      } catch (err: any) {
+        console.error("[submitComplaintAction] 本地数据库插入失败:", err);
+        throw err;
+      }
+    } else {
+      const { error } = await supabaseAdmin
+        .from('complaints')
+        .insert({
+          description: formData.description,
+          channel: formData.channel,
+          evidence_image_url: formData.evidence_image_url,
+          status: 'PENDING',
+          created_at: new Date().toISOString()
+        });
 
-    if (error) throw error;
-    return { success: true };
+      if (error) throw error;
+      console.log('[submitComplaintAction] Supabase: 投诉已提交');
+      return { success: true };
+    }
   } catch (err: any) {
-    console.error("Failed to submit complaint:", err);
+    console.error("[submitComplaintAction] 投诉提交失败:", err);
     return { success: false, error: err.message || "提交失败" };
   }
 }

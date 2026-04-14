@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 export default function ComplaintsPage() {
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -20,26 +19,39 @@ export default function ComplaintsPage() {
 
   const fetchComplaints = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('complaints')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (!error && data) {
-      setComplaints(data);
+    try {
+      const response = await fetch('/api/db/complaints');
+      if (response.ok) {
+        const result = await response.json();
+        setComplaints(result.data || []);
+      } else {
+        console.error('Failed to fetch complaints:', response.status);
+      }
+    } catch (err) {
+      console.error('Error fetching complaints:', err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!activeReviewId) return;
-    const { error } = await supabase.from('complaints').update({ status: newStatus }).eq('id', activeReviewId);
-    if (!error) {
-       alert("工单状态已更新！");
-       setActiveReviewId(null);
-       fetchComplaints();
-    } else {
-       alert("更新失败：" + error.message);
+    try {
+      const response = await fetch(`/api/db/complaints/${activeReviewId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, review_note: reviewNote })
+      });
+      if (response.ok) {
+        alert("工单状态已更新！");
+        setActiveReviewId(null);
+        setReviewNote("");
+        fetchComplaints();
+      } else {
+        alert("更新失败");
+      }
+    } catch (err: any) {
+      alert("更新失败：" + err.message);
     }
   };
 
