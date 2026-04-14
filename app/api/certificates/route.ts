@@ -1,140 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { uploadFile, getPublicUrl } from '@/lib/storage';
 
 /**
- * 🔑 证书管理 API - 关键设计决策文档
- * 
- * 问题背景：
- * 同一经销商可能用多个门店名称，但对应唯一的手机号和账户
- * 示例：
- *   - dealer1: 名字="用来测试的门店", phone="11111111111"
- *   - dealer2: 名字="dsfsffsfdsfdsfsa", phone="11111111111"
- *   - 这两个是同一个账户，应该共用 profile
- * 
- * 解决方案：
- * ✅ Profile 关联规则：按手机号（username）进行关联
- *   - profiles.username = dealers.phone (关键！)
- *   - profiles.full_name = 当前的经销商名称（会变化）
- *   
- * ❌ 已废弃规则：
- *   - profiles.full_name ↔ dealers.company_name (导致同手机号显示多个状态)
- * 
- * 应用场景：
- * 1. [经销商主页] /workbench/dealers
- *    - 按 phone 分组经销商
- *    - 用 profiles.username 查询对应 profile
- *    - 结果：同 phone 的所有门店都显示为同一账户状态
- * 
- * 2. [证书审核] PUT /api/certificates
- *    - 创建 profile 时：username = phone（关键）
- *    - full_name = 当前提交的经销商名称
- *    - 已存在时：仅更新密码，保留原有 is_first_login 状态
- * 
- * 3. [登录验证] /api/auth/login
- *    - 用户输入：username（手机号）
- *    - 查询：SELECT ... WHERE username = ?
- *    - 自动解决：同手机号登录后自动访问对应账户
+ * 证书管理 API - 已移除图片上传功能
+ * 图片由前端用户实时生成，不进行持久化存储
  */
-
-/**
- * 辅助函数：将 Data URL 转换为 Blob
- */
-function dataUrlToBlob(dataUrl: string): Blob {
-  const parts = dataUrl.split(',');
-  const bstr = atob(parts[1]);
-  const n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    u8arr[i] = bstr.charCodeAt(i);
-  }
-  return new Blob([u8arr], { type: 'image/png' });
-}
-
-/**
- * 辅助函数：上传证书图片到 Supabase Storage
- */
-async function uploadCertificateImage(
-  supabaseAdmin: any,
-  certNumber: string,
-  imageDataUrl: string
-): Promise<string> {
-  try {
-    if (!imageDataUrl || !imageDataUrl.startsWith('data:')) {
-      throw new Error('无效的证书图片数据：图片未正确生成或数据格式错误');
-    }
-
-    const blob = dataUrlToBlob(imageDataUrl);
-    const fileName = `certificates/${certNumber}-${Date.now()}.png`;
-    const buffer = await blob.arrayBuffer();
-    
-    // 使用双擎适配器
-    const { path, error } = await uploadFile(
-      'certificates',
-      fileName,
-      buffer,
-      'image/png'
-    );
-
-    if (error) {
-      throw new Error(`证书图片上传失败: ${error}`);
-    }
-
-    // 生成公开 URL
-    const publicUrl = getPublicUrl('certificates', path);
-    if (!publicUrl) {
-      throw new Error('证书图片上传成功但无法生成公开链接');
-    }
-
-    return publicUrl;
-  } catch (err: any) {
-    throw new Error(`证书图片上传失败: ${err.message || '未知错误'}`);
-  }
-}
-
-/**
- * 辅助函数：上传印章图片到 Supabase Storage
- * 用于存储用户上传的自定义印章，与证书图片分开管理
- */
-async function uploadSealImage(
-  supabaseAdmin: any,
-  certNumber: string,
-  sealImageDataUrl: string
-): Promise<string> {
-  try {
-    if (!sealImageDataUrl) {
-      return ''; // 无印章数据
-    }
-
-    // 如果是 Data URL（用户上传的自定义印章），上传到 Storage
-    if (sealImageDataUrl.startsWith('data:')) {
-      const blob = dataUrlToBlob(sealImageDataUrl);
-      const fileName = `seals/${certNumber}-${Date.now()}.png`;
-      const buffer = await blob.arrayBuffer();
-      
-      const { path, error } = await uploadFile(
-        'certificates', // 存放在同一个桶的不同目录下
-        fileName,
-        buffer,
-        'image/png'
-      );
-
-      if (error) {
-        console.warn('Failed to upload seal image:', error);
-        return ''; // 失败时返回空，会降级到模板默认印章
-      }
-
-      return getPublicUrl('certificates', path);
-    } else {
-      // 如果已经是 URL（模板中的默认印章），直接返回
-      return sealImageDataUrl;
-    }
-  } catch (err) {
-    console.warn('Seal image upload error:', err);
-    return '';
-  }
-}
 
 export async function POST(req: Request) {
   try {
@@ -196,18 +67,6 @@ export async function POST(req: Request) {
       }
 
       const certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        
-        // 可选上传证书图片（用户可能已在生成器中生成）
-        let finalImageUrl = '';
-        if (certData?.certImageDataUrl) {
-          try {
-            finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
-          } catch (uploadErr: any) {
-            console.warn('证书图片上传失败，但继续提报:', uploadErr.message);
-            // 待审核阶段允许没有图片，审核时再补充
-            finalImageUrl = '';
-          }
-        }
 
         const { data: cert, error: certErr } = await supabaseAdmin.from('certificates').insert({
           cert_number: certNumber,
@@ -216,7 +75,7 @@ export async function POST(req: Request) {
           start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
           end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
           status: 'PENDING', // 待审核
-          final_image_url: finalImageUrl, // 可选，可为空
+          final_image_url: null, // 不保存图片
           auditor_id: managerId, // 提报人作为初审人
           manager_id: null
         }).select().single();
@@ -268,19 +127,6 @@ export async function POST(req: Request) {
         }
 
         certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        
-        // 可选：如果管理员直发时已生成图片，则上传；否则留空给经销商后续生成
-        let finalImageUrl = '';
-        if (certData.certImageDataUrl) {
-          try {
-            finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
-            if (!finalImageUrl) {
-              console.warn('证书图片上传失败，但继续核发（经销商可后续生成）');
-            }
-          } catch (uploadErr: any) {
-            console.warn('证书图片上传失败，但继续核发（经销商可后续生成）:', uploadErr.message);
-          }
-        }
 
         const { data: newCert, error: certErr } = await supabaseAdmin.from('certificates').insert({
             cert_number: certNumber,
@@ -289,8 +135,8 @@ export async function POST(req: Request) {
             start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
             end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
             status: 'ISSUED', 
-            final_image_url: finalImageUrl,  // 可为空，经销商下载时生成
-            seal_url: '',  // 不使用自定义签章，仅使用默认公章
+            final_image_url: null,  // 不保存图片，用户在线生成
+            seal_url: null,
             manager_id: managerId
         }).select('*, dealers(*)').single();
 
@@ -300,28 +146,7 @@ export async function POST(req: Request) {
         throw new Error("缺少核发数据");
       }
 
-      // 可选：如果在审核时要求上传图片，则上传；否则留空给经销商后续生成
-      if (certId && certData?.certImageDataUrl) {
-        try {
-          const finalImageUrl = await uploadCertificateImage(supabaseAdmin, certNumber, certData.certImageDataUrl);
-          
-          if (finalImageUrl) {
-            const { error: updateImgErr } = await supabaseAdmin
-              .from('certificates')
-              .update({ 
-                final_image_url: finalImageUrl,
-                seal_url: ''  // 不使用自定义签章，仅使用默认公章
-              })
-              .eq('id', certId);
-
-            if (updateImgErr) {
-              console.warn('更新证书图片信息失败，但继续核发:', updateImgErr.message);
-            }
-          }
-        } catch (uploadErr: any) {
-          console.warn('证书图片上传失败，但继续核发（经销商可后续生成）:', uploadErr.message);
-        }
-      }
+      // 图片由用户实时生成，不保存
       // 注：如果没有提供certImageDataUrl，final_image_url保持为NULL，
       // 经销商下载时会自动打开生成器进行生成
 
@@ -444,15 +269,7 @@ export async function POST(req: Request) {
       
       if (dealerUpdErr) throw dealerUpdErr;
 
-      // 3. 重新生成并上传证书大图
-      let finalImageUrl = oldCert.final_image_url;
-      if (certData.certImageDataUrl) {
-         try {
-           finalImageUrl = await uploadCertificateImage(supabaseAdmin, oldCert.cert_number, certData.certImageDataUrl);
-         } catch (uploadErr: any) {
-           console.warn('证书图片更新上传失败:', uploadErr.message);
-         }
-      }
+      // 3. 图片由用户实时生成，不保存更新
 
       // 4. 更新证书核心字段
       const { error: updateCertErr } = await supabaseAdmin
@@ -461,7 +278,6 @@ export async function POST(req: Request) {
           auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || "旎柏（上海）商贸有限公司"),
           start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
           end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
-          final_image_url: finalImageUrl,
           manager_id: managerId // 记录最后一个修改的人
         })
         .eq('id', certId);
