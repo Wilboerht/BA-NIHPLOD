@@ -207,18 +207,8 @@ export default function VerifyPageContent() {
                 </p>
               </div>
 
-              {/* 下载证书 */}
-              <div className="pt-6 border-t border-slate-200">
-                {certificate.final_image_url && (
-                  <button
-                    onClick={() => downloadCertificate(certificate.final_image_url || "", certificate.cert_number)}
-                    className="w-full bg-slate-900 text-white h-12 rounded-lg hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center gap-2 font-medium"
-                  >
-                    <Download className="w-4 h-4" />
-                    下载防伪证书
-                  </button>
-                )}
-              </div>
+              {/* 下载证书 - 已禁用（仅内部使用） */}
+              {/* 公众验证页面不提供下载功能，防止伪造 */}
 
               {/* 验证时间 */}
               <div className="text-center pt-6 border-t border-slate-200">
