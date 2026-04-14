@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, Lock, Download, LogOut, ChevronDown } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 interface Certificate {
   id: string;
@@ -58,40 +57,34 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
 
       console.log('Fetching certificates for user:', user.id);
 
-      // 通过 profile_id 查询 dealers 表，然后获取相关证书
-      const { data: dealers, error: dealerError } = await supabase
-        .from('dealers')
-        .select('id')
-        .eq('profile_id', user.id)
-        .single();
-
-      if (dealerError) {
-        console.error('Failed to fetch dealer:', dealerError);
+      // 第一步：通过 API 获取 profile 关联的 dealers
+      const dealersRes = await fetch(`/api/db/profiles/${user.id}/dealers`);
+      if (!dealersRes.ok) {
+        console.error('Failed to fetch dealers');
         setIsLoading(false);
         return;
       }
 
-      if (!dealers) {
+      const dealersData = await dealersRes.json();
+      const dealers = dealersData.data || [];
+      
+      if (!dealers.length) {
         console.warn('No dealer found for user:', user.id);
         setIsLoading(false);
         return;
       }
 
-      const { data: certs, error: certError } = await supabase
-        .from('certificates')
-        .select('id, cert_number, status, start_date, end_date, auth_scope')
-        .eq('dealer_id', dealers.id)
-        .order('created_at', { ascending: false });
-
-      if (certError) {
-        console.error('Failed to fetch certificates:', certError);
+      // 第二步：获取第一个经销商的证书
+      const dealerId = dealers[0].id;
+      const certsRes = await fetch(`/api/db/dealers/${dealerId}/certificates`);
+      if (!certsRes.ok) {
+        console.error('Failed to fetch certificates');
         setIsLoading(false);
         return;
       }
 
-      if (certs) {
-        setCertificates(certs);
-      }
+      const certsData = await certsRes.json();
+      setCertificates(certsData.data || []);
     } catch (err) {
       console.error('Error fetching certificates:', err);
     } finally {

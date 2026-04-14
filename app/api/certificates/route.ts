@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { uploadFile, getPublicUrl } from '@/lib/storage';
 
 /**
  * 🔑 证书管理 API - 关键设计决策文档
@@ -66,24 +67,22 @@ async function uploadCertificateImage(
 
     const blob = dataUrlToBlob(imageDataUrl);
     const fileName = `certificates/${certNumber}-${Date.now()}.png`;
+    const buffer = await blob.arrayBuffer();
     
-    const { data, error } = await supabaseAdmin.storage
-      .from('certificates')
-      .upload(fileName, blob, {
-        contentType: 'image/png',
-        upsert: false
-      });
+    // 使用双擎适配器
+    const { path, error } = await uploadFile(
+      'certificates',
+      fileName,
+      buffer,
+      'image/png'
+    );
 
     if (error) {
-      throw new Error(`证书图片上传失败: ${error.message || error}`);
+      throw new Error(`证书图片上传失败: ${error}`);
     }
 
     // 生成公开 URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from('certificates')
-      .getPublicUrl(fileName);
-
-    const publicUrl = urlData?.publicUrl;
+    const publicUrl = getPublicUrl('certificates', path);
     if (!publicUrl) {
       throw new Error('证书图片上传成功但无法生成公开链接');
     }
@@ -112,24 +111,21 @@ async function uploadSealImage(
     if (sealImageDataUrl.startsWith('data:')) {
       const blob = dataUrlToBlob(sealImageDataUrl);
       const fileName = `seals/${certNumber}-${Date.now()}.png`;
+      const buffer = await blob.arrayBuffer();
       
-      const { data, error } = await supabaseAdmin.storage
-        .from('certificates')
-        .upload(fileName, blob, {
-          contentType: 'image/png',
-          upsert: false
-        });
+      const { path, error } = await uploadFile(
+        'certificates', // 存放在同一个桶的不同目录下
+        fileName,
+        buffer,
+        'image/png'
+      );
 
       if (error) {
         console.warn('Failed to upload seal image:', error);
         return ''; // 失败时返回空，会降级到模板默认印章
       }
 
-      const { data: urlData } = supabaseAdmin.storage
-        .from('certificates')
-        .getPublicUrl(fileName);
-
-      return urlData?.publicUrl || '';
+      return getPublicUrl('certificates', path);
     } else {
       // 如果已经是 URL（模板中的默认印章），直接返回
       return sealImageDataUrl;

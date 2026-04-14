@@ -1,13 +1,10 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, Key, FileText, ShieldCheck, XCircle, RefreshCw,
-  Building2, Ban, ShieldOff, Loader2, Edit
+  Search, FileText, ShieldCheck, XCircle, Loader2, Building2, Ban
 } from "lucide-react";
-import CertificateGenerator from "@/components/certificate/CertificateGenerator";
-import { supabase } from "@/lib/supabase";
 
 interface Dealer {
   id: string;
@@ -15,15 +12,6 @@ interface Dealer {
   phone: string;
   email: string;
   created_at: string;
-  certificates: { count: number }[];
-  profile?: {
-    id: string;
-    username: string;
-    full_name: string;
-    role: string;
-    is_first_login: boolean;
-  };
-  isBanned?: boolean;
 }
 
 export default function DealersPage() {
@@ -33,94 +21,78 @@ export default function DealersPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [dealerCerts, setDealerCerts] = useState<any[]>([]);
-  const [dealerNameMap, setDealerNameMap] = useState<Record<string, string>>({}); // dealer_id -> company_name
-  const [dealerPhoneMap, setDealerPhoneMap] = useState<Record<string, string>>({}); // dealer_id -> phone
   const [isCertsLoading, setIsCertsLoading] = useState(false);
-  const [viewCertData, setViewCertData] = useState<any>(null);
-  const [isViewVoided, setIsViewVoided] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [banningId, setBanningId] = useState<string | null>(null); // 正在执行 API 的 dealer.id
-  const [confirmBanId, setConfirmBanId] = useState<string | null>(null); // 待二次确认的 dealer.id
+  const [banningId, setBanningId] = useState<string | null>(null);
 
   const fetchUserRole = useCallback(async () => {
     try {
-      // 从 sessionStorage 获取用户信息
-      const userStr = sessionStorage.getItem('user');
+      const userStr = sessionStorage.getItem("user");
       if (userStr) {
         const user = JSON.parse(userStr);
         setUserRole(user.role ?? null);
       }
     } catch (err) {
-      console.warn("Failed to get user role from sessionStorage:", err);
+      console.warn("Failed to get user role:", err);
     }
   }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-
-    const { data, error } = await supabase
-      .from('dealers')
-      .select('*, certificates(count)')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      /**
-       * 🔑 关键设计决策：经销商账户关联规则
-       * 
-       * ✅ 正确做法（按手机号关联）：
-       * - dealers.phone ↔ profiles.username 进行关联
-       * - 同一手机号下的所有经销商共用一个账户
-       * - 示例：
-       *   - dealer1: 名字="用来测试的门店", phone="11111111111"
-       *   - dealer2: 名字="dsfsffsfdsfdsfsa", phone="11111111111"
-       *   - 都关联到 profile { username: "11111111111" }
-       * 
-       * ❌ 错误做法（已弃用）：
-       * - 不要按 dealers.company_name ↔ profiles.full_name 关联
-       * - 这样会导致同一手机号的不同门店显示为 "待开启"
-       * 
-       * 相关文件：
-       * - app/api/certificates/route.ts (profile 创建处也要按 username 查询)
-       */
-      // 改为按手机号关联 profile（同一手机号为同一账户）
-      const dealerPhones = [...new Set(data.map(d => d.phone))]; // 去重手机号
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('username', dealerPhones)
-        .eq('role', 'DEALER');
-
-      // 批量查询封禁状态（仅有 profile 即有 auth 账号的经销商才需要）
-      const profilesWithId = (profiles || []).filter(p => p.id);
-      let bannedSet = new Set<string>(); // 存放 profile.id（= auth user_id）
-
-      if (profilesWithId.length > 0) {
-        // 并发查询各账户的封禁状态
-        const banResults = await Promise.allSettled(
-          profilesWithId.map(p =>
-            fetch(`/api/admin/ban-user?userId=${p.id}`).then(r => r.json()).then(j => ({ id: p.id, isBanned: j.isBanned }))
-          )
-        );
-        banResults.forEach(res => {
-          if (res.status === 'fulfilled' && res.value.isBanned) {
-            bannedSet.add(res.value.id);
-          }
-        });
+    try {
+      const response = await fetch("/api/db/dealers");
+      if (!response.ok) throw new Error("获取经销商列表失败");
+      const result = await response.json();
+      if (Array.isArray(result.data)) {
+        setDealers(result.data);
       }
-
-      const enriched: Dealer[] = data.map(d => {
-        // 按手机号匹配对应的 profile
-        const profile = profiles?.find(p => p.username === d.phone);
-        return {
-          ...d,
-          profile,
-          isBanned: profile ? bannedSet.has(profile.id) : false,
-        };
-      });
-
-      setDealers(enriched);
+    } catch (err) {
+      console.error("Error fetching dealers:", err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  }, []);
+
+  const fetchDealerCerts = useCallback(async (dealer: Dealer) => {
+    if (!dealer?.id) return;
+    setIsCertsLoading(true);
+    setSelectedDealer(dealer);
+    try {
+      const response = await fetch(`/api/db/dealers/${ dealer.id }/certificates`);
+      if (!response.ok) throw new Error("获取证书失败");
+      const result = await response.json();
+      setDealerCerts(result.data || []);
+    } catch (err) {
+      console.error("Error fetching certificates:", err);
+      setDealerCerts([]);
+    } finally {
+      setIsCertsLoading(false);
+    }
+  }, []);
+
+  const handleBan = useCallback(async (dealer: Dealer) => {
+    if (!dealer?.id) return;
+    if (!window.confirm(`确定要封禁 [${ dealer.company_name }] 吗？`)) return;
+
+    setBanningId(dealer.id);
+    try {
+      const userStr = sessionStorage.getItem("user");
+      const adminId = userStr ? JSON.parse(userStr).id : null;
+      const response = await fetch("/api/admin/ban-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId, profileId: dealer.id })
+      });
+      if (response.ok) {
+        setDealers(prev => prev.filter(d => d.id !== dealer.id));
+      } else {
+        alert("操作失败");
+      }
+    } catch (err) {
+      console.error("Error banning dealer:", err);
+      alert("操作失败");
+    } finally {
+      setBanningId(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -128,432 +100,166 @@ export default function DealersPage() {
     fetchData();
   }, [fetchUserRole, fetchData]);
 
-  const filteredDealers = dealers.filter(d =>
-    d.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.phone || "").toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDealers = useMemo(
+    () => dealers.filter(d =>
+      d.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.phone || "").toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [dealers, searchQuery]
   );
 
-  // 按 phone 分组，合并同 phone 的 dealers
-  const groupedByPhone = useCallback(() => {
-    const phoneMap = new Map<string, Dealer[]>();
-    
-    filteredDealers.forEach(dealer => {
-      const phone = dealer.phone || 'unknown';
-      if (!phoneMap.has(phone)) {
-        phoneMap.set(phone, []);
-      }
-      phoneMap.get(phone)!.push(dealer);
-    });
-
-    return Array.from(phoneMap.values()).map(dealerGroup => {
-      const allDealer = dealerGroup[0]; // 用第一个作为代表
-      const allNames = [...new Set(dealerGroup.map(d => d.company_name))]; // 去重
-      const allDealerIds = dealerGroup.map(d => d.id);
-      const totalCerts = dealerGroup.reduce((sum, d) => sum + (d.certificates?.[0]?.count || 0), 0);
-      
-      return {
-        ...allDealer,
-        allNames,
-        allDealerIds,
-        totalCerts
-      };
-    });
-  }, [filteredDealers]);
-
-  const fetchDealerCerts = async (dealerGroup: any) => {
-    if (!dealerGroup) return;
-    setIsCertsLoading(true);
-    setSelectedDealer(dealerGroup);
-    
-    const { data } = await supabase
-      .from('certificates')
-      .select('*, templates(stamp_url), seal_url')
-      .in('dealer_id', dealerGroup.allDealerIds)
-      .order('created_at', { ascending: false });
-    
-    setDealerCerts(data || []);
-    
-    const nameMap: Record<string, string> = {};
-    const phoneMap: Record<string, string> = {};
-    dealerGroup.allDealerIds.forEach((id: string) => {
-      const dealer = dealers.find(d => d.id === id);
-      if (dealer) {
-        nameMap[id] = dealer.company_name;
-        phoneMap[id] = dealer.phone || '';
-      }
-    });
-    setDealerNameMap(nameMap);
-    setDealerPhoneMap(phoneMap);
-    setIsCertsLoading(false);
-  };
-
-  const resetDealerPassword = async (username: string) => {
-    if (!username) return;
-    if (!window.confirm(`确定要重置经销商账号 [${username}] 的密码吗？\n重置后密码将恢复为该账号名称。`)) return;
-    alert("重置指令已发送（当前建议通过管理员 API 实现）");
-  };
-
-  // 第一次点击：进入待确认状态
-  const triggerBanConfirm = (dealerGroup: any) => {
-    if (!dealerGroup.profile?.id) return;
-    setConfirmBanId(dealerGroup.phone);
-  };
-
-  // 第二次点击：执行封禁/解封 (应用于该 phone 的所有 dealer)
-  const executeBan = async (dealerGroup: any) => {
-    if (!dealerGroup.profile?.id) return;
-    const action = dealerGroup.isBanned ? "unban" : "ban";
-    setConfirmBanId(null);
-    setBanningId(dealerGroup.phone);
-    try {
-      // 只需 ban 该 phone 对应的 profile 一次（因为一个 phone 只有一个 profile）
-      const res = await fetch('/api/admin/ban-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: dealerGroup.profile.id, action }),
-      });
-      
-      if (!res.ok) {
-        const result = await res.json();
-        throw new Error(result.error || '操作失败');
-      }
-
-      // 乐观更新本地状态：该 phone 下的所有 dealer 都更新
-      setDealers(prev => prev.map(d =>
-        dealerGroup.allDealerIds.includes(d.id) ? { ...d, isBanned: action === 'ban' } : d
-      ));
-    } catch (err: any) {
-      alert("操作失败：" + (err.message || "未知错误"));
-    } finally {
-      setBanningId(null);
-    }
-  };
-
   return (
-    <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+    <div className="px-8 md:px-12 py-8 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
+      <div className="mb-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-            <Building2 className="w-7 h-7 text-slate-900" />
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            <Building2 className="w-7 h-7" />
             经销商管理
           </h1>
-          <p className="text-slate-500 text-[13px]">查看并管理所有已授权经销商的系统登录权限、资料完整度及证书活跃状态。</p>
+          <p className="text-slate-500 text-sm">管理已授权经销商</p>
         </motion.div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="px-0 py-6 flex justify-between items-center bg-transparent border-b border-slate-100/50">
-          <div className="relative w-full max-w-sm ml-2">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className="py-4 border-b border-slate-100/50">
+          <div className="relative w-full max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="搜索经销商名称、手机号..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
+              placeholder="搜索经销商..."
+              value={ searchQuery }
+              onChange={ (e) => setSearchQuery(e.target.value) }
+              className="w-full bg-slate-50 border border-slate-100 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:bg-white focus:border-slate-300 transition-all"
             />
           </div>
         </div>
 
-        <div className="overflow-auto flex-1 min-h-0 relative">
-          {isLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
-              </div>
-              <span className="text-[12px] font-medium tracking-widest uppercase">拉取经销商档案...</span>
+        <div className="overflow-auto flex-1 min-h-0">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+              <Loader2 className="w-6 h-6 animate-spin mb-2" />
+              <span className="text-xs">加载中...</span>
             </div>
-          )}
-          <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
-            <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
-              <tr>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商主体（名称）</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">ID</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">手机号</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">持有证书</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">注册时间</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">账户状态</th>
-                <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {!isLoading && groupedByPhone().map((dealerGroup) => (
-                <tr key={dealerGroup.phone} className={`hover:bg-slate-50/50 transition-colors group ${dealerGroup.isBanned ? 'bg-rose-50/30' : ''}`}>
-                  <td className="px-6 py-4 mr-10">
-                    <div className="flex flex-col">
-                      <div className={`space-y-0.5 ${dealerGroup.isBanned ? 'text-slate-400 line-through decoration-rose-300' : 'text-slate-900'}`}>
-                        {dealerGroup.allNames.map((name, idx) => (
-                          <div key={idx} className="text-[12px]">{name}</div>
-                        ))}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      {dealerGroup.allDealerIds[0].substring(0, 8).toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-[13px] text-slate-600 font-mono uppercase">
-                        {dealerGroup.phone || "-"}
-                      </span>
-                      {dealerGroup.profile?.is_first_login && (
-                        <span className="text-[10px] text-amber-500 font-bold uppercase tracking-tighter">
-                          未修改初始密码
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
-                      {dealerGroup.totalCerts} 张
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-xs text-slate-500">
-                    {new Date(dealerGroup.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    {!dealerGroup.profile ? (
-                      <span className="inline-flex items-center gap-1 text-slate-300 text-[11px] font-bold uppercase tracking-wider">
-                        待开启
-                      </span>
-                    ) : dealerGroup.isBanned ? (
-                      <span className="inline-flex items-center gap-1.5 text-rose-500 text-[11px] font-bold uppercase tracking-wider">
-                        <Ban className="w-3 h-3" /> 已封禁
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-emerald-600 text-[11px] font-bold uppercase tracking-wider">
-                        <ShieldCheck className="w-3 h-3" /> 已激活
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end">
-                      <button
-                        onClick={() => fetchDealerCerts(dealerGroup)}
-                        title="查看名下证书"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
-                      >
-                        <FileText className="w-3.5 h-3.5 opacity-60" />
-                        查看证书
-                      </button>
-                    </div>
-                  </td>
+          ) : filteredDealers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <Building2 className="w-12 h-12 mb-2 opacity-20" />
+              <p className="text-sm">暂无经销商</p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 border-y border-slate-100 text-xs font-bold text-slate-500 uppercase">
+                <tr>
+                  <th className="px-6 py-3">公司名称</th>
+                  <th className="px-6 py-3">电话</th>
+                  <th className="px-6 py-3">邮箱</th>
+                  <th className="px-6 py-3">创建时间</th>
+                  <th className="px-6 py-3 text-right">操作</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {!isLoading && groupedByPhone().length === 0 && (
-            <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
-              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
-                <Building2 className="w-6 h-6" />
-              </div>
-              <span className="text-[13px] font-medium tracking-tight">暂无匹配的经销商账户记录</span>
-            </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredDealers.map((dealer) => (
+                  <tr key={ dealer.id } className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-3 font-medium">{ dealer.company_name }</td>
+                    <td className="px-6 py-3 text-slate-600">{ dealer.phone }</td>
+                    <td className="px-6 py-3 text-slate-600 text-xs">{ dealer.email }</td>
+                    <td className="px-6 py-3 text-slate-500">
+                      { new Date(dealer.created_at).toLocaleDateString() }
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <motion.button
+                          whileHover={ { scale: 1.05 } }
+                          whileTap={ { scale: 0.95 } }
+                          onClick={ () => fetchDealerCerts(dealer) }
+                          disabled={ isCertsLoading && selectedDealer?.id === dealer.id }
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <FileText className="w-4 h-4 text-blue-600" />
+                        </motion.button>
+                        
+                        {userRole === "admin" && (
+                          <motion.button
+                            whileHover={ { scale: 1.05 } }
+                            whileTap={ { scale: 0.95 } }
+                            onClick={ () => handleBan(dealer) }
+                            disabled={ banningId === dealer.id }
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {banningId === dealer.id ? (
+                              <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
+                            ) : (
+                              <Ban className="w-4 h-4 text-red-600" />
+                            )}
+                          </motion.button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
 
-      {/* 证书列表弹窗 */}
+      {/* Certificates Modal */}
       <AnimatePresence>
         {selectedDealer && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
+          <motion.div
+            initial={ { opacity: 0 } }
+            animate={ { opacity: 1 } }
+            exit={ { opacity: 0 } }
+            className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center"
+            onClick={ () => setSelectedDealer(null) }
+          >
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => {
-                setSelectedDealer(null);
-                setDealerCerts([]);
-                setDealerNameMap({});
-                setDealerPhoneMap({});
-              }}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden flex flex-col max-h-[85vh]"
+              initial={ { scale: 0.95, opacity: 0 } }
+              animate={ { scale: 1, opacity: 1 } }
+              exit={ { scale: 0.95, opacity: 0 } }
+              onClick={ (e) => e.stopPropagation() }
+              className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-auto"
             >
-              <div className="flex justify-between items-start mb-8">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-500" />
-                    授权历史档案
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">登录账号：{selectedDealer!.phone}</p>
-                </div>
+              <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold">{ selectedDealer.company_name } - 证书列表</h2>
                 <button
-                  onClick={() => {
-                    setSelectedDealer(null);
-                    setDealerCerts([]);
-                    setDealerNameMap({});
-                    setDealerPhoneMap({});
-                  }}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
+                  onClick={ () => setSelectedDealer(null) }
+                  className="p-1 hover:bg-slate-100 rounded"
                 >
-                  <XCircle className="w-6 h-6" />
+                  <XCircle className="w-5 h-5 text-slate-400" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-auto rounded-2xl border border-slate-100 bg-slate-50/30">
+              <div className="p-6">
                 {isCertsLoading ? (
-                  <div className="p-20 text-center text-slate-300">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3" />
-                    正在调取云端档案...
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
                   </div>
                 ) : dealerCerts.length === 0 ? (
-                  <div className="p-20 text-center space-y-3 text-slate-400">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
-                      <ShieldCheck className="w-6 h-6 text-slate-200" />
-                    </div>
-                    <p className="font-bold text-sm">暂无颁发记录</p>
-                  </div>
+                  <p className="text-slate-500 text-center">暂无证书</p>
                 ) : (
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-y border-slate-100">
-                      <tr>
-                        <th className="px-6 py-4">证书编号</th>
-                        <th className="px-6 py-4">主题名称</th>
-                        <th className="px-6 py-4">有效期</th>
-                        <th className="px-6 py-4">状态</th>
-                        <th className="px-6 py-4 text-right">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white/50">
-                      {dealerCerts.map(cert => {
-                        const now = new Date();
-                        const endDate = new Date(cert.end_date + 'T23:59:59');
-                        const isExpiredByDate = now > endDate;
-                        const isVoided = cert.status === 'EXPIRED' && !isExpiredByDate;
-
-                        return (
-                          <tr key={cert.id} className="hover:bg-white transition-colors group/row">
-                            <td className="px-6 py-4 font-mono text-[11px] font-bold text-slate-900">{cert.cert_number}</td>
-                            <td className="px-6 py-4 text-[12px] text-slate-600">{dealerNameMap[cert.dealer_id] || '-'}</td>
-                            <td className="px-6 py-4 text-[12px] text-slate-500">
-                              {cert.start_date.replace(/-/g, '.')} - {cert.end_date.replace(/-/g, '.')}
-                            </td>
-                            <td className="px-6 py-4">
-                              {isVoided ? (
-                                <span className="text-rose-500 text-[10px] font-bold bg-rose-50 px-2 py-0.5 rounded">已作废</span>
-                              ) : isExpiredByDate || cert.status === 'EXPIRED' ? (
-                                <span className="text-slate-400 text-[10px] font-bold">已失效</span>
-                              ) : cert.status === 'ISSUED' ? (
-                                <span className="text-emerald-500 text-[10px] font-bold">生效中</span>
-                              ) : (
-                                <span className="text-amber-500 text-[10px] font-bold">待审核</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {cert.status === 'ISSUED' && ['SUPER_ADMIN', 'MANAGER', 'PROJECT_MANAGER'].includes(userRole || '') && (
-                                  <button
-                                    onClick={() => {
-                                      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
-                                      setViewCertData({
-                                        id: cert.id,
-                                        cert_number: cert.cert_number,
-                                        platformId: scopeParts[0],
-                                        platformLabel: "识别码", 
-                                        shopName: dealerNameMap[cert.dealer_id] || '-',
-                                        shopLabel: "授权主体",
-                                        scopeText: scopeParts[1] || "品牌官方经销授权",
-                                        duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                        authorizer: "旎柏（上海）商贸有限公司",
-                                        sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
-                                        phone: dealerPhoneMap[cert.dealer_id] || ""
-                                      });
-                                      setIsViewVoided(false);
-                                      setIsEditMode(true);
-                                    }}
-                                    className="p-1.5 text-[#8B7355] hover:bg-amber-50 rounded transition-all"
-                                    title="修改信息"
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
-                                    setViewCertData({
-                                      id: cert.id,
-                                      cert_number: cert.cert_number,
-                                      platformId: scopeParts[0],
-                                      platformLabel: "识别码", 
-                                      shopName: dealerNameMap[cert.dealer_id] || '-',
-                                      shopLabel: "授权主体",
-                                      scopeText: scopeParts[1] || "品牌官方经销授权",
-                                      duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                      authorizer: "旎柏（上海）商贸有限公司",
-                                      sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
-                                      phone: dealerPhoneMap[cert.dealer_id] || ""
-                                    });
-                                    setIsViewVoided(isVoided || cert.status === 'EXPIRED');
-                                    setIsEditMode(false);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 text-blue-500 hover:text-blue-700 font-bold text-[11px] transition-all px-2 py-1 hover:bg-blue-50 rounded"
-                                >
-                                  <Search className="w-3.5 h-3.5" />
-                                  调阅
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="space-y-3">
+                    {dealerCerts.map((cert) => (
+                      <div key={ cert.id } className="p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{ cert.product_name }</span>
+                          <span className={`text-xs px-2 py-1 rounded font-medium ${
+                            cert.status === "issued"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}>
+                            { cert.status === "issued" ? "已发放" : "待发放" }
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          { new Date(cert.created_at).toLocaleDateString() }
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="mt-6 text-center">
-                <p className="text-[10px] text-slate-300 tracking-tight">NIHPLOD GENOME - 品牌数字化授权保护系统</p>
-              </div>
             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 高清预览与下载叠加层 */}
-      <AnimatePresence>
-        {viewCertData && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => {
-                setViewCertData(null);
-                setIsEditMode(false);
-              }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-            >
-              <div className="p-8 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                  {isEditMode ? "修正官方授权资质信息" : "核对并调取授权证书"}
-                </h3>
-              </div>
-              <div className="flex-1 overflow-auto p-10">
-                <CertificateGenerator
-                  initialData={viewCertData}
-                  mode={isEditMode ? 'edit' : 'view'}
-                  isVoided={isViewVoided}
-                  onSuccess={() => {
-                     setViewCertData(null);
-                     setIsEditMode(false);
-                     fetchDealerCerts(selectedDealer); // 刷新证书列表数据
-                  }}
-                />
-              </div>
-            </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

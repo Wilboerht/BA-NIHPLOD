@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { findProfileForLogin } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
@@ -14,57 +14,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    // 1. 查询 profiles 表获取用户
-    // 支持用 phone、username、email 登录
-    let profile = null;
-    let profileErr = null;
+    // 1. 使用双擎 DB 适配器查询 profiles 获取用户
+    // 支持按 phone、username 或 email 登录 (忽略大小写)
+    const { data: profile, error: profileErr } = await findProfileForLogin(phone);
     
-    // 先尝试用 phone 查询
-    const { data: phoneProfile, error: phoneErr } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle();
-    
-    if (phoneProfile) {
-      profile = phoneProfile;
-    } else if (!phoneErr) {
-      // phone 查询无错误但没找到，再用 username 查询
-      const { data: usernameProfile, error: usernameErr } = await supabaseAdmin
-        .from('profiles')
-        .select('*')
-        .eq('username', phone)
-        .maybeSingle();
-      
-      if (usernameProfile) {
-        profile = usernameProfile;
-      } else if (!usernameErr) {
-        // username 查询无错误但没找到，再用小写 username 查询
-        const { data: usernameLowerProfile, error: usernameLowerErr } = await supabaseAdmin
-          .from('profiles')
-          .select('*')
-          .eq('username', phone.toLowerCase())
-          .maybeSingle();
-        
-        profile = usernameLowerProfile;
-        profileErr = usernameLowerErr;
-      } else {
-        profileErr = usernameErr;
-      }
-    } else {
-      profileErr = phoneErr;
-    }
-
     if (profileErr || !profile) {
       return NextResponse.json(
         { error: '账号或密码错误' },
