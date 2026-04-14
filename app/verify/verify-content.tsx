@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone, Download } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone } from "lucide-react";
 import Link from "next/link";
 
 interface Certificate {
@@ -13,7 +13,6 @@ interface Certificate {
   auth_scope: string;
   company_name?: string;
   phone?: string;
-  final_image_url?: string;
   dealers?: { company_name: string; phone?: string };
 }
 
@@ -32,26 +31,7 @@ export default function VerifyPageContent() {
     return /^BAVP-\d{4}-\d{4}$/.test(certNum);
   };
 
-  // 下载证书函数
-  const downloadCertificate = (imageUrl: string, certNumber: string) => {
-    if (!imageUrl) {
-      alert("证书图片暂未生成");
-      return;
-    }
-    
-    try {
-      const link = document.createElement('a');
-      link.href = imageUrl;
-      link.download = `${certNumber}-防伪授权证书.png`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error('Download failed:', err);
-      alert('下载失败，请稍后重试');
-    }
-  };
+
 
   useEffect(() => {
     if (!isValidCertNumber(certId)) {
