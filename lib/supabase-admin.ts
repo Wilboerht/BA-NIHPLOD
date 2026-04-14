@@ -10,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // 提供兼容的 dummy Supabase client（在纯本地部署时使用）
 const getDummyClient = () => {
-  const dummyResponse = {
+  const dummyResponse: any = {
     data: null, 
     error: { message: 'Supabase not configured for local deployment' }
   };
@@ -25,8 +25,19 @@ const getDummyClient = () => {
     delete: () => chainObj,
   };
 
+  // 实现 storage API（用于文件上传）
+  const storageChain: any = {
+    from: () => ({
+      upload: () => Promise.resolve(dummyResponse),
+      download: () => Promise.resolve(dummyResponse),
+      remove: () => Promise.resolve(dummyResponse),
+      list: () => Promise.resolve(dummyResponse),
+    }),
+  };
+
   return {
     from: () => chainObj,
+    storage: storageChain,
   };
 };
 
