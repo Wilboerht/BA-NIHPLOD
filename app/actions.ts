@@ -43,7 +43,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       `;
 
       if (dbResults && dbResults.length > 0) {
-        results = dbResults.map(r => ({
+        results = dbResults.map((r: any) => ({
           cert_number: r.cert_number,
           start_date: r.start_date,
           end_date: r.end_date,
@@ -66,7 +66,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         `;
 
         if (dbResults && dbResults.length > 0) {
-          results = dbResults.map(r => ({
+          results = dbResults.map((r: any) => ({
             cert_number: r.cert_number,
             start_date: r.start_date,
             end_date: r.end_date,
