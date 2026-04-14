@@ -10,14 +10,24 @@ import { createClient } from "@supabase/supabase-js";
 
 // 提供兼容的 dummy Supabase client（在纯本地部署时使用）
 const getDummyClient = () => {
+  const dummyResponse = {
+    data: null, 
+    error: { message: 'Supabase not configured for local deployment' }
+  };
+  
+  const chainObj: any = {
+    eq: () => chainObj,
+    single: () => Promise.resolve(dummyResponse),
+    maybeSingle: () => Promise.resolve(dummyResponse),
+    select: () => chainObj,
+    insert: () => chainObj,
+    update: () => chainObj,
+    delete: () => chainObj,
+  };
+
   return {
-    from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: () => ({ data: null, error: { message: 'Supabase not configured' } }) }), single: () => ({ data: null, error: { message: 'Supabase not configured' } }) }),
-      insert: () => ({ select: () => ({ single: () => ({ data: null, error: { message: 'Supabase not configured' } }) }) }),
-      update: () => ({ eq: () => ({ data: null, error: { message: 'Supabase not configured' } }) }),
-      delete: () => ({ eq: () => ({ data: null, error: { message: 'Supabase not configured' } }) }),
-    }),
-  } as any;
+    from: () => chainObj,
+  };
 };
 
 export const supabaseAdmin = 
@@ -39,6 +49,11 @@ export const supabaseAdmin =
  */
 export async function checkIsAdmin(adminId: string): Promise<boolean> {
   if (!adminId) return false;
+  
+  // 如果没有配置 Supabase，在纯本地部署时直接返回 false
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return false;
+  }
   
   try {
     const { data: profile, error } = await supabaseAdmin
