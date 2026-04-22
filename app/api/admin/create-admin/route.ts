@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
+import { USE_LOCAL_DB, sql } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +41,31 @@ export async function POST(req: Request) {
     // 生成密码哈希
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 直接在 profiles 表中插入管理员账户
+    // 本地 PostgreSQL 模式
+    if (USE_LOCAL_DB && sql) {
+      try {
+        const result = await sql`
+          INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
+          VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${passwordHash}, ${role}, false)
+          RETURNING id
+        `;
+        return NextResponse.json({ success: true, email });
+      } catch (err: any) {
+        console.error("[create-admin] Local DB insert error:", err);
+        if (err.message?.includes("unique") || err.message?.includes("duplicate")) {
+          return NextResponse.json(
+            { error: `邮箱 "${email}" 已被使用，请换一个。` },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json(
+          { error: `创建账户失败: ${err.message}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Supabase 模式
     const { data, error: profileErr } = await supabaseAdmin.from("profiles").insert({
       username: email.trim().toLowerCase(),
       full_name: fullName.trim(),

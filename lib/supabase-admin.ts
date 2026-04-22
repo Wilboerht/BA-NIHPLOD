@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { USE_LOCAL_DB, sql } from "./db";
 
 /**
  * 后端专用 Supabase Admin Client
@@ -88,12 +89,25 @@ export const supabaseAdmin = new Proxy({}, {
  */
 export async function checkIsAdmin(adminId: string): Promise<boolean> {
   if (!adminId) return false;
-  
-  // 如果没有配置 Supabase，在纯本地部署时直接返回 false
+
+  // 本地 PostgreSQL 模式
+  if (USE_LOCAL_DB && sql) {
+    try {
+      const result = await sql`SELECT role FROM profiles WHERE id = ${adminId} LIMIT 1`;
+      if (!result[0]) return false;
+      const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
+      return allowedRoles.includes(result[0].role);
+    } catch (err) {
+      console.error('[checkIsAdmin] Local DB error:', err);
+      return false;
+    }
+  }
+
+  // Supabase 模式
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return false;
   }
-  
+
   try {
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
@@ -103,7 +117,6 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
 
     if (error || !profile) return false;
 
-    // 定义允许执行管理操作的角色
     const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
     return allowedRoles.includes(profile.role);
   } catch (error) {
