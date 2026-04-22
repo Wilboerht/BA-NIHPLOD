@@ -409,7 +409,7 @@ export default function DealersPage() {
                   </div>
                 ) : (
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-y border-slate-100">
+                    <thead className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100">
                       <tr>
                         <th className="px-6 py-4">证书编号</th>
                         <th className="px-6 py-4">主题名称</th>
