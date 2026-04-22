@@ -20,10 +20,18 @@ export default function ComplaintsPage() {
   const fetchComplaints = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/db/complaints');
+      const userStr = sessionStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const adminId = user?.id || '';
+
+      const response = await fetch('/api/db/complaints', {
+        headers: { 'x-admin-id': adminId }
+      });
       if (response.ok) {
         const result = await response.json();
         setComplaints(result.data || []);
+      } else if (response.status === 403) {
+        alert('无权访问，需要管理员权限');
       } else {
         console.error('Failed to fetch complaints:', response.status);
       }
@@ -37,18 +45,25 @@ export default function ComplaintsPage() {
   const handleStatusUpdate = async (newStatus: string) => {
     if (!activeReviewId) return;
     try {
+      const userStr = sessionStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const adminId = user?.id || '';
+
       const response = await fetch(`/api/db/complaints/${activeReviewId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, review_note: reviewNote })
+        body: JSON.stringify({ status: newStatus, review_note: reviewNote, adminId })
       });
       if (response.ok) {
         alert("工单状态已更新！");
         setActiveReviewId(null);
         setReviewNote("");
         fetchComplaints();
+      } else if (response.status === 403) {
+        alert("无权操作，需要管理员权限");
       } else {
-        alert("更新失败");
+        const result = await response.json().catch(() => ({}));
+        alert(result.error || "更新失败");
       }
     } catch (err: any) {
       alert("更新失败：" + err.message);
@@ -74,11 +89,17 @@ export default function ComplaintsPage() {
     // 1. Tab filter
     if (activeTab === 'PENDING' && c.status !== 'PENDING') return false;
     if (activeTab === 'INVESTIGATING' && c.status !== 'INVESTIGATING') return false;
-    
+    if (activeTab === 'RESOLVED' && c.status !== 'RESOLVED') return false;
+    if (activeTab === 'REJECTED' && c.status !== 'REJECTED') return false;
+
     // 2. Search filter
     const q = searchQuery.toLowerCase();
     if (q) {
-      return (c.id.toLowerCase().includes(q) || (c.channel || "").toLowerCase().includes(q));
+      return (
+        c.id.toLowerCase().includes(q) ||
+        (c.channel || "").toLowerCase().includes(q) ||
+        (c.description || "").toLowerCase().includes(q)
+      );
     }
     return true;
   });
@@ -101,6 +122,8 @@ export default function ComplaintsPage() {
              <span onClick={() => setActiveTab("ALL")} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
              <span onClick={() => setActiveTab("PENDING")} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
              <span onClick={() => setActiveTab("INVESTIGATING")} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
+             <span onClick={() => setActiveTab("RESOLVED")} className={`${activeTab === "RESOLVED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已解决</span>
+             <span onClick={() => setActiveTab("REJECTED")} className={`${activeTab === "REJECTED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已驳回</span>
           </div>
           <div className="relative w-full max-w-sm">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -153,14 +176,17 @@ export default function ComplaintsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-xs tabular-nums text-slate-500">
-                      {new Date(complaint.created_at).toLocaleString()}
+                      {complaint.created_at ? new Date(complaint.created_at).toLocaleString() : '-'}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {getStatusBadge(complaint.status)}
                     </td>
                      <td className="px-6 py-4 text-right">
-                        <button 
-                          onClick={() => setActiveReviewId(complaint.id)} 
+                        <button
+                          onClick={() => {
+                            setActiveReviewId(complaint.id);
+                            setReviewNote(complaint.review_note || '');
+                          }}
                           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
                         >
                            进入审核
