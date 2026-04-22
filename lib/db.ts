@@ -222,8 +222,15 @@ export async function getAllCertificates(limit?: number) {
       ${limit ? sql`LIMIT ${limit}` : sql``}
     `;
     // 转换为嵌套结构以兼容前端（与 Supabase 返回格式一致）
+    // postgres 库将 DATE 转为 JS Date 对象，前端期望字符串格式
     const formatted = result.map((row: any) => ({
       ...row,
+      start_date: row.start_date instanceof Date
+        ? row.start_date.toISOString().split('T')[0]
+        : row.start_date,
+      end_date: row.end_date instanceof Date
+        ? row.end_date.toISOString().split('T')[0]
+        : row.end_date,
       dealers: row.company_name ? {
         company_name: row.company_name,
         phone: row.phone
