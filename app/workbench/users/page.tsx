@@ -205,7 +205,7 @@ export default function AdminsManagementPage() {
       const res = await fetch("/api/admin/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, newPassword: newPass }),
+        body: JSON.stringify({ userId: user.id, newPassword: newPass, adminId: currentUser?.id }),
       });
       const result = await res.json();
       if (result.success) alert(`✅ 密码重置成功！`);
