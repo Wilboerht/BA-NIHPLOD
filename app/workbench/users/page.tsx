@@ -123,7 +123,7 @@ export default function AdminsManagementPage() {
       const res = await fetch("/api/admin/create-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, adminId: currentUser?.profileId }),
+        body: JSON.stringify({ ...form, adminId: currentUser?.id }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
