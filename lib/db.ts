@@ -1,16 +1,15 @@
 import postgres from 'postgres';
 import { supabaseAdmin } from './supabase-admin'; // 保留用于 Supabase 模式
 
-// 环境配置：是否使用本地 Postgres
-export const USE_LOCAL_DB = process.env.DATABASE_PROVIDER === 'local';
+// 本地 Postgres 模式（已弃用 Supabase，始终使用本地数据库）
+export const USE_LOCAL_DB = true;
 
 /**
  * 原生 Postgres 连接池
- * 仅在 DATABASE_PROVIDER = 'local' 时初始化
  * 请在 .env.local 中配置 DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
  */
-export const sql = USE_LOCAL_DB && process.env.DATABASE_URL 
-  ? postgres(process.env.DATABASE_URL) 
+export const sql = process.env.DATABASE_URL
+  ? postgres(process.env.DATABASE_URL)
   : (null as any);
 
 // ============================================================================
