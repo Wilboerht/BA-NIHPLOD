@@ -221,7 +221,15 @@ export async function getAllCertificates(limit?: number) {
       ORDER BY c.created_at DESC
       ${limit ? sql`LIMIT ${limit}` : sql``}
     `;
-    return { data: result || [], error: null };
+    // 转换为嵌套结构以兼容前端（与 Supabase 返回格式一致）
+    const formatted = result.map((row: any) => ({
+      ...row,
+      dealers: row.company_name ? {
+        company_name: row.company_name,
+        phone: row.phone
+      } : null
+    }));
+    return { data: formatted || [], error: null };
   } else {
     let query = supabaseAdmin
       .from('certificates')
