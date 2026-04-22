@@ -147,7 +147,7 @@ export default function AdminsManagementPage() {
       const res = await fetch('/api/admin/update-user-role', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, newRole })
+        body: JSON.stringify({ userId, newRole, adminId: currentUser?.id })
       });
 
       if (res.ok) {

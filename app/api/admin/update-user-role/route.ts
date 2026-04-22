@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function PUT(req: Request) {
   try {
-    const { userId, newRole } = await req.json();
+    const { userId, newRole, adminId } = await req.json();
 
     if (!userId || !newRole) {
       return NextResponse.json(
@@ -13,11 +13,12 @@ export async function PUT(req: Request) {
       );
     }
 
-    // 验证权限 (需要管理员)
-    const authHeader = req.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      // 这里可以添加额外的权限检查
+    // 验证权限：只有管理员可以修改角色
+    if (!adminId || !(await checkIsAdmin(adminId))) {
+      return NextResponse.json(
+        { error: '无权限修改用户角色' },
+        { status: 403 }
+      );
     }
 
     // 更新用户角色
