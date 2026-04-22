@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
+import { USE_LOCAL_DB, sql, checkIsAdmin } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
  * POST /api/admin/delete-user
@@ -25,101 +26,72 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. 获取要删除的用户信息
-    const { data: userToDelete, error: userError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !userToDelete) {
-      return NextResponse.json(
-        { error: "用户不存在" },
-        { status: 404 }
-      );
-    }
-
-    // 3. 处理外键关系
-    // 3a. 清空 certificates 表中该用户作为 auditor_id 的记录
-    const { error: auditError } = await supabaseAdmin
-      .from('certificates')
-      .update({ auditor_id: null })
-      .eq('auditor_id', userId);
-
-    if (auditError) {
-      console.error("Failed to clear auditor references:", auditError);
-      return NextResponse.json(
-        { error: `清空审核人引用失败: ${auditError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // 3b. 清空 certificates 表中该用户作为 manager_id 的记录
-    const { error: managerError } = await supabaseAdmin
-      .from('certificates')
-      .update({ manager_id: null })
-      .eq('manager_id', userId);
-
-    if (managerError) {
-      console.error("Failed to clear manager references:", managerError);
-      return NextResponse.json(
-        { error: `清空发证人引用失败: ${managerError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // 3c. 清空 audit_logs 表中该用户作为 actor_id 的记录
-    const { error: logsError } = await supabaseAdmin
-      .from('audit_logs')
-      .update({ actor_id: null })
-      .eq('actor_id', userId);
-
-    if (logsError) {
-      console.error("Failed to clear audit log references:", logsError);
-      return NextResponse.json(
-        { error: `清空审核日志引用失败: ${logsError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // 3d. 清空 complaints 表中该用户作为 handler_id 的记录
-    const { error: complaintError } = await supabaseAdmin
-      .from('complaints')
-      .update({ handler_id: null })
-      .eq('handler_id', userId);
-
-    if (complaintError) {
-      console.error("Failed to clear complaint handler references:", complaintError);
-      return NextResponse.json(
-        { error: `清空投诉处理人引用失败: ${complaintError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // 4. 现在安全地删除用户
-    const { error: deleteError } = await supabaseAdmin
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-
-    if (deleteError) {
-      console.error("Failed to delete user:", deleteError);
-      return NextResponse.json(
-        { error: `删除用户失败: ${deleteError.message}` },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `用户 "${userToDelete.full_name}" 已被成功删除`,
-      deletedUser: {
-        id: userToDelete.id,
-        username: userToDelete.username,
-        full_name: userToDelete.full_name
+    if (USE_LOCAL_DB && sql) {
+      // 本地 PostgreSQL 模式
+      // 2. 获取要删除的用户信息
+      const userResult = await sql`SELECT * FROM profiles WHERE id = ${userId} LIMIT 1`;
+      if (!userResult || userResult.length === 0) {
+        return NextResponse.json({ error: "用户不存在" }, { status: 404 });
       }
-    });
+      const userToDelete = userResult[0];
 
+      // 3. 处理外键关系
+      await sql`UPDATE certificates SET auditor_id = NULL WHERE auditor_id = ${userId}`;
+      await sql`UPDATE certificates SET manager_id = NULL WHERE manager_id = ${userId}`;
+      await sql`UPDATE audit_logs SET actor_id = NULL WHERE actor_id = ${userId}`;
+      await sql`UPDATE complaints SET handler_id = NULL WHERE handler_id = ${userId}`;
+
+      // 4. 删除用户
+      await sql`DELETE FROM profiles WHERE id = ${userId}`;
+
+      return NextResponse.json({
+        success: true,
+        message: `用户 "${userToDelete.full_name}" 已被成功删除`,
+        deletedUser: {
+          id: userToDelete.id,
+          username: userToDelete.username,
+          full_name: userToDelete.full_name
+        }
+      });
+    } else {
+      // Supabase 模式
+      // 2. 获取要删除的用户信息
+      const { data: userToDelete, error: userError } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userToDelete) {
+        return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+      }
+
+      // 3. 处理外键关系
+      await supabaseAdmin.from('certificates').update({ auditor_id: null }).eq('auditor_id', userId);
+      await supabaseAdmin.from('certificates').update({ manager_id: null }).eq('manager_id', userId);
+      await supabaseAdmin.from('audit_logs').update({ actor_id: null }).eq('actor_id', userId);
+      await supabaseAdmin.from('complaints').update({ handler_id: null }).eq('handler_id', userId);
+
+      // 4. 删除用户
+      const { error: deleteError } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
+      if (deleteError) {
+        console.error("Failed to delete user:", deleteError);
+        return NextResponse.json(
+          { error: `删除用户失败: ${deleteError.message}` },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `用户 "${userToDelete.full_name}" 已被成功删除`,
+        deletedUser: {
+          id: userToDelete.id,
+          username: userToDelete.username,
+          full_name: userToDelete.full_name
+        }
+      });
+    }
   } catch (err: any) {
     console.error("[delete-user] Error:", err);
     return NextResponse.json(
