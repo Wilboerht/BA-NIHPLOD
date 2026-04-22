@@ -903,9 +903,31 @@ export default function VerificationPage() {
 
       {/* 页脚 */}
       <footer className="w-full max-w-7xl px-6 md:px-12 py-8 md:py-10 flex flex-col md:flex-row justify-between items-center gap-6 shrink-0 border-t border-slate-100/30">
-         <p className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 tracking-normal antialiased order-3 md:order-1">
-           &copy; 2026 NIHPLOD. All rights reserved
-         </p>
+         <div className="flex flex-col items-center md:items-start gap-1 order-3 md:order-1">
+           <p className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 tracking-normal antialiased">
+             &copy; 2026 NIHPLOD. All rights reserved
+           </p>
+           <div className="flex items-center gap-2">
+             <a
+               href="https://beian.miit.gov.cn/"
+               target="_blank"
+               rel="noopener noreferrer"
+               className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 hover:text-slate-500 transition-colors tracking-normal antialiased"
+             >
+               沪ICP备2026014764号-1
+             </a>
+             <span className="text-[10px] md:text-[11px] text-slate-300">|</span>
+             <a
+               href="http://www.beian.gov.cn/portal/registerSystemInfo"
+               target="_blank"
+               rel="noopener noreferrer"
+               className="flex items-center gap-1 text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 hover:text-slate-500 transition-colors tracking-normal antialiased"
+             >
+               <img src="/assets/beian.webp" alt="公安网备" className="w-3 h-3" />
+               公网安备xxxxxxxxx号
+             </a>
+           </div>
+         </div>
           <div className="flex flex-wrap gap-4 md:gap-12 text-[10px] md:text-[11px] font-bold text-slate-500 md:text-slate-400 uppercase tracking-[0.05em] md:tracking-[0.1em] justify-center md:justify-end order-1 md:order-3 w-full md:w-auto">
              {/* 官方维权申诉 */}
              <button 

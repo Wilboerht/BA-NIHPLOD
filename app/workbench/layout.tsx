@@ -84,8 +84,28 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
         style={{ paddingLeft: isCollapsed ? "80px" : "256px" }}
       >
         {children}
-        <footer className="w-full text-center py-5 text-slate-400 text-xs shrink-0 border-t border-slate-100 bg-white/50 backdrop-blur-sm">
-          &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved.
+        <footer className="w-full text-center py-5 text-slate-400 text-xs shrink-0 border-t border-slate-100 bg-white/50 backdrop-blur-sm flex flex-col gap-1">
+          <span className="text-xs">&copy; {new Date().getFullYear()} NIHPLOD. All rights reserved.</span>
+          <div className="flex items-center justify-center gap-2">
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs hover:text-slate-500 transition-colors"
+            >
+              沪ICP备2026014764号-1
+            </a>
+            <span className="text-xs text-slate-300">|</span>
+            <a
+              href="http://www.beian.gov.cn/portal/registerSystemInfo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1 text-xs hover:text-slate-500 transition-colors"
+            >
+              <img src="/assets/beian.webp" alt="公安网备" className="w-3 h-3" />
+              公网安备xxxxxxxxx号
+            </a>
+          </div>
         </footer>
       </main>
     </div>
