@@ -45,8 +45,8 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       if (dbResults && dbResults.length > 0) {
         results = dbResults.map((r: any) => ({
           cert_number: r.cert_number,
-          start_date: r.start_date,
-          end_date: r.end_date,
+          start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
+          end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
           auth_scope: r.auth_scope,
           status: r.status,
           final_image_url: r.final_image_url,
@@ -68,8 +68,8 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         if (dbResults && dbResults.length > 0) {
           results = dbResults.map((r: any) => ({
             cert_number: r.cert_number,
-            start_date: r.start_date,
-            end_date: r.end_date,
+            start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
+            end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
             auth_scope: r.auth_scope,
             status: r.status,
             final_image_url: r.final_image_url,
