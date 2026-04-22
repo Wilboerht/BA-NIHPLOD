@@ -167,7 +167,20 @@ export async function getCertificatesByDealerId(dealerId: string) {
       WHERE dealer_id = ${dealerId}
       ORDER BY created_at DESC
     `;
-    return { data: result || [], error: null };
+    // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串
+    const formatted = result.map((row: any) => ({
+      ...row,
+      start_date: row.start_date instanceof Date
+        ? row.start_date.toISOString().split('T')[0]
+        : row.start_date,
+      end_date: row.end_date instanceof Date
+        ? row.end_date.toISOString().split('T')[0]
+        : row.end_date,
+      created_at: row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : row.created_at,
+    }));
+    return { data: formatted || [], error: null };
   } else {
     return await supabaseAdmin
       .from('certificates')
@@ -191,7 +204,24 @@ export async function getPendingCertificates(limit?: number) {
       ORDER BY c.created_at ASC
       ${limit ? sql`LIMIT ${limit}` : sql``}
     `;
-    return { data: result || [], error: null };
+    // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串格式
+    const formatted = result.map((row: any) => ({
+      ...row,
+      start_date: row.start_date instanceof Date
+        ? row.start_date.toISOString().split('T')[0]
+        : row.start_date,
+      end_date: row.end_date instanceof Date
+        ? row.end_date.toISOString().split('T')[0]
+        : row.end_date,
+      created_at: row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : row.created_at,
+      dealers: row.company_name ? {
+        company_name: row.company_name,
+        phone: row.phone
+      } : null
+    }));
+    return { data: formatted || [], error: null };
   } else {
     let query = supabaseAdmin
       .from('certificates')

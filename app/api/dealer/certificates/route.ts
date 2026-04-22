@@ -34,12 +34,26 @@ export async function GET(req: Request) {
     if (USE_LOCAL_DB && sql) {
       try {
         const dealerIds = dealers.map((d: any) => d.id);
-        const certs = await sql`
+        const certsResult = await sql`
           SELECT * FROM certificates
           WHERE dealer_id = ANY(${dealerIds}::uuid[])
             AND status = 'ISSUED'
           ORDER BY created_at DESC
         `;
+
+        // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串
+        const certs = certsResult.map((row: any) => ({
+          ...row,
+          start_date: row.start_date instanceof Date
+            ? row.start_date.toISOString().split('T')[0]
+            : row.start_date,
+          end_date: row.end_date instanceof Date
+            ? row.end_date.toISOString().split('T')[0]
+            : row.end_date,
+          created_at: row.created_at instanceof Date
+            ? row.created_at.toISOString()
+            : row.created_at,
+        }));
 
         console.log("[Dealer Certificates API] 本地数据库: 获取证书", {
           dealerCount: dealers.length,
