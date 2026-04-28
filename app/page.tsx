@@ -448,13 +448,13 @@ export default function VerificationPage() {
       {/* 动态流体全屏流转 (Sophisticated Balanced Full-screen Glows) */}
       {/* 1. 琥珀色 - 主色调 (Amber - Primary Flow) */}
       <motion.div 
-           className="absolute w-[600px] h-[600px] md:w-[1000px] md:h-[1000px] rounded-full pointer-events-none blur-[120px] md:blur-[160px] z-0" 
+           className="absolute w-[750px] h-[750px] md:w-[1200px] md:h-[1200px] rounded-full pointer-events-none blur-[140px] md:blur-[180px] z-0" 
            style={{ background: "radial-gradient(circle, #8B7355 0%, #8B7355 8%, transparent 65%)" }}
            animate={{
-              x: ['-10vw', '60vw', '10vw', '85vw', '-10vw'],
-              y: ['-10vh', '40vh', '85vh', '15vh', '-10vh'],
+              x: ['5vw', '55vw', '15vw', '60vw', '5vw'],
+              y: ['10vh', '45vh', '80vh', '30vh', '10vh'],
               scale: [1, 1.25, 0.85, 1.15, 1],
-              opacity: [0.1, 0.22, 0.15, 0.25, 0.1],
+              opacity: [0.15, 0.3, 0.2, 0.32, 0.15],
               scaleX: [1, 1.4, 0.7, 1.2, 1],
               scaleY: [1, 0.6, 1.3, 0.8, 1],
            }}
@@ -462,13 +462,13 @@ export default function VerificationPage() {
       />
       {/* 2. 暖亚麻 - 逆向漂移 (Warm Linen - Inverse Flow) */}
       <motion.div 
-           className="absolute w-[500px] h-[500px] md:w-[900px] md:h-[900px] rounded-full pointer-events-none blur-[110px] md:blur-[150px] z-0" 
+           className="absolute w-[650px] h-[650px] md:w-[1100px] md:h-[1100px] rounded-full pointer-events-none blur-[130px] md:blur-[170px] z-0" 
            style={{ background: "radial-gradient(circle, #E5DED4 0%, #D4BC9B 10%, transparent 68%)" }}
            animate={{
-              x: ['85vw', '15vw', '75vw', '-10vw', '85vw'],
-              y: ['10vh', '80vh', '20vh', '65vh', '10vh'],
+              x: ['70vw', '20vw', '60vw', '15vw', '70vw'],
+              y: ['15vh', '70vh', '25vh', '60vh', '15vh'],
               scale: [0.9, 1.15, 1.05, 0.8, 0.9],
-              opacity: [0.12, 0.28, 0.2, 0.32, 0.12],
+              opacity: [0.18, 0.35, 0.25, 0.4, 0.18],
               scaleX: [1.1, 0.8, 1.3, 0.9, 1.1],
               scaleY: [0.8, 1.2, 0.75, 1.15, 0.8],
            }}
@@ -476,17 +476,45 @@ export default function VerificationPage() {
       />
       {/* 3. 香槟金 - 交叉扰动 (Champagne Gold - Cross-current Flow) */}
       <motion.div 
-           className="absolute w-[400px] h-[400px] md:w-[800px] md:h-[800px] rounded-full pointer-events-none blur-[80px] md:blur-[130px] z-0" 
+           className="absolute w-[550px] h-[550px] md:w-[950px] md:h-[950px] rounded-full pointer-events-none blur-[100px] md:blur-[150px] z-0" 
            style={{ background: "radial-gradient(circle, #F7E7CE 0%, #F1E5AC 12%, transparent 65%)" }}
            animate={{
-              x: ['20vw', '85vw', '-15vw', '50vw', '20vw'],
-              y: ['85vh', '5vh', '45vh', '-10vh', '85vh'],
+              x: ['10vw', '60vw', '20vw', '55vw', '10vw'],
+              y: ['75vh', '20vh', '40vh', '70vh', '75vh'],
               scale: [0.85, 1.25, 0.9, 1.2, 0.85],
-              opacity: [0.15, 0.3, 0.2, 0.35, 0.15],
+              opacity: [0.2, 0.38, 0.28, 0.42, 0.2],
               scaleX: [1.2, 0.85, 1.1, 0.75, 1.2],
               scaleY: [0.75, 1.2, 0.9, 1.25, 0.75],
            }}
            transition={{ duration: 42, repeat: Infinity, ease: "linear" }}
+      />
+      {/* 4. 淡玫瑰金 - 对角漂移 (Rose Gold - Diagonal Flow) */}
+      <motion.div 
+           className="absolute w-[500px] h-[500px] md:w-[850px] md:h-[850px] rounded-full pointer-events-none blur-[110px] md:blur-[160px] z-0" 
+           style={{ background: "radial-gradient(circle, #E5D0C8 0%, #C9A89A 10%, transparent 68%)" }}
+           animate={{
+              x: ['65vw', '15vw', '55vw', '20vw', '65vw'],
+              y: ['70vh', '25vh', '65vh', '80vh', '70vh'],
+              scale: [0.8, 1.1, 0.95, 1.15, 0.8],
+              opacity: [0.12, 0.22, 0.15, 0.25, 0.12],
+              scaleX: [0.9, 1.3, 1, 0.85, 0.9],
+              scaleY: [1.1, 0.7, 1.2, 1.05, 1.1],
+           }}
+           transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
+      />
+      {/* 5. 象牙白 - 中心环绕 (Ivory Cream - Orbit Flow) */}
+      <motion.div 
+           className="absolute w-[600px] h-[600px] md:w-[1000px] md:h-[1000px] rounded-full pointer-events-none blur-[120px] md:blur-[170px] z-0" 
+           style={{ background: "radial-gradient(circle, #F0EBE3 0%, #DDD5C8 12%, transparent 65%)" }}
+           animate={{
+              x: ['50vw', '25vw', '75vw', '30vw', '50vw'],
+              y: ['50vh', '25vh', '50vh', '75vh', '50vh'],
+              scale: [1, 0.85, 1.1, 0.9, 1],
+              opacity: [0.18, 0.32, 0.22, 0.35, 0.18],
+              scaleX: [1, 0.75, 1.15, 1.05, 1],
+              scaleY: [1, 1.25, 0.8, 1.1, 1],
+           }}
+           transition={{ duration: 38, repeat: Infinity, ease: "linear" }}
       />
 
       {/* 顶部导航 */}
@@ -503,8 +531,8 @@ export default function VerificationPage() {
             className="group flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs md:text-[13px] font-semibold tracking-[0.05em] text-[#8B7355] hover:text-[#6B5346] transition-all"
          >
             <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
-            <span className="hidden sm:inline">品牌官网</span>
-            <span className="sm:hidden">品牌官网</span>
+            <span className="hidden sm:inline">旎柏官网</span>
+            <span className="sm:hidden">旎柏官网</span>
             <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
          </Link>
       </nav>
@@ -553,7 +581,7 @@ export default function VerificationPage() {
               <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-3 py-2 flex-shrink-0">
                 <button 
                   disabled={isSearching || !query.trim()}
-                  className="relative flex items-center justify-center gap-1.5 h-10 md:h-[48px] px-5 md:px-7 rounded-[16px] md:rounded-[18px] bg-[#2C2A29] hover:bg-[#1A1918] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-md shadow-[#2C2A29]/20 hover:shadow-lg hover:shadow-[#2C2A29]/30 disabled:opacity-50 disabled:cursor-not-allowed font-bold tracking-widest uppercase"
+                  className="relative flex items-center justify-center gap-1.5 h-10 md:h-[48px] px-5 md:px-7 rounded-full bg-[#8B7355] hover:bg-[#6B5346] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-md shadow-[#8B7355]/25 hover:shadow-lg hover:shadow-[#8B7355]/35 disabled:opacity-50 disabled:cursor-not-allowed font-semibold tracking-widest uppercase"
                 >
                   {isSearching ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -597,7 +625,7 @@ export default function VerificationPage() {
                 className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355]/70 hover:text-[#8B7355] transition-all"
               >
                 <Building2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                品牌官网
+                旎柏官网
                 <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
               </Link>
             </motion.div>
