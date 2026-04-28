@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
@@ -186,7 +186,7 @@ export default function VerificationPage() {
             { facingMode: "environment" }, 
             {
               fps: 10,
-              qrbox: { width: 250, height: 250 },
+              qrbox: { width: 150, height: 150 },
               aspectRatio: 1
             },
             (decodedText: string) => {
@@ -319,7 +319,7 @@ export default function VerificationPage() {
             scannerRef.current = html5QrCode;
             await html5QrCode.start(
               { facingMode: "environment" }, 
-              { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
+              { fps: 10, qrbox: { width: 150, height: 150 }, aspectRatio: 1 },
               (decodedText: string) => {
                 // ... 重复之前的成功逻辑 ...
                 // 为了避免代码重复，这里其实可以提取出 startScanner 函数，但为了保持逻辑紧凑先这样处理
@@ -497,14 +497,15 @@ export default function VerificationPage() {
             <span className="text-xs md:text-[17px] font-medium tracking-[0.1em] md:tracking-[0.2em] uppercase text-[#2C2A29] leading-none">授权核验中心</span>
          </div>
          
-         <Link 
+         <Link
             href="https://nihplod.cn"
             target="_blank"
-            className="flex items-center gap-1 md:gap-2 text-[10px] md:text-[11px] font-bold tracking-[0.1em] md:tracking-[0.2em] uppercase text-[#8B7355] hover:text-[#2C2A29] transition-colors"
+            className="group flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs md:text-[13px] font-semibold tracking-[0.05em] text-[#8B7355] hover:text-[#6B5346] transition-all"
          >
-            <Globe className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span className="hidden sm:inline">返回品牌官网</span>
+            <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
+            <span className="hidden sm:inline">品牌官网</span>
             <span className="sm:hidden">品牌官网</span>
+            <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
          </Link>
       </nav>
 
@@ -551,16 +552,6 @@ export default function VerificationPage() {
               {/* 按钮区 */}
               <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-3 py-2 flex-shrink-0">
                 <button 
-                  type="button"
-                  onClick={() => setShowScanner(true)}
-                  disabled={isSearching}
-                  className="relative flex items-center justify-center h-10 w-10 md:h-[48px] md:w-[48px] rounded-[16px] md:rounded-[18px] bg-slate-100/70 hover:bg-slate-200/80 text-[#8B7355] hover:text-[#6B5346] active:scale-[0.96] transition-all duration-200 border border-slate-200/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="扫描授权书二维码"
-                >
-                  <QrCode className="w-[18px] h-[18px] md:w-5 md:h-5" />
-                </button>
-
-                <button 
                   disabled={isSearching || !query.trim()}
                   className="relative flex items-center justify-center gap-1.5 h-10 md:h-[48px] px-5 md:px-7 rounded-[16px] md:rounded-[18px] bg-[#2C2A29] hover:bg-[#1A1918] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-md shadow-[#2C2A29]/20 hover:shadow-lg hover:shadow-[#2C2A29]/30 disabled:opacity-50 disabled:cursor-not-allowed font-bold tracking-widest uppercase"
                 >
@@ -575,6 +566,24 @@ export default function VerificationPage() {
                 </button>
               </div>
             </form>
+
+            {/* 扫码按钮 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-5 flex justify-center"
+            >
+              <button
+                type="button"
+                onClick={() => setShowScanner(true)}
+                disabled={isSearching}
+                className="inline-flex items-center gap-2 text-[13px] text-[#8B7355] hover:text-[#6B5346] transition-colors tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>扫描二维码验证</span>
+              </button>
+            </motion.div>
             
             <motion.div 
               initial={{ opacity: 0 }} 
@@ -582,13 +591,14 @@ export default function VerificationPage() {
               transition={{ delay: 0.4 }}
               className="md:hidden mt-14 flex justify-center"
             >
-              <Link 
+              <Link
                 href="https://nihplod.cn"
                 target="_blank"
-                className="flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] uppercase text-[#8B7355]/50 hover:text-[#8B7355] transition-all"
+                className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355]/70 hover:text-[#8B7355] transition-all"
               >
-                <Globe className="w-4 h-4" />
-                返回品牌官网
+                <Building2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                品牌官网
+                <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
               </Link>
             </motion.div>
           </motion.div>
@@ -611,7 +621,7 @@ export default function VerificationPage() {
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
               className="relative w-full max-w-2xl flex flex-col gap-4 md:gap-6 z-10"
             >
-              <div className="relative w-full bg-white border border-white/60 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14 overflow-hidden">
+              <div className="relative w-full bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14 overflow-hidden">
                 <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50">
                   <button 
                     onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
@@ -623,20 +633,18 @@ export default function VerificationPage() {
 
               {error ? (
                 <div className="flex flex-col items-center text-center py-10 gap-8">
-                  <div className="flex bg-[#8B7355]/5 border border-[#8B7355]/20 rounded-full items-center justify-center text-[#8B7355] h-16 w-16 mb-6 mx-auto">
-                    <ShieldAlert className="w-8 h-8" />
-                  </div>
+                  <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-10 w-auto mb-6 mx-auto" />
                   <div className="space-y-4 text-center">
                      <div className="space-y-4 md:space-y-5">
-                        <p className="text-[17px] md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug px-2 md:px-4">{error}</p>
-                        <p className="text-xs md:text-[13px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
+                        <p className="text-lg md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug px-2 md:px-4">{error}</p>
+                        <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
                           请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
                           为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
                         </p>
                      </div>
                       <button 
                         onClick={() => { setError(null); setShowReportModal(true); setEvidenceFile(null); }}
-                        className="bg-[#2C2A29]/5 text-[#2C2A29] border border-[#2C2A29]/10 px-8 py-3 rounded-xl text-sm hover:bg-[#2C2A29]/10 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-8 font-medium"
+                        className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-8 py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-12 font-medium"
                       >
                         <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
                       </button>
@@ -853,14 +861,12 @@ export default function VerificationPage() {
               </div>
 
               <div className="text-center mb-6 pt-2">
-                 <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700 mx-auto mb-6">
-                    <QrCode size={24} />
-                 </div>
-                 <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">扫描二维码验证</h2>
+                 <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-[34px] w-auto mx-auto mb-6" />
+                 <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">扫码验证</h2>
                  <p className="text-xs text-slate-500 mt-2">将摄像头对准授权书上的二维码</p>
               </div>
 
-              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner">
+              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner max-w-[240px] mx-auto">
                 {(!scannerReady || isScanning) && !scanError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
                     <RefreshCw className="w-8 h-8 animate-spin text-[#8B7355] mb-4" />
@@ -873,12 +879,6 @@ export default function VerificationPage() {
               </div>
 
               <div className="flex flex-col gap-4 mt-4">
-                <button 
-                  onClick={handleCloseScanner}
-                  className="w-full bg-[#2C2A29] text-white h-12 rounded-xl text-sm font-bold tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"
-                >
-                  关闭
-                </button>
                 <div className="text-center">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
