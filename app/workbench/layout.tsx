@@ -103,7 +103,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
               className="flex items-center justify-center gap-1 text-xs hover:text-slate-500 transition-colors"
             >
               <img src="/assets/beian.webp" alt="公安网备" className="w-3 h-3" />
-              公网安备xxxxxxxxx号
+              沪公网安备31010702010178号
             </a>
           </div>
         </footer>

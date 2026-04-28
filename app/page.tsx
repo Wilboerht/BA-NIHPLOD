@@ -916,7 +916,6 @@ export default function VerificationPage() {
              >
                沪ICP备2026014764号-1
              </a>
-             {/* 公安网备暂未显示
              <span className="text-[10px] md:text-[11px] text-slate-300">|</span>
              <a
                href="http://www.beian.gov.cn/portal/registerSystemInfo"
@@ -925,9 +924,8 @@ export default function VerificationPage() {
                className="flex items-center gap-1 text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 hover:text-slate-500 transition-colors tracking-normal antialiased"
              >
                <img src="/assets/beian.webp" alt="公安网备" className="w-3 h-3" />
-               公网安备xxxxxxxxx号
+               沪公网安备31010702010178号
              </a>
-             */}
            </div>
          </div>
           <div className="flex flex-wrap gap-4 md:gap-12 text-[10px] md:text-[11px] font-bold text-slate-500 md:text-slate-400 uppercase tracking-[0.05em] md:tracking-[0.1em] justify-center md:justify-end order-1 md:order-3 w-full md:w-auto">
