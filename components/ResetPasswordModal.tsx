@@ -75,7 +75,6 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.id,
-            requesterId: user.id,
             oldPassword: user.is_first_login ? user.phone : oldPassword,
             newPassword: password
           })
@@ -94,8 +93,7 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           try {
             const completeResponse = await fetch("/api/auth/complete-first-login", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: user.id })
+              headers: { "Content-Type": "application/json" }
             });
 
             if (!completeResponse.ok) {
@@ -131,7 +129,6 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user?.id,
-            requesterId: user?.id,
             oldPassword: oldPassword,
             newPassword: password
           })
@@ -150,8 +147,7 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           try {
             const completeResponse = await fetch("/api/auth/complete-first-login", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: user?.id })
+              headers: { "Content-Type": "application/json" }
             });
 
             if (!completeResponse.ok) {

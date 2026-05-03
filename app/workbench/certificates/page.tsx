@@ -80,31 +80,12 @@ export default function CertificatesPage() {
     
     setIsLoading(true);
     try {
-      // 从 sessionStorage 获取用户 ID
-      const userStr = sessionStorage.getItem('user');
-      if (!userStr) {
-        alert("❌ 未找到登录信息，请重新登录");
-        window.location.href = "/";
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-      const managerId = user.id;
-
-      if (!managerId) {
-        alert("❌ 用户 ID 无效，请清除浏览器缓存并重新登录：\n\n1. F12 打开开发工具\n2. 应用 → Storage → SessionStorage\n3. 删除所有条目\n4. 重新加载页面并登录");
-        return;
-      }
-
-      console.log("📋 发起证书核发请求", { certId: id, managerId, username: user.username });
-
       const response = await fetch('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           action: 'approve_issue', 
-          certId: id,
-          managerId: managerId
+          certId: id
         })
       });
 

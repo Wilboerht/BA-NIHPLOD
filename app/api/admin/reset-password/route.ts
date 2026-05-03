@@ -1,22 +1,27 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { USE_LOCAL_DB, sql, checkIsAdmin } from "@/lib/db";
+import { USE_LOCAL_DB, sql } from "@/lib/db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAdmin, validatePassword } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    const { userId, newPassword, adminId } = await req.json();
+    const { userId, newPassword } = await req.json();
 
-    if (!userId || !newPassword || newPassword.length < 6) {
-      return NextResponse.json({ error: "密码长度必须至少为 6 位" }, { status: 400 });
+    if (!userId || !newPassword) {
+      return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
+    }
+
+    // 密码强度校验
+    const passwordCheck = validatePassword(newPassword);
+    if (!passwordCheck.valid) {
+      return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
 
     // 权限检查：只有管理员可以重置他人密码
-    if (!adminId || !(await checkIsAdmin(adminId))) {
-      return NextResponse.json(
-        { error: '无权限重置用户密码' },
-        { status: 403 }
-      );
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
 
     // 生成新密码哈希

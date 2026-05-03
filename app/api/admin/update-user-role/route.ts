@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { USE_LOCAL_DB, sql, checkIsAdmin } from '@/lib/db';
+import { USE_LOCAL_DB, sql } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/auth';
 
 export async function PUT(req: Request) {
   try {
-    const { userId, newRole, adminId } = await req.json();
+    const { userId, newRole } = await req.json();
 
     if (!userId || !newRole) {
       return NextResponse.json(
@@ -14,18 +15,16 @@ export async function PUT(req: Request) {
     }
 
     // 验证权限：只有管理员可以修改角色
-    if (!adminId || !(await checkIsAdmin(adminId))) {
-      return NextResponse.json(
-        { error: '无权限修改用户角色' },
-        { status: 403 }
-      );
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
 
     // 更新用户角色
     if (USE_LOCAL_DB && sql) {
       try {
         // 验证新角色值
-        const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER', 'USER', 'DEALER'];
+        const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER', 'DEALER'];
         if (!validRoles.includes(newRole)) {
           return NextResponse.json(
             { error: '无效的角色值' },

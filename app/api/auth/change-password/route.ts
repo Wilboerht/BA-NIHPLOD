@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { USE_LOCAL_DB, sql } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAuth, validatePassword } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, oldPassword, newPassword, requesterId } = body;
+    const { userId, oldPassword, newPassword } = body;
 
     if (!userId || !oldPassword || !newPassword) {
       return NextResponse.json(
@@ -15,17 +16,25 @@ export async function POST(req: Request) {
       );
     }
 
+    // 从 Cookie JWT 获取当前用户
+    const { user, response } = await requireAuth(req);
+    if (response) {
+      return response;
+    }
+
     // 权限检查：用户只能修改自己的密码
-    if (!requesterId || requesterId !== userId) {
+    if (user!.id !== userId) {
       return NextResponse.json(
         { error: '无权限修改他人密码' },
         { status: 403 }
       );
     }
 
-    if (newPassword.length < 6) {
+    // 密码强度校验
+    const passwordCheck = validatePassword(newPassword);
+    if (!passwordCheck.valid) {
       return NextResponse.json(
-        { error: '新密码至少6位' },
+        { error: passwordCheck.error },
         { status: 400 }
       );
     }

@@ -38,6 +38,11 @@ export default function Sidebar({
   }, []);
 
   const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout API error:', e);
+    }
     sessionStorage.removeItem('user');
     window.location.href = "/";
   };

@@ -1,29 +1,28 @@
 import { NextResponse } from "next/server";
-import { USE_LOCAL_DB, sql, checkIsAdmin } from "@/lib/db";
+import { USE_LOCAL_DB, sql } from "@/lib/db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/auth";
 
 /**
  * POST /api/admin/delete-user
  * 安全地删除用户，先处理所有外键关系
- * Body: { userId: string, adminId: string }
+ * Body: { userId: string }
  */
 export async function POST(req: Request) {
   try {
-    const { userId, adminId } = await req.json();
+    const { userId } = await req.json();
 
-    if (!userId || !adminId) {
+    if (!userId) {
       return NextResponse.json(
-        { error: "缺少必要参数：userId 和 adminId" },
+        { error: "缺少必要参数：userId" },
         { status: 400 }
       );
     }
 
     // 1. 权限检查 - 确保调用者是管理员
-    if (!(await checkIsAdmin(adminId))) {
-      return NextResponse.json(
-        { error: "无权限执行此操作或身份验证失败" },
-        { status: 403 }
-      );
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
 
     if (USE_LOCAL_DB && sql) {

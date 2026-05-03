@@ -1,30 +1,28 @@
 import { NextResponse } from "next/server";
-import { checkIsAdmin, USE_LOCAL_DB, sql } from "@/lib/db";
+import { USE_LOCAL_DB, sql } from "@/lib/db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/auth";
 
 /**
  * POST /api/admin/ban-user
- * Body: { adminId: string, profileId: string, action?: "ban" | "unban" }
+ * Body: { profileId: string, action?: "ban" | "unban" }
  * 封禁或解封指定用户（仅管理员可调用）
  */
 export async function POST(req: Request) {
   try {
-    const { adminId, profileId, action = "ban" } = await req.json();
+    const { profileId, action = "ban" } = await req.json();
 
-    if (!adminId || !profileId || !["ban", "unban"].includes(action)) {
+    if (!profileId || !["ban", "unban"].includes(action)) {
       return NextResponse.json(
-        { error: "参数无效: 需要 adminId, profileId, action" },
+        { error: "参数无效: 需要 profileId, action" },
         { status: 400 }
       );
     }
 
     // 权限检查：确保是管理员
-    const isAdmin = await checkIsAdmin(adminId);
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: "无权限执行此操作" },
-        { status: 403 }
-      );
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
 
     // 执行封禁/解封操作

@@ -182,7 +182,12 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout API error:', e);
+    }
     sessionStorage.removeItem("user");
     if (onLogout) {
       onLogout();

@@ -417,7 +417,12 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     }
   }, [showHiddenGenerator, generatorDataForBackground, isPdfModeBackground]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout API error:', e);
+    }
     sessionStorage.removeItem("user");
     onClose();
     window.location.href = "/";

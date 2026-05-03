@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getAllComplaints } from '@/lib/db';
-import { checkIsAdmin } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
-    // 权限检查：从请求头获取管理员 ID
-    const adminId = req.headers.get('x-admin-id') || '';
-    const isAdmin = await checkIsAdmin(adminId);
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: '无权访问，需要管理员权限' },
-        { status: 403 }
-      );
+    // 权限检查
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
 
     const { data, error } = await getAllComplaints();

@@ -20,13 +20,7 @@ export default function ComplaintsPage() {
   const fetchComplaints = async () => {
     setIsLoading(true);
     try {
-      const userStr = sessionStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
-      const adminId = user?.id || '';
-
-      const response = await fetch('/api/db/complaints', {
-        headers: { 'x-admin-id': adminId }
-      });
+      const response = await fetch('/api/db/complaints');
       if (response.ok) {
         const result = await response.json();
         setComplaints(result.data || []);
@@ -45,14 +39,10 @@ export default function ComplaintsPage() {
   const handleStatusUpdate = async (newStatus: string) => {
     if (!activeReviewId) return;
     try {
-      const userStr = sessionStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
-      const adminId = user?.id || '';
-
       const response = await fetch(`/api/db/complaints/${activeReviewId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, review_note: reviewNote, adminId })
+        body: JSON.stringify({ status: newStatus, review_note: reviewNote })
       });
       if (response.ok) {
         alert("工单状态已更新！");

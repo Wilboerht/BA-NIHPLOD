@@ -68,7 +68,6 @@ export default function ResetPasswordPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.id,
-            requesterId: user.id,
             oldPassword: user.is_first_login ? user.phone : oldPassword,
             newPassword: password
           })
@@ -101,7 +100,6 @@ export default function ResetPasswordPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user?.id,
-            requesterId: user?.id,
             oldPassword: oldPassword,
             newPassword: password
           })

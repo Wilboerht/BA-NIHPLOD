@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { USE_LOCAL_DB, sql } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
+    // 权限检查：只有管理员可以查看管理员列表
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
+    }
+
     if (USE_LOCAL_DB && sql) {
       try {
         const result = await sql`

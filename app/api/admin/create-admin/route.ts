@@ -2,27 +2,32 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
 import { USE_LOCAL_DB, sql } from "@/lib/db";
+import { requireAdmin, validatePassword } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    const { fullName, username, password, role, adminId } = await req.json();
-
     // 权限检查：只有管理员可以创建新管理员
-    if (!adminId || !(await checkIsAdmin(adminId))) {
-      return NextResponse.json(
-        { error: "无权限创建新的管理员账户" },
-        { status: 403 }
-      );
+    const { user, response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
+
+    const { fullName, username, password, role } = await req.json();
 
     // 基本校验
     if (!fullName || !username || !password || !role) {
       return NextResponse.json({ error: "请填写所有必填字段" }, { status: 400 });
     }
-    if (password.length < 6) {
-      return NextResponse.json({ error: "密码长度不得少于 6 位" }, { status: 400 });
+
+    // 密码强度校验
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
+      return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
-    if (!["SUPER_ADMIN", "AUDITOR"].includes(role)) {
+
+    // 允许的角色
+    const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
+    if (!validRoles.includes(role)) {
       return NextResponse.json({ error: "无效的角色类型" }, { status: 400 });
     }
 

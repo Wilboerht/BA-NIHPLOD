@@ -116,7 +116,7 @@ export default function WorkbenchPage() {
       const response = await fetch('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve_issue', certId: cert.id, managerId: userId }),
+        body: JSON.stringify({ action: 'approve_issue', certId: cert.id }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
@@ -136,7 +136,7 @@ export default function WorkbenchPage() {
       const response = await fetch('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reject_pending', certId: cert.id, managerId: userId }),
+        body: JSON.stringify({ action: 'reject_pending', certId: cert.id }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);

@@ -194,15 +194,10 @@ export default function DealersPage() {
     setConfirmBanId(null);
     setBanningId(dealerGroup.phone);
     try {
-      // 只需 ban 该 phone 对应的 profile 一次（因为一个 phone 只有一个 profile）
-      const userStr = sessionStorage.getItem("user");
-      const adminId = userStr ? JSON.parse(userStr).id : null;
-      
       const res = await fetch('/api/admin/ban-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          adminId, 
           profileId: dealerGroup.profile.id, 
           action 
         }),

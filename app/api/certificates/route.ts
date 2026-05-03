@@ -2,23 +2,13 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { USE_LOCAL_DB, sql } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/auth';
 
 /**
  * 证书管理 API - 已移除图片上传功能
  * 图片由前端用户实时生成，不进行持久化存储
  * 支持本地 PostgreSQL 直连或 Supabase
  */
-
-// 辅助函数：检查管理员权限
-async function checkManager(managerId: string) {
-  if (USE_LOCAL_DB && sql) {
-    const result = await sql`SELECT id, username, role FROM profiles WHERE id = ${managerId} LIMIT 1`;
-    return result.length > 0;
-  } else {
-    const { data } = await supabaseAdmin.from('profiles').select('id, username, role').eq('id', managerId).maybeSingle();
-    return !!data;
-  }
-}
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
 async function getOrCreateDealer(phone: string, shopName: string) {
@@ -65,7 +55,7 @@ async function getOrCreateDealer(phone: string, shopName: string) {
 }
 
 // 辅助函数：获取或创建经销商账户
-async function getOrCreateDealerProfile(phone: string, shopName: string, managerId: string) {
+async function getOrCreateDealerProfile(phone: string, shopName: string) {
   const passwordHash = await bcrypt.hash(phone, 10);
 
   if (USE_LOCAL_DB && sql) {
@@ -112,19 +102,15 @@ async function getOrCreateDealerProfile(phone: string, shopName: string, manager
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, certData, managerId, certId } = body;
+    const { action, certData, certId } = body;
 
-    // ✅ 验证 managerId
-    if (managerId) {
-      const managerExists = await checkManager(managerId);
-      if (!managerExists) {
-        console.error(`❌ Manager ID 在数据库中不存在: ${managerId}`);
-        return NextResponse.json(
-          { error: `❌ 身份验证失效：您的登录信息已过期（账户不存在于数据库中）。\n\n请清除浏览器缓存重新登录：\n1. F12 打开开发工具\n2. 应用程序(Application) → 存储(Storage) → 会话存储(SessionStorage)\n3. 清除所有内容\n4. 重新刷新页面并登录。` },
-          { status: 403 }
-        );
-      }
+    // 验证管理员权限（所有证书操作都需要管理员权限）
+    const { user: adminUser, response } = await requireAdmin(req);
+    if (response) {
+      return response;
     }
+
+    const managerId = adminUser!.id;
 
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
@@ -231,7 +217,7 @@ export async function POST(req: Request) {
       }
 
       // 创建或更新经销商账户
-      await getOrCreateDealerProfile(dealerPhone, dealerShopName, managerId);
+      await getOrCreateDealerProfile(dealerPhone, dealerShopName);
 
       // 如果是从待审核转为 ISSUED，更新状态
       if (certId) {

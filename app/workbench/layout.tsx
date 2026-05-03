@@ -37,11 +37,12 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const checkAuth = async () => {
-      // 1. 首先检查 sessionStorage 里的用户信息
+      // 1. 首先检查 sessionStorage 里的用户信息（快速渲染）
       const sessionUserStr = sessionStorage.getItem('user');
+      let sessionUser = null;
       if (sessionUserStr) {
         try {
-          const sessionUser = JSON.parse(sessionUserStr);
+          sessionUser = JSON.parse(sessionUserStr);
           
           // 经销商用户不允许进入 workbench
           if (sessionUser.role === 'DEALER') {
@@ -49,20 +50,41 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
             return;
           }
           
-          // 管理员用户（从 sessionStorage）可以进入
+          // 管理员用户（从 sessionStorage）先允许进入，后续用服务端验证
           if (sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'AUDITOR' || sessionUser.role === 'MANAGER' || sessionUser.role === 'PROJECT_MANAGER') {
             setUser(sessionUser);
             setUserType('admin');
             setIsAuthorized(true);
-            return;
           }
         } catch (e) {
           console.error('Failed to parse user session:', e);
         }
       }
 
-      // sessionStorage 中没有用户，重定向到首页
-      router.replace("/");
+      // 2. 服务端验证 JWT Cookie
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            // 更新 sessionStorage 和本地状态
+            sessionStorage.setItem('user', JSON.stringify(data.user));
+            setUser(data.user);
+            setUserType('admin');
+            setIsAuthorized(true);
+            return;
+          }
+        }
+        // 服务端验证失败
+        sessionStorage.removeItem('user');
+        router.replace("/");
+      } catch (e) {
+        console.error('Auth verification error:', e);
+        // 如果服务端请求失败但 sessionStorage 有数据，保留（可能是离线状态）
+        if (!sessionUser) {
+          router.replace("/");
+        }
+      }
     };
 
     checkAuth();
