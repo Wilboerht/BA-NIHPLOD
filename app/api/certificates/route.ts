@@ -10,6 +10,30 @@ import { requireAdmin } from '@/lib/auth';
  * 支持本地 PostgreSQL 直连或 Supabase
  */
 
+// 辅助函数：生成唯一的证书编号
+async function generateUniqueCertNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const base = `BAVP-${year}-`;
+  
+  for (let attempt = 0; attempt < 10; attempt++) {
+    // 使用 36 进制生成 4 位随机字符（167万组合），远大于原来的 9000
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const certNumber = `${base}${randomPart}`;
+    
+    // 检查是否已存在
+    if (USE_LOCAL_DB && sql) {
+      const existing = await sql`SELECT 1 FROM certificates WHERE cert_number = ${certNumber} LIMIT 1`;
+      if (existing.length === 0) return certNumber;
+    } else {
+      const { data } = await supabaseAdmin.from('certificates').select('id').eq('cert_number', certNumber).maybeSingle();
+      if (!data) return certNumber;
+    }
+  }
+  
+  // 如果 10 次都碰撞（概率极低），使用时间戳确保唯一
+  return `${base}${Date.now().toString(36).substring(2, 6).toUpperCase()}`;
+}
+
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
 async function getOrCreateDealer(phone: string, shopName: string) {
   if (USE_LOCAL_DB && sql) {
@@ -115,7 +139,7 @@ export async function POST(req: Request) {
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
       const dealerId = await getOrCreateDealer(certData.phone, certData.shopName);
-      const certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const certNumber = await generateUniqueCertNumber();
 
       if (USE_LOCAL_DB && sql) {
         await sql`
@@ -180,7 +204,7 @@ export async function POST(req: Request) {
       } else if (certData) {
         // B. 管理员直发
         const dealerId = await getOrCreateDealer(certData.phone, certData.shopName);
-        certNumber = `BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        certNumber = await generateUniqueCertNumber();
         dealerPhone = certData.phone;
         dealerShopName = certData.shopName;
 

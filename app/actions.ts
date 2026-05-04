@@ -158,18 +158,41 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
 /**
  * 提交维权申诉工单
  */
+function sanitizeInput(input: string): string {
+  // 移除潜在的危险 HTML 标签和属性
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '');
+}
+
 export async function submitComplaintAction(formData: {
   description: string;
   channel: string;
   evidence_image_url?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    // 输入长度校验
+    if (!formData.description?.trim() || formData.description.length > 2000) {
+      return { success: false, error: "描述不能为空且不超过 2000 字" };
+    }
+    if (!formData.channel?.trim() || formData.channel.length > 500) {
+      return { success: false, error: "渠道信息不能为空且不超过 500 字" };
+    }
+
+    // XSS 消毒
+    const cleanDescription = sanitizeInput(formData.description.trim());
+    const cleanChannel = sanitizeInput(formData.channel.trim());
+
     // 使用本地数据库支持
     if (USE_LOCAL_DB && sql) {
       try {
         await sql`
           INSERT INTO complaints (description, channel, evidence_image_url, status, created_at)
-          VALUES (${formData.description}, ${formData.channel}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
+          VALUES (${cleanDescription}, ${cleanChannel}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
         `;
         console.log('[submitComplaintAction] 本地数据库: 投诉已提交');
         return { success: true };

@@ -8,9 +8,10 @@ function getSecret(): Uint8Array {
   if (AUTH_SECRET) {
     return new TextEncoder().encode(AUTH_SECRET);
   }
-  // Fallback for development (not safe for production)
-  console.warn('[auth] AUTH_SECRET not set, using fallback secret');
-  return new TextEncoder().encode('fallback-secret-change-me-in-production-32');
+  throw new Error(
+    '[auth] AUTH_SECRET environment variable is required. ' +
+    'Please set a strong random string (at least 32 characters) in your .env.local file.'
+  );
 }
 
 export interface AuthUser {

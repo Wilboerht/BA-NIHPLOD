@@ -14,7 +14,8 @@ export async function GET(req: Request) {
     if (USE_LOCAL_DB && sql) {
       try {
         const result = await sql`
-          SELECT * FROM profiles 
+          SELECT id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at
+          FROM profiles 
           WHERE role != 'DEALER'
           ORDER BY role ASC
         `;
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
       try {
         const { data, error } = await supabaseAdmin
           .from('profiles')
-          .select('*')
+          .select('id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at')
           .neq('role', 'DEALER')
           .order('role', { ascending: true });
 

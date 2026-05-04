@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getPendingCertificates } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
+    // 权限检查：只有管理员可以查看待核发证书
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
+    }
+
     const { searchParams } = new URL(req.url);
     const limit = searchParams.get('limit');
 
@@ -12,7 +19,7 @@ export async function GET(req: Request) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message || '获取待核发证书失败' },
+        { error: '获取待核发证书失败' },
         { status: 500 }
       );
     }
@@ -21,7 +28,7 @@ export async function GET(req: Request) {
   } catch (err: any) {
     console.error('[API] Get pending certificates error:', err);
     return NextResponse.json(
-      { error: err.message || '获取待核发证书失败' },
+      { error: '获取待核发证书失败' },
       { status: 500 }
     );
   }

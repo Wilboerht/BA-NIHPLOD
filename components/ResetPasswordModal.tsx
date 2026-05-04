@@ -48,8 +48,9 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
 
   const requirements = [
     { label: "至少 8 个字符", met: password.length >= 8 },
+    { label: "包含大写字母", met: /[A-Z]/.test(password) },
+    { label: "包含小写字母", met: /[a-z]/.test(password) },
     { label: "包含数字", met: /\d/.test(password) },
-    { label: "包含特殊符号", met: /[^A-Za-z0-9]/.test(password) },
   ];
 
   const canSubmit = requirements.every(req => req.met) && password === confirmPassword && password !== "";

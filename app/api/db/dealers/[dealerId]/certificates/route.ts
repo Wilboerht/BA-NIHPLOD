@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getCertificatesByDealerId, getDealerById } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ dealerId: string }> }
 ) {
   try {
+    // 权限检查：只有管理员可以查看经销商证书
+    const { response } = await requireAdmin(req);
+    if (response) {
+      return response;
+    }
+
     const { dealerId } = await params;
 
     if (!dealerId) {
@@ -29,7 +36,7 @@ export async function GET(
 
     if (error) {
       return NextResponse.json(
-        { error: error.message || '获取证书列表失败' },
+        { error: '获取证书列表失败' },
         { status: 500 }
       );
     }
@@ -38,7 +45,7 @@ export async function GET(
   } catch (err: any) {
     console.error('[API] Get dealer certificates error:', err);
     return NextResponse.json(
-      { error: err.message || '获取证书列表失败' },
+      { error: '获取证书列表失败' },
       { status: 500 }
     );
   }

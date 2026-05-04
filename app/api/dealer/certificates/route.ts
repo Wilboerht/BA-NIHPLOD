@@ -67,7 +67,7 @@ export async function GET(req: Request) {
       } catch (err: any) {
         console.error("[Dealer Certificates API] 本地数据库查询失败:", err);
         return NextResponse.json(
-          { error: "Failed to fetch certificates: " + err.message },
+          { error: "获取证书失败" },
           { status: 500 }
         );
       }
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
       } catch (err: any) {
         console.error("[Dealer Certificates API] Supabase 查询失败:", err);
         return NextResponse.json(
-          { error: "Failed to fetch certificates: " + err.message },
+          { error: "获取证书失败" },
           { status: 500 }
         );
       }
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
   } catch (err: any) {
     console.error("[Dealer Certificates API] API 错误:", err);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "获取证书失败" },
       { status: 500 }
     );
   }

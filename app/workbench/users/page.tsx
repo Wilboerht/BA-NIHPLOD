@@ -72,7 +72,7 @@ export default function AdminsManagementPage() {
         if (user.role === 'DEALER') {
           alert("权限不足：您的账号非管理人员，请重新登录。");
           sessionStorage.clear();
-          window.location.href = "/login";
+          window.location.href = "/";
           return;
         }
       } catch (e) {

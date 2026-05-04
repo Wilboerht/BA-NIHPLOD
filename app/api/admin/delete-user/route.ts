@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { USE_LOCAL_DB, sql } from "@/lib/db";
+import { USE_LOCAL_DB, sql, getProfileById } from "@/lib/db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/auth";
 
@@ -20,9 +20,26 @@ export async function POST(req: Request) {
     }
 
     // 1. 权限检查 - 确保调用者是管理员
-    const { response } = await requireAdmin(req);
+    const { user: adminUser, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    // 自保护：不能删除自己
+    if (userId === adminUser!.id) {
+      return NextResponse.json(
+        { error: '不能删除自己的账号' },
+        { status: 403 }
+      );
+    }
+
+    // 查询目标用户角色
+    const { data: targetProfile } = await getProfileById(userId);
+    if (targetProfile?.role === 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: '不能删除超级管理员账号' },
+        { status: 403 }
+      );
     }
 
     if (USE_LOCAL_DB && sql) {

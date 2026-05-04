@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { USE_LOCAL_DB, sql } from '@/lib/db';
+import { USE_LOCAL_DB, sql, getProfileById } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 
@@ -15,9 +15,37 @@ export async function PUT(req: Request) {
     }
 
     // 验证权限：只有管理员可以修改角色
-    const { response } = await requireAdmin(req);
+    const { user: adminUser, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    // 自保护：不能修改自己的角色
+    if (userId === adminUser!.id) {
+      return NextResponse.json(
+        { error: '不能修改自己的角色' },
+        { status: 403 }
+      );
+    }
+
+    // 查询目标用户和操作用户的角色
+    const { data: targetProfile } = await getProfileById(userId);
+    const { data: currentAdmin } = await getProfileById(adminUser!.id);
+
+    // 只有 SUPER_ADMIN 能创建/修改 SUPER_ADMIN
+    if (newRole === 'SUPER_ADMIN' && currentAdmin?.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: '只有超级管理员才能分配超级管理员角色' },
+        { status: 403 }
+      );
+    }
+
+    // 只有 SUPER_ADMIN 能修改现有 SUPER_ADMIN 的角色
+    if (targetProfile?.role === 'SUPER_ADMIN' && currentAdmin?.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: '无权修改超级管理员的角色' },
+        { status: 403 }
+      );
     }
 
     // 更新用户角色
