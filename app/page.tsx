@@ -267,8 +267,7 @@ export default function VerificationPage() {
       setError("系统查询出错，请稍后再试。");
     } finally {
       setIsSearching(false);
-      setIsScanning(false);
-      setShowScanner(false);
+      await handleCloseScanner();
     }
   };
 
@@ -343,17 +342,22 @@ export default function VerificationPage() {
   };
 
   // 关闭扫描器
-  const handleCloseScanner = () => {
+  const handleCloseScanner = async () => {
     if (scannerRef.current) {
       const scanner = scannerRef.current;
       if (scanner.isScanning) {
-        scanner.stop().catch(err => console.error("Failed to stop scanner:", err));
+        try {
+          await scanner.stop();
+        } catch (err) {
+          console.error("Failed to stop scanner:", err);
+        }
       }
       scannerRef.current = null;
     }
     setShowScanner(false);
     setScannerReady(false);
     setScanError(null);
+    setIsScanning(false);
   };
 
   // 检查是否有经销商用户登录，当登录模态框从打开变为关闭时（登陆完成）才打开面板
@@ -978,12 +982,12 @@ export default function VerificationPage() {
               </button>
             ) : (
               <>
-                <button 
+                {/* <button 
                   onClick={handleDealerLoginClick} 
                   className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
                 >
                   经销商登录
-                </button>
+                </button> */}
               </>
             )}
 
