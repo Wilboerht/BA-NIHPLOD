@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
 import QRCode from "qrcode";
 
-interface CertData {
+export interface CertData {
+  id?: string;
   platformId: string;
   platformLabel: string;
   shopName: string;
@@ -20,7 +21,7 @@ interface CertData {
 }
 
 interface CertificateGeneratorProps {
-  initialData?: any;
+  initialData?: CertData;
   mode?: 'create' | 'view' | 'edit';
   isVoided?: boolean;
   onSuccess?: () => void;
@@ -57,21 +58,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const userStr = sessionStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setUserRole(user.role || 'AUDITOR');
+        }
+      } catch (err) {
+        console.warn("Failed to get user role:", err);
+        setUserRole('AUDITOR');
+      }
+    };
     fetchUserRole();
   }, []);
-
-  const fetchUserRole = async () => {
-    try {
-      const userStr = sessionStorage.getItem('user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        setUserRole(user.role || 'AUDITOR');
-      }
-    } catch (err) {
-      console.warn("Failed to get user role:", err);
-      setUserRole('AUDITOR');
-    }
-  };
 
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -315,8 +315,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       }
       pdf.addImage(imgData, 'PNG', (pdfWidth - imgWidth) / 2, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
       pdf.save(`授权书_${data.shopName}.pdf`);
-    } catch (err: any) {
-      alert("PDF 下载失败：" + err.message);
+    } catch (err: unknown) {
+      alert("PDF 下载失败：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setIsDownloading(false);
     }
@@ -359,8 +359,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       alert(mode === 'edit' ? "✅ 授权信息已更新" : "✅ 证书已处理");
       setIsIssued(true);
       if (onSuccess) setTimeout(onSuccess, 800);
-    } catch (err: any) {
-      alert("操作失败：" + err.message);
+    } catch (err: unknown) {
+      alert("操作失败：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setIsSubmitting(false);
     }

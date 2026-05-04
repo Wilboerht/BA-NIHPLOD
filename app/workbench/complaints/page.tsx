@@ -4,8 +4,18 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X } from "lucide-react";
 
+interface Complaint {
+  id: string;
+  channel: string;
+  description: string;
+  status: string;
+  created_at: string;
+  evidence_image_url?: string;
+  review_note?: string;
+}
+
 export default function ComplaintsPage() {
-  const [complaints, setComplaints] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,8 +65,8 @@ export default function ComplaintsPage() {
         const result = await response.json().catch(() => ({}));
         alert(result.error || "更新失败");
       }
-    } catch (err: any) {
-      alert("更新失败：" + err.message);
+    } catch (err: unknown) {
+      alert("更新失败：" + (err instanceof Error ? err.message : "未知错误"));
     }
   };
 
@@ -158,7 +168,7 @@ export default function ComplaintsPage() {
                     <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={complaint.description}>{complaint.description}</td>
                     <td className="px-6 py-4">
                       {complaint.evidence_image_url ? (
-                        <button onClick={() => setSelectedImage(complaint.evidence_image_url)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors">
+                        <button onClick={() => setSelectedImage(complaint.evidence_image_url || null)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors">
                            <ImageIcon className="w-4 h-4" />
                         </button>
                       ) : (

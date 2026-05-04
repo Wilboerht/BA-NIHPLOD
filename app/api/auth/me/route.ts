@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         is_first_login: profile.is_first_login,
       }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[auth/me] Error:', err);
     return NextResponse.json(
       { error: '获取用户信息失败' },

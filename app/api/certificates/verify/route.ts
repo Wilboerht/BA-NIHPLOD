@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         } else {
           error = { code: 'PGRST116' }; // 模拟 Supabase "未找到记录"错误
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[certificates/verify] 本地 DB 查询失败:', err);
         throw err;
       }
@@ -122,8 +122,8 @@ export async function POST(req: Request) {
         companyName = data.dealers[0]?.company_name || companyName;
         phone = data.dealers[0]?.phone || "";
       } else {
-        companyName = (data.dealers as { company_name: string }).company_name || companyName;
-        phone = (data.dealers as any).phone || "";
+        companyName = (data.dealers as { company_name?: string }).company_name || companyName;
+        phone = (data.dealers as { phone?: string }).phone || "";
       }
     }
 

@@ -6,7 +6,7 @@ import {
   Search, Key, FileText, ShieldCheck, XCircle, RefreshCw,
   Building2, Ban, ShieldOff, Loader2, Edit
 } from "lucide-react";
-import CertificateGenerator from "@/components/certificate/CertificateGenerator";
+import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 
 interface Dealer {
   id: string;
@@ -25,17 +25,45 @@ interface Dealer {
   isBanned?: boolean;
 }
 
+interface DealerCertificate {
+  id: string;
+  cert_number: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  auth_scope: string;
+  seal_url?: string;
+  templates?: { stamp_url?: string } | null;
+  dealer_id: string;
+  created_at: string;
+}
+
+interface Profile {
+  id: string;
+  username: string;
+  full_name: string;
+  role: string;
+  is_first_login: boolean;
+  is_banned?: boolean;
+}
+
+interface DealerGroup extends Dealer {
+  allNames: string[];
+  allDealerIds: string[];
+  totalCerts: number;
+}
+
 export default function DealersPage() {
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
-  const [dealerCerts, setDealerCerts] = useState<any[]>([]);
+  const [selectedDealer, setSelectedDealer] = useState<DealerGroup | null>(null);
+  const [dealerCerts, setDealerCerts] = useState<DealerCertificate[]>([]);
   const [dealerNameMap, setDealerNameMap] = useState<Record<string, string>>({}); // dealer_id -> company_name
   const [dealerPhoneMap, setDealerPhoneMap] = useState<Record<string, string>>({}); // dealer_id -> phone
   const [isCertsLoading, setIsCertsLoading] = useState(false);
-  const [viewCertData, setViewCertData] = useState<any>(null);
+  const [viewCertData, setViewCertData] = useState<CertData | undefined>(undefined);
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [banningId, setBanningId] = useState<string | null>(null); // 正在执行 API 的 dealer.id
@@ -61,23 +89,23 @@ export default function DealersPage() {
       const response = await fetch('/api/db/dealers');
       if (!response.ok) throw new Error('获取经销商列表失败');
       
-      const result = await response.json();
+      const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string }> };
       const data = result.data || [];
       
       // 获取独特的手机号集合
-      const dealerPhones = [...new Set(data.map((d: any) => d.phone).filter(Boolean))];
+      const dealerPhones = [...new Set(data.map((d) => d.phone).filter(Boolean))];
       
       // 获取对应的 profiles（按手机号关联）
       const profilesResp = await fetch('/api/admin/list');
-      const profilesResult = profilesResp.ok ? await profilesResp.json() : { data: [] };
+      const profilesResult = profilesResp.ok ? await profilesResp.json() as { data: Profile[] } : { data: [] };
       const profiles = profilesResult.data || [];
       
       // 构建 profile 映射（按 username/phone 关联）
-      const enriched = data.map((d: any) => {
-        const profile = profiles.find((p: any) => p.username === d.phone);
+      const enriched = data.map((d) => {
+        const profile = profiles.find((p) => p.username === d.phone);
         return {
           ...d,
-          profile: profile || null,
+          profile: profile || undefined,
           certificates: [{ count: 1 }], // 临时设置，后续从 API 获取
           isBanned: profile?.is_banned || false,
         };
@@ -129,7 +157,7 @@ export default function DealersPage() {
     });
   }, [filteredDealers]);
 
-  const fetchDealerCerts = async (dealerGroup: any) => {
+  const fetchDealerCerts = async (dealerGroup: DealerGroup) => {
     if (!dealerGroup) return;
     setIsCertsLoading(true);
     setSelectedDealer(dealerGroup);
@@ -142,7 +170,7 @@ export default function DealersPage() {
       );
       
       const results = await Promise.allSettled(certPromises);
-      const allCerts: any[] = [];
+      const allCerts: DealerCertificate[] = [];
       
       results.forEach((result, idx) => {
         if (result.status === 'fulfilled' && result.value.data) {
@@ -182,13 +210,13 @@ export default function DealersPage() {
   };
 
   // 第一次点击：进入待确认状态
-  const triggerBanConfirm = (dealerGroup: any) => {
+  const triggerBanConfirm = (dealerGroup: DealerGroup) => {
     if (!dealerGroup.profile?.id) return;
     setConfirmBanId(dealerGroup.phone);
   };
 
   // 第二次点击：执行封禁/解封 (应用于该 phone 的所有 dealer)
-  const executeBan = async (dealerGroup: any) => {
+  const executeBan = async (dealerGroup: DealerGroup) => {
     if (!dealerGroup.profile?.id) return;
     const action = dealerGroup.isBanned ? "unban" : "ban";
     setConfirmBanId(null);
@@ -212,8 +240,8 @@ export default function DealersPage() {
       setDealers(prev => prev.map(d =>
         dealerGroup.allDealerIds.includes(d.id) ? { ...d, isBanned: action === 'ban' } : d
       ));
-    } catch (err: any) {
-      alert("操作失败：" + (err.message || "未知错误"));
+    } catch (err: unknown) {
+      alert("操作失败：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setBanningId(null);
     }
@@ -274,8 +302,8 @@ export default function DealersPage() {
                   <td className="px-6 py-4 mr-10">
                     <div className="flex flex-col">
                       <div className={`space-y-0.5 ${dealerGroup.isBanned ? 'text-slate-400 line-through decoration-rose-300' : 'text-slate-900'}`}>
-                        {dealerGroup.allNames.map((name, idx) => (
-                          <div key={idx} className="text-[12px]">{name}</div>
+                        {dealerGroup.allNames.map((name) => (
+                          <div key={name} className="text-[12px]">{name}</div>
                         ))}
                       </div>
                     </div>
@@ -454,7 +482,7 @@ export default function DealersPage() {
                                         scopeText: scopeParts[1] || "品牌官方经销授权",
                                         duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                         authorizer: "旎柏（上海）商贸有限公司",
-                                        sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                        sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                         phone: dealerPhoneMap[cert.dealer_id] || ""
                                       });
                                       setIsViewVoided(false);
@@ -479,7 +507,7 @@ export default function DealersPage() {
                                       scopeText: scopeParts[1] || "品牌官方经销授权",
                                       duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                       authorizer: "旎柏（上海）商贸有限公司",
-                                      sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                      sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                       phone: dealerPhoneMap[cert.dealer_id] || ""
                                     });
                                     setIsViewVoided(isVoided || cert.status === 'EXPIRED');
@@ -514,7 +542,7 @@ export default function DealersPage() {
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => {
-                setViewCertData(null);
+                setViewCertData(undefined);
                 setIsEditMode(false);
               }}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
@@ -536,9 +564,9 @@ export default function DealersPage() {
                   mode={isEditMode ? 'edit' : 'view'}
                   isVoided={isViewVoided}
                   onSuccess={() => {
-                     setViewCertData(null);
+                     setViewCertData(undefined);
                      setIsEditMode(false);
-                     fetchDealerCerts(selectedDealer); // 刷新证书列表数据
+                     if (selectedDealer) fetchDealerCerts(selectedDealer); // 刷新证书列表数据
                   }}
                 />
               </div>

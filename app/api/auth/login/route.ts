@@ -107,10 +107,10 @@ export async function POST(req: Request) {
 
     response.headers.set('Set-Cookie', setAuthCookie(token));
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login error:', err);
     return NextResponse.json(
-      { error: '登录失败：' + err.message },
+      { error: '登录失败' },
       { status: 500 }
     );
   }

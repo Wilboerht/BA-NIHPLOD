@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle, AlertCircle, File, Lock } from "lucide-react";
 import jsPDF from "jspdf";
-import CertificateGenerator from "@/components/certificate/CertificateGenerator";
+import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 
 interface UserInfo {
   id: string;
@@ -46,7 +46,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [showHiddenGenerator, setShowHiddenGenerator] = useState(false);
-  const [generatorDataForBackground, setGeneratorDataForBackground] = useState<any>(null);
+  const [generatorDataForBackground, setGeneratorDataForBackground] = useState<CertData | undefined>(undefined);
   const [isPdfModeBackground, setIsPdfModeBackground] = useState(false);
 
   // 模态框打开时加载用户信息和证书
@@ -68,7 +68,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
         }
 
         const userData = JSON.parse(userStr) as UserInfo;
-        console.log("User session:", userData);
+        if (process.env.NODE_ENV !== 'production') console.log("User session:", userData);
         
         // 只允许DEALER角色打开
         if (userData.role !== "DEALER") {
@@ -91,7 +91,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
 
   const fetchCertificates = useCallback(async (userId: string) => {
     try {
-      console.log("Fetching certificates for userId:", userId);
+      if (process.env.NODE_ENV !== 'production') console.log("Fetching certificates for userId:", userId);
       
       // 调用 API 路由，让服务器端使用 service role key 查询
       const response = await fetch(`/api/dealer/certificates?userId=${userId}`);
@@ -103,13 +103,13 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
         return;
       }
 
-      console.log("API response:", result);
-      console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
+      if (process.env.NODE_ENV !== 'production') console.log("API response:", result);
+      if (process.env.NODE_ENV !== 'production') console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
       
       // 调试：打印每个证书的 final_image_url
       if (result.certificates && result.certificates.length > 0) {
-        result.certificates.forEach((cert: any, idx: number) => {
-          console.log(`Certificate ${idx}:`, {
+        result.certificates.forEach((cert: Certificate, idx: number) => {
+          if (process.env.NODE_ENV !== 'production') console.log(`Certificate ${idx}:`, {
             cert_number: cert.cert_number,
             final_image_url: cert.final_image_url ? cert.final_image_url.substring(0, 100) : "NULL",
             status: cert.status
@@ -127,7 +127,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
   const handleDownload = async (cert: Certificate) => {
     // ✅ 如果图片为空，在后台生成证书
     if (!cert.final_image_url) {
-      console.log("检测到证书未生成，后台生成中...");
+      if (process.env.NODE_ENV !== 'production') console.log("检测到证书未生成，后台生成中...");
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
         cert_number: cert.cert_number,
@@ -149,12 +149,12 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       return;
     }
 
-    console.log("Download PNG - cert.final_image_url:", cert.final_image_url.substring(0, 100));
+    if (process.env.NODE_ENV !== 'production') console.log("Download PNG - cert.final_image_url:", cert.final_image_url.substring(0, 100));
 
     // 检测是否是占位符图片
     const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
     if (isPlaceholder) {
-      console.log("检测到占位符图片，后台生成中...");
+      if (process.env.NODE_ENV !== 'production') console.log("检测到占位符图片，后台生成中...");
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
         cert_number: cert.cert_number,
@@ -181,7 +181,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       
       // 检查是否是 data URL（base64 格式）
       if (cert.final_image_url.startsWith('data:')) {
-        console.log("处理 data URL");
+        if (process.env.NODE_ENV !== 'production') console.log("处理 data URL");
         // 处理 data URL
         const arr = cert.final_image_url.split(',');
         const mimeMatch = arr[0].match(/:(.*?);/);
@@ -193,16 +193,16 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
           u8arr[i] = bstr.charCodeAt(i);
         }
         blob = new Blob([u8arr], { type: mime });
-        console.log("Base64 解析成功, blob size:", blob.size);
+        if (process.env.NODE_ENV !== 'production') console.log("Base64 解析成功, blob size:", blob.size);
       } else {
         // 处理远程 URL
-        console.log("处理远程 URL:", cert.final_image_url);
+        if (process.env.NODE_ENV !== 'production') console.log("处理远程 URL:", cert.final_image_url);
         const response = await fetch(cert.final_image_url);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: 无法获取图片`);
         }
         blob = await response.blob();
-        console.log("远程 URL 获取成功, blob size:", blob.size);
+        if (process.env.NODE_ENV !== 'production') console.log("远程 URL 获取成功, blob size:", blob.size);
       }
 
       if (blob.size === 0) {
@@ -218,7 +218,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      console.log("PNG 下载完成");
+      if (process.env.NODE_ENV !== 'production') console.log("PNG 下载完成");
     } catch (error) {
       console.error("下载失败:", error);
       alert("下载失败：" + (error as Error).message);
@@ -230,7 +230,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
   const handleDownloadPDF = async (cert: Certificate) => {
     // ✅ 如果图片为空，在后台生成证书
     if (!cert.final_image_url) {
-      console.log("检测到证书未生成，后台生成中...");
+      if (process.env.NODE_ENV !== 'production') console.log("检测到证书未生成，后台生成中...");
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
         cert_number: cert.cert_number,
@@ -254,7 +254,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     // 检测是否是占位符图片
     const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
     if (isPlaceholder) {
-      console.log("检测到占位符图片，后台生成中...");
+      if (process.env.NODE_ENV !== 'production') console.log("检测到占位符图片，后台生成中...");
       const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
       const certData = {
         cert_number: cert.cert_number,
@@ -281,23 +281,23 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
 
       // 如果是 data URL，直接使用
       if (cert.final_image_url.startsWith('data:')) {
-        console.log("使用 data URL");
+        if (process.env.NODE_ENV !== 'production') console.log("使用 data URL");
         imgData = cert.final_image_url;
       } else {
         // 如果是远程 URL，转换为 data URL
-        console.log("转换远程 URL 为 data URL:", cert.final_image_url);
+        if (process.env.NODE_ENV !== 'production') console.log("转换远程 URL 为 data URL:", cert.final_image_url);
         const response = await fetch(cert.final_image_url);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: 无法获取图片`);
         }
         const blob = await response.blob();
-        console.log("远程 blob 获取成功, size:", blob.size);
+        if (process.env.NODE_ENV !== 'production') console.log("远程 blob 获取成功, size:", blob.size);
         
         imgData = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
             const result = reader.result as string;
-            console.log("FileReader 成功，data URL 长度:", result.length);
+            if (process.env.NODE_ENV !== 'production') console.log("FileReader 成功，data URL 长度:", result.length);
             resolve(result);
           };
           reader.onerror = reject;
@@ -325,13 +325,13 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       const x = 10;
       const y = (pdfHeight - imgHeight) / 2;
 
-      console.log("添加图片到 PDF, width:", imgWidth, "height:", imgHeight);
+      if (process.env.NODE_ENV !== 'production') console.log("添加图片到 PDF, width:", imgWidth, "height:", imgHeight);
       pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
 
       // 保存 PDF
       const fileName = `授权书_${cert.dealers?.company_name || cert.cert_number}.pdf`;
       pdf.save(fileName);
-      console.log("PDF 下载完成:", fileName);
+      if (process.env.NODE_ENV !== 'production') console.log("PDF 下载完成:", fileName);
     } catch (error) {
       console.error("PDF 下载失败:", error);
       alert("PDF 下载失败：" + (error as Error).message);
@@ -350,7 +350,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
         if (canvas && canvas.width > 0 && canvas.height > 0) {
           try {
             const dataUrl = canvas.toDataURL('image/png');
-            console.log("Canvas已就绪，长度:", dataUrl.length);
+            if (process.env.NODE_ENV !== 'production') console.log("Canvas已就绪，长度:", dataUrl.length);
 
             if (isPdfModeBackground) {
               // 转换为PDF
@@ -381,7 +381,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
 
               pdf.addImage(dataUrl, "PNG", x, y, width, height);
               pdf.save(`授权书_${generatorDataForBackground.shopName}.pdf`);
-              console.log("PDF自动下载完成");
+              if (process.env.NODE_ENV !== 'production') console.log("PDF自动下载完成");
             } else {
               // 下载为PNG
               const link = document.createElement('a');
@@ -390,12 +390,12 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);
-              console.log("PNG自动下载完成");
+              if (process.env.NODE_ENV !== 'production') console.log("PNG自动下载完成");
             }
 
             // 下载完成后关闭生成器并清理状态
             setShowHiddenGenerator(false);
-            setGeneratorDataForBackground(null);
+            setGeneratorDataForBackground(undefined);
             setIsPdfModeBackground(false);
             setIsDownloading(null);
             // 刷新证书列表
@@ -406,7 +406,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
             console.error("自动下载失败:", error);
             alert("下载失败：" + (error as Error).message);
             setShowHiddenGenerator(false);
-            setGeneratorDataForBackground(null);
+            setGeneratorDataForBackground(undefined);
             setIsPdfModeBackground(false);
             setIsDownloading(null);
           }
@@ -593,7 +593,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
             isVoided={false}
             onSuccess={() => {
               // onSuccess 由 useEffect 中的 canvas 自动下载逻辑处理
-              console.log("隐藏生成器成功生成证书");
+              if (process.env.NODE_ENV !== 'production') console.log("隐藏生成器成功生成证书");
             }}
           />
         </div>

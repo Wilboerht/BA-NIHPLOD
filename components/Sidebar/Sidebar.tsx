@@ -30,7 +30,7 @@ export default function Sidebar({
         setUserName(user.full_name || user.username || "User");
         setUserEmail(user.username || user.phone || "admin@nihplod.cn");
         setUserRole(user.role);
-        console.log("✅ User info loaded from sessionStorage:", user);
+        if (process.env.NODE_ENV !== 'production') console.log("✅ User info loaded from sessionStorage:", user);
       } catch (e) {
         console.error("❌ Failed to parse user session:", e);
       }

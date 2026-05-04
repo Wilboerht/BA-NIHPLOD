@@ -55,7 +55,7 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
         return;
       }
 
-      console.log('Fetching certificates for user:', user.id);
+      if (process.env.NODE_ENV !== 'production') console.log('Fetching certificates for user:', user.id);
 
       // 第一步：通过 API 获取 profile 关联的 dealers
       const dealersRes = await fetch(`/api/db/profiles/${user.id}/dealers`);
@@ -131,8 +131,8 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setPasswordSuccess(false), 3000);
-    } catch (err: any) {
-      setPasswordError(err.message || "修改失败");
+    } catch (err: unknown) {
+      setPasswordError(err instanceof Error ? err.message : "修改失败");
     } finally {
       setIsChangingPassword(false);
     }

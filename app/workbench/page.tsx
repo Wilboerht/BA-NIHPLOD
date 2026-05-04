@@ -9,6 +9,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+interface Complaint {
+  id: string;
+  channel: string;
+  description: string;
+  status: string;
+  created_at: string;
+  evidence_image_url?: string;
+  review_note?: string;
+}
+
 interface PendingCert {
   id: string;
   cert_number: string;
@@ -31,7 +41,7 @@ interface UserSession {
 
 export default function WorkbenchPage() {
   const [stats, setStats] = useState({ certs: 0, validCerts: 0, pendingComplaints: 0, pendingCerts: 0 });
-  const [recentComplaints, setRecentComplaints] = useState<any[]>([]);
+  const [recentComplaints, setRecentComplaints] = useState<Complaint[]>([]);
   const [pendingCerts, setPendingCerts] = useState<PendingCert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -91,7 +101,7 @@ export default function WorkbenchPage() {
       
       setRecentComplaints(recentComplaints);
       setPendingCerts(pendingCerts);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load dashboard:', err);
     } finally {
       setIsLoading(false);
@@ -122,8 +132,8 @@ export default function WorkbenchPage() {
       if (!response.ok) throw new Error(result.error);
       alert(`✅ 核发成功！\n授权书已签发，经销商账户已开通。`);
       await loadDashboard(userRole ?? undefined);
-    } catch (err: any) {
-      alert("核发失败：" + err.message);
+    } catch (err: unknown) {
+      alert("核发失败：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setProcessingId(null);
     }
@@ -141,8 +151,8 @@ export default function WorkbenchPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       await loadDashboard(userRole ?? undefined);
-    } catch (err: any) {
-      alert("退回操作失败：" + err.message);
+    } catch (err: unknown) {
+      alert("退回操作失败：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setRejectingId(null);
     }

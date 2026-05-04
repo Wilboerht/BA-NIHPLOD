@@ -53,10 +53,10 @@ export async function POST(req: Request) {
           action,
           profileId
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[ban-user] 本地数据库操作失败:", err);
         return NextResponse.json(
-          { error: `操作失败: ${err.message}` },
+          { error: '操作失败' },
           { status: 500 }
         );
       }
@@ -79,18 +79,18 @@ export async function POST(req: Request) {
           action,
           profileId
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[ban-user] Supabase 操作失败:", err);
         return NextResponse.json(
-          { error: `操作失败: ${err.message}` },
+          { error: '操作失败' },
           { status: 500 }
         );
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[ban-user] API 错误:", err);
     return NextResponse.json(
-      { error: "系统错误: " + err.message },
+      { error: '操作失败' },
       { status: 500 }
     );
   }

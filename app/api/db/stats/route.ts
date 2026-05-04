@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ data });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API] Get dashboard stats error:', err);
     return NextResponse.json(
       { error: '获取统计数据失败' },

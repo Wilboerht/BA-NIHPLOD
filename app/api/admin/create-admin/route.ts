@@ -55,16 +55,17 @@ export async function POST(req: Request) {
           RETURNING id
         `;
         return NextResponse.json({ success: true, email });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[create-admin] Local DB insert error:", err);
-        if (err.message?.includes("unique") || err.message?.includes("duplicate")) {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes("unique") || msg.includes("duplicate")) {
           return NextResponse.json(
             { error: `邮箱 "${email}" 已被使用，请换一个。` },
             { status: 409 }
           );
         }
         return NextResponse.json(
-          { error: `创建账户失败: ${err.message}` },
+          { error: '创建账户失败' },
           { status: 400 }
         );
       }
@@ -97,8 +98,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, email });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[create-admin]", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: '操作失败' }, { status: 500 });
   }
 }

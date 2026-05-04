@@ -119,8 +119,8 @@ export default function VerificationPage() {
         setReportDesc("");
         setReportChannel("");
       }, 2000);
-    } catch (err: any) {
-      alert("提交失败：" + err.message);
+    } catch (err: unknown) {
+      alert("提交失败：" + (err instanceof Error ? err.message : "提交失败"));
     } finally {
       setIsSubmittingReport(false);
     }
@@ -217,14 +217,15 @@ export default function VerificationPage() {
                 handleScanVerify(certNumber);
               }
             },
-            (error: any) => {
+            (_error: unknown) => {
               // 扫描中的反馈，忽略
             }
           );
           setScannerReady(true);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error("Failed to start scanner:", err);
-          if (err.toString().includes("NotAllowedError") || err.toString().includes("PermissionDenied")) {
+          const errStr = err instanceof Error ? err.message : String(err);
+          if (errStr.includes("NotAllowedError") || errStr.includes("PermissionDenied")) {
             setScanError("请在浏览器设置中允许摄像头权限以进行扫描。");
           } else {
             setScanError("无法启动摄像头，请检查设备连接。");

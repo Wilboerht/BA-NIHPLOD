@@ -172,9 +172,9 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           handleClose();
         }, 2000);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "密码更新失败，请重试");
+      setError(err instanceof Error ? err.message : "密码更新失败，请重试");
     } finally {
       setIsLoading(false);
     }
@@ -292,8 +292,8 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
 
                     {/* 密码要求 */}
                     <div className="space-y-2">
-                      {requirements.map((req, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm">
+                      {requirements.map((req) => (
+                        <div key={req.label} className="flex items-center gap-2 text-sm">
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                             req.met ? 'bg-green-100' : 'bg-slate-100'
                           }`}>

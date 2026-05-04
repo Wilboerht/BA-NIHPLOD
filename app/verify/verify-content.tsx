@@ -67,7 +67,7 @@ export default function VerifyPageContent() {
 
         setCertificate(data);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Certificate verification error:", err);
         setError("查询失败，请检查网络连接");
         setLoading(false);

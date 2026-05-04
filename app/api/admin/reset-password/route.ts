@@ -75,8 +75,8 @@ export async function POST(req: Request) {
         }
       });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[reset-password]", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: '操作失败' }, { status: 500 });
   }
 }

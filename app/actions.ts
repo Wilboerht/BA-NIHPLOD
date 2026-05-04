@@ -18,6 +18,17 @@ export interface VerifyActionResponse {
   error?: string;
 }
 
+interface DbCertRow {
+  cert_number: string;
+  start_date: string | Date;
+  end_date: string | Date;
+  auth_scope: string;
+  status: string;
+  final_image_url?: string;
+  company_name?: string;
+  dealers?: { company_name: string } | { company_name: string }[] | null;
+}
+
 export async function verifyCertificateAction(query: string): Promise<VerifyActionResponse> {
   const cleanQuery = query?.trim();
   
@@ -30,7 +41,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
   }
 
   try {
-    let results: any[] | null = null;
+    let results: DbCertRow[] | null = null;
 
     if (USE_LOCAL_DB && sql) {
       // 1. 尝试按证书编号精确匹配
@@ -43,7 +54,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       `;
 
       if (dbResults && dbResults.length > 0) {
-        results = dbResults.map((r: any) => ({
+        results = dbResults.map((r: DbCertRow) => ({
           cert_number: r.cert_number,
           start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
           end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
@@ -66,7 +77,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         `;
 
         if (dbResults && dbResults.length > 0) {
-          results = dbResults.map((r: any) => ({
+          results = dbResults.map((r: DbCertRow) => ({
             cert_number: r.cert_number,
             start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
             end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
@@ -94,7 +105,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         .eq('cert_number', cleanQuery.toUpperCase());
 
       if (certMatch && certMatch.length > 0) {
-        results = certMatch;
+        results = certMatch as DbCertRow[];
       }
 
       // 2. 按公司名称搜索
@@ -114,7 +125,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           .order('end_date', { ascending: false });
         
         if (companyMatch && companyMatch.length > 0) {
-          results = companyMatch;
+          results = companyMatch as DbCertRow[];
         }
       }
     }
@@ -135,10 +146,12 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         }
       }
 
+      const startDate = typeof data.start_date === 'string' ? data.start_date : data.start_date.toISOString().split('T')[0];
+      const endDate = typeof data.end_date === 'string' ? data.end_date : data.end_date.toISOString().split('T')[0];
       finalData.push({
         id: data.cert_number,
         dealerName: companyName,
-        duration: `${data.start_date.replace(/-/g, '.')} - ${data.end_date.replace(/-/g, '.')}`,
+        duration: `${startDate.replace(/-/g, '.')} - ${endDate.replace(/-/g, '.')}`,
         scope: data.auth_scope || '-',
         status: data.status?.toUpperCase() || '',
         final_image_url: data.final_image_url || undefined
@@ -196,7 +209,7 @@ export async function submitComplaintAction(formData: {
         `;
         console.log('[submitComplaintAction] 本地数据库: 投诉已提交');
         return { success: true };
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[submitComplaintAction] 本地数据库插入失败:", err);
         throw err;
       }
@@ -215,8 +228,8 @@ export async function submitComplaintAction(formData: {
       console.log('[submitComplaintAction] Supabase: 投诉已提交');
       return { success: true };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[submitComplaintAction] 投诉提交失败:", err);
-    return { success: false, error: err.message || "提交失败" };
+    return { success: false, error: err instanceof Error ? err.message : "提交失败" };
   }
 }

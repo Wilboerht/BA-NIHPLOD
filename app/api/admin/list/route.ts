@@ -21,10 +21,10 @@ export async function GET(req: Request) {
         `;
         console.log('[admin-list] 本地数据库: 获取管理员列表');
         return NextResponse.json({ data: result || [] });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[admin-list] 本地数据库错误:', err);
         return NextResponse.json(
-          { error: err.message },
+          { error: '操作失败' },
           { status: 500 }
         );
       }
@@ -39,18 +39,18 @@ export async function GET(req: Request) {
         if (error) throw error;
         console.log('[admin-list] Supabase: 获取管理员列表');
         return NextResponse.json({ data: data || [] });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[admin-list] Supabase 错误:', err);
         return NextResponse.json(
-          { error: err.message },
+          { error: '操作失败' },
           { status: 500 }
         );
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[admin-list] API 错误:', err);
     return NextResponse.json(
-      { error: err.message },
+      { error: '操作失败' },
       { status: 500 }
     );
   }

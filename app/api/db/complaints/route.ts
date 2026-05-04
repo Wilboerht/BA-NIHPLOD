@@ -20,10 +20,10 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ data: data || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API] Get complaints error:', err);
     return NextResponse.json(
-      { error: err.message || '获取投诉列表失败' },
+      { error: '获取投诉列表失败' },
       { status: 500 }
     );
   }

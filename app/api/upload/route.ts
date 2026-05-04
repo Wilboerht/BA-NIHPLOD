@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     const publicUrl = getPublicUrl(bucket, path);
 
     return NextResponse.json({ success: true, url: publicUrl, path });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Upload API] Error:', err);
     return NextResponse.json({ error: '上传失败，请稍后重试' }, { status: 500 });
   }

@@ -3,15 +3,27 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
-import CertificateGenerator from "@/components/certificate/CertificateGenerator";
+import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
+
+interface Certificate {
+  id: string;
+  cert_number: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  auth_scope: string;
+  seal_url?: string;
+  templates?: { stamp_url?: string } | null;
+  dealers?: { company_name?: string; phone?: string } | null;
+}
 
 export default function CertificatesPage() {
-  const [certificates, setCertificates] = useState<any[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
-  const [selectedCertData, setSelectedCertData] = useState<any>(null);
+  const [selectedCertData, setSelectedCertData] = useState<CertData | undefined>(undefined);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewVoided, setIsViewVoided] = useState(false);
@@ -43,7 +55,7 @@ export default function CertificatesPage() {
       if (!response.ok) throw new Error(result.error || '获取证书失败');
       
       setCertificates(result.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch certificates:', err);
       setCertificates([]);
     } finally {
@@ -68,8 +80,8 @@ export default function CertificatesPage() {
 
       alert("✅ 证书已吊销，该授权在防伪系统中已失效。");
       fetchCertificates();
-    } catch (err: any) {
-      alert("吊销操作失败：" + err.message);
+    } catch (err: unknown) {
+      alert("吊销操作失败：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setIsLoading(false);
     }
@@ -99,9 +111,9 @@ export default function CertificatesPage() {
 
       alert(`✅ 审核通过！授权书已核发。\n经销商账户已开通。`);
       fetchCertificates();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("❌ 异常:", err);
-      alert("❌ 发生错误：" + err.message);
+      alert("❌ 发生错误：" + (err instanceof Error ? err.message : "未知错误"));
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +139,7 @@ export default function CertificatesPage() {
           whileHover={{ scale: 1.01, y: -1 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => {
-            setSelectedCertData(null);
+            setSelectedCertData(undefined);
             setIsViewOnly(false);
             setIsEditMode(false);
             setIsViewVoided(false);
@@ -232,12 +244,12 @@ export default function CertificatesPage() {
                                 cert_number: cert.cert_number,
                                 platformId: scopeParts[0] || "",
                                 platformLabel: "识别码", 
-                                shopName: cert.dealers?.company_name,
+                                shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
-                                sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(false);
@@ -260,12 +272,12 @@ export default function CertificatesPage() {
                                 cert_number: cert.cert_number,
                                 platformId: scopeParts[0] || "",
                                 platformLabel: "识别码", 
-                                shopName: cert.dealers?.company_name,
+                                shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
-                                sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(false);
@@ -287,12 +299,12 @@ export default function CertificatesPage() {
                                 cert_number: cert.cert_number,
                                 platformId: scopeParts[0],
                                 platformLabel: "识别码", 
-                                shopName: cert.dealers?.company_name,
+                                shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
-                                sealImage: cert.seal_url || (cert.templates as any)?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(true);
@@ -345,7 +357,7 @@ export default function CertificatesPage() {
               exit={{ opacity: 0 }}
               onClick={() => {
                 setShowIssueModal(false);
-                setSelectedCertData(null);
+                setSelectedCertData(undefined);
                 setIsViewOnly(false);
                 setIsEditMode(false);
                 setIsViewVoided(false);
@@ -378,7 +390,7 @@ export default function CertificatesPage() {
                     <button 
                       onClick={() => {
                         setShowIssueModal(false);
-                        setSelectedCertData(null);
+                        setSelectedCertData(undefined);
                         setIsViewOnly(false);
                         setIsEditMode(false);
                         setIsViewVoided(false);
@@ -397,7 +409,7 @@ export default function CertificatesPage() {
                     isVoided={isViewVoided}
                     onSuccess={() => {
                       setShowIssueModal(false);
-                      setSelectedCertData(null);
+                      setSelectedCertData(undefined);
                       setIsViewOnly(false);
                       setIsEditMode(false);
                       setIsViewVoided(false);

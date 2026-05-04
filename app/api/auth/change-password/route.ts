@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
         console.log('[change-password] 本地数据库: 密码已修改');
         return NextResponse.json({ success: true, message: '密码修改成功' });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[change-password] 本地数据库操作失败:', err);
         return NextResponse.json(
           { error: '修改密码失败' },
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
 
         console.log('[change-password] Supabase: 密码已修改');
         return NextResponse.json({ success: true, message: '密码修改成功' });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[change-password] Supabase 操作失败:', err);
         return NextResponse.json(
           { error: '修改密码失败' },
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
         );
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[change-password] API 错误:', err);
     return NextResponse.json(
       { error: '系统错误' },

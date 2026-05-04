@@ -42,7 +42,7 @@ export async function GET(
     }
 
     return NextResponse.json({ data: data || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API] Get dealer certificates error:', err);
     return NextResponse.json(
       { error: '获取证书列表失败' },

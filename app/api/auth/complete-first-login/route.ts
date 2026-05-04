@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
           success: true,
           message: "首次登录状态已更新"
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[完成首次登录] 本地数据库更新失败:", err);
         return NextResponse.json(
-          { error: `更新失败: ${err.message}` },
+          { error: '更新失败' },
           { status: 500 }
         );
       }
@@ -45,10 +45,10 @@ export async function POST(req: NextRequest) {
         message: "首次登录状态已更新"
       });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[完成首次登录] API 错误:", err);
     return NextResponse.json(
-      { error: "系统错误: " + err.message },
+      { error: '系统错误' },
       { status: 500 }
     );
   }

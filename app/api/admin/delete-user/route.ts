@@ -108,10 +108,10 @@ export async function POST(req: Request) {
         }
       });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[delete-user] Error:", err);
     return NextResponse.json(
-      { error: `删除失败: ${err.message}` },
+      { error: '删除失败' },
       { status: 500 }
     );
   }

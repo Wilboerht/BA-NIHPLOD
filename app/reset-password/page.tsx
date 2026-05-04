@@ -121,9 +121,9 @@ export default function ResetPasswordPage() {
 
         setIsSuccess(true);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "密码更新失败，请重试");
+      setError(err instanceof Error ? err.message : "密码更新失败，请重试");
     } finally {
       setIsLoading(false);
     }
@@ -240,8 +240,8 @@ export default function ResetPasswordPage() {
 
                 {/* 密码强度检测卡片 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6 bg-slate-50 rounded-xl border border-slate-100">
-                  {requirements.map((req, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                  {requirements.map((req) => (
+                    <div key={req.label} className="flex items-center gap-2">
                        <div className={`w-2 h-2 rounded-full transition-all duration-500 ${req.met ? "bg-emerald-500 scale-125" : "bg-slate-200"}`} />
                        <span className={`text-[11px] font-bold transition-colors ${req.met ? "text-emerald-700" : "text-slate-400"}`}>
                         {req.label}

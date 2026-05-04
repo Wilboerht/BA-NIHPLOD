@@ -31,11 +31,28 @@ interface CreateForm {
   role: string;
 }
 
+interface AdminUser {
+  id: string;
+  full_name: string;
+  username: string;
+  role: string;
+  updated_at: string;
+}
+
+interface UserSession {
+  id: string;
+  phone?: string;
+  username?: string;
+  full_name?: string;
+  role?: string;
+  is_first_login?: boolean;
+}
+
 export default function AdminsManagementPage() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
 
   // 创建弹窗状态
   const [showCreate, setShowCreate] = useState(false);
@@ -94,7 +111,7 @@ export default function AdminsManagementPage() {
       } else {
         console.error('Failed to fetch admin list:', result.error);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch admin list error:', err);
     } finally {
       setIsLoading(false);
@@ -135,8 +152,8 @@ export default function AdminsManagementPage() {
         setShowCreate(false);
         setCreateSuccess(null);
       }, 2000);
-    } catch (err: any) {
-      setCreateError(err.message);
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : "创建失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -156,8 +173,8 @@ export default function AdminsManagementPage() {
         const data = await res.json();
         alert("更新失败: " + (data.error || "未知错误"));
       }
-    } catch (err: any) {
-      alert("更新出错: " + err.message);
+    } catch (err: unknown) {
+      alert("更新出错: " + (err instanceof Error ? err.message : "未知错误"));
     }
   };
 
@@ -178,13 +195,13 @@ export default function AdminsManagementPage() {
         } else {
           alert(`❌ ${result.error || "删除失败"}`);
         }
-      } catch (err: any) {
-        alert(`❌ 错误：${err.message}`);
+      } catch (err: unknown) {
+        alert(`❌ 错误：${err instanceof Error ? err.message : "未知错误"}`);
       }
     }
   };
 
-  const resetPassword = async (user: any) => {
+  const resetPassword = async (user: AdminUser) => {
     const newPass = prompt(`重置「${user.full_name}」的登录密码\n请输入新密码（至少 8 位，包含大小写字母和数字）：`);
     if (!newPass) return;
     if (newPass.length < 8) { alert("密码过短，至少需要 8 个字符。"); return; }
@@ -199,8 +216,8 @@ export default function AdminsManagementPage() {
       const result = await res.json();
       if (result.success) alert(`✅ 密码重置成功！`);
       else alert("❌ 重置失败：" + result.error);
-    } catch (err: any) {
-      alert("❌ 错误：" + err.message);
+    } catch (err: unknown) {
+      alert("❌ 错误：" + (err instanceof Error ? err.message : "未知错误"));
     }
   };
 

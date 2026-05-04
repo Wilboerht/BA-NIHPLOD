@@ -45,7 +45,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
         }
 
         const userData = JSON.parse(userStr) as UserInfo;
-        console.log("User session:", userData);
+        if (process.env.NODE_ENV !== 'production') console.log("User session:", userData);
         
         // 只允许DEALER角色
         if (userData.role !== "DEALER") {
@@ -69,7 +69,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
 
   const fetchCertificates = useCallback(async (userId: string) => {
     try {
-      console.log("Fetching certificates for userId:", userId);
+      if (process.env.NODE_ENV !== 'production') console.log("Fetching certificates for userId:", userId);
       
       // 调用 API 路由，让服务器端使用 service role key 查询
       const response = await fetch(`/api/dealer/certificates?userId=${userId}`);
@@ -81,8 +81,8 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
         return;
       }
 
-      console.log("API response:", result);
-      console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
+      if (process.env.NODE_ENV !== 'production') console.log("API response:", result);
+      if (process.env.NODE_ENV !== 'production') console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
       setCertificates(result.certificates || []);
     } catch (error) {
       console.error("获取证书失败:", error);

@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     // 获取所有这些 dealers 的证书
     if (USE_LOCAL_DB && sql) {
       try {
-        const dealerIds = dealers.map((d: any) => d.id);
+        const dealerIds = dealers.map((d: { id: string }) => d.id);
         const certsResult = await sql`
           SELECT * FROM certificates
           WHERE dealer_id = ANY(${dealerIds}::uuid[])
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
         `;
 
         // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串
-        const certs = certsResult.map((row: any) => ({
+        const certs = certsResult.map((row: Record<string, unknown>) => ({
           ...row,
           start_date: row.start_date instanceof Date
             ? row.start_date.toISOString().split('T')[0]
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
           certificates: certs || [],
           dealers: dealers
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[Dealer Certificates API] 本地数据库查询失败:", err);
         return NextResponse.json(
           { error: "获取证书失败" },
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
       }
     } else {
       try {
-        const dealerIds = dealers.map((d: any) => d.id);
+        const dealerIds = dealers.map((d: { id: string }) => d.id);
         const { data: certs, error: certsError } = await supabaseAdmin
           .from("certificates")
           .select("*")
@@ -94,7 +94,7 @@ export async function GET(req: Request) {
           certificates: certs || [],
           dealers: dealers
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[Dealer Certificates API] Supabase 查询失败:", err);
         return NextResponse.json(
           { error: "获取证书失败" },
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
         );
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Dealer Certificates API] API 错误:", err);
     return NextResponse.json(
       { error: "获取证书失败" },

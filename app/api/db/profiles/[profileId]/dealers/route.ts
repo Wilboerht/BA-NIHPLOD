@@ -25,7 +25,7 @@ export async function GET(
     }
 
     return NextResponse.json({ data: data || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API] Get dealers by profile error:', err);
     return NextResponse.json(
       { error: '获取经销商信息失败' },

@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ data: data || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API] Get pending certificates error:', err);
     return NextResponse.json(
       { error: '获取待核发证书失败' },

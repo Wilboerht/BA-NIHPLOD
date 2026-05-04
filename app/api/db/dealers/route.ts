@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ data: data || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API] Get dealers error:', err);
     return NextResponse.json(
       { error: '获取经销商列表失败' },

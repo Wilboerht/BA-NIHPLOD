@@ -67,10 +67,10 @@ export async function PUT(req: Request) {
         `;
         console.log('[update-user-role] 本地数据库: 用户角色已更新');
         return NextResponse.json({ success: true });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[update-user-role] 本地数据库错误:', err);
         return NextResponse.json(
-          { error: err.message },
+          { error: '操作失败' },
           { status: 500 }
         );
       }
@@ -84,18 +84,18 @@ export async function PUT(req: Request) {
         if (error) throw error;
         console.log('[update-user-role] Supabase: 用户角色已更新');
         return NextResponse.json({ success: true });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[update-user-role] Supabase 错误:', err);
         return NextResponse.json(
-          { error: err.message },
+          { error: '操作失败' },
           { status: 500 }
         );
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[update-user-role] API 错误:', err);
     return NextResponse.json(
-      { error: err.message },
+      { error: '操作失败' },
       { status: 500 }
     );
   }
