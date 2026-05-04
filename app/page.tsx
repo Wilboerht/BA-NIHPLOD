@@ -984,12 +984,6 @@ export default function VerificationPage() {
                 >
                   经销商登录
                 </button>
-                <a 
-                  href="/admin/login"
-                  className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
-                >
-                  管理员入口
-                </a>
               </>
             )}
 

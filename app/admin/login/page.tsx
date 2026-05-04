@@ -1,186 +1,360 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Lock, Eye, EyeOff, ArrowRight, AlertTriangle } from "lucide-react";
+import { useState, FormEvent, useEffect, useCallback, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  ChevronDown,
+  ExternalLink,
+} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { OrbitalIcons } from "@/components/ui/OrbitalIcons";
 
-export default function AdminLoginPage() {
+interface FormErrors {
+  username?: string;
+  password?: string;
+}
+
+function AdminLoginForm() {
+  const router = useRouter();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState(true);
 
-  // 页面加载时检查是否已登录
+  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [breadcrumbOpen, setBreadcrumbOpen] = useState(false);
+
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch('/api/auth/me');
-        if (res.ok) {
-          const data = await res.json();
-          const user = data.user;
-          if (user?.role === 'SUPER_ADMIN' || user?.role === 'AUDITOR' || user?.role === 'MANAGER' || user?.role === 'PROJECT_MANAGER') {
-            window.location.href = '/workbench';
-            return;
-          }
-          // 经销商不允许访问管理员登录页
-          if (user?.role === 'DEALER') {
-            window.location.href = '/';
-            return;
-          }
-        }
-      } catch (e) {
-        console.error('Auth check error:', e);
-      }
-      setIsChecking(false);
-    };
-    checkAuth();
+    setMounted(true);
   }, []);
 
-  // 错误自动清除
+  // Auto-redirect if already logged in
   useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => setError(null), 3000);
-    return () => clearTimeout(timer);
-  }, [error]);
+    fetch("/api/auth/me")
+      .then((r) => r.ok && router.replace("/workbench"))
+      .catch(() => {});
+  }, [router]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      setError("请输入账号和密码");
-      return;
+  const validateForm = useCallback((): boolean => {
+    const errors: FormErrors = {};
+
+    if (!username.trim()) {
+      errors.username = "请输入账号";
     }
 
-    setIsLoading(true);
-    setError(null);
+    if (!password) {
+      errors.password = "请输入密码";
+    } else if (password.length < 6) {
+      errors.password = "密码至少需要 6 位";
+    }
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: username, password, loginType: 'admin' })
-      });
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [username, password]);
 
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || "登录失败");
-        setIsLoading(false);
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      setError("");
+      setFieldErrors({});
+
+      if (!validateForm()) {
         return;
       }
 
-      // 根据首次登录状态处理
-      if (data.user.is_first_login) {
-        window.location.href = '/reset-password';
-      } else {
-        window.location.href = '/workbench';
-      }
-    } catch (err) {
-      console.error(err);
-      setError("系统验证出错，请稍后再试。");
-      setIsLoading(false);
-    }
-  };
+      setIsLoading(true);
 
-  if (isChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
-        <div className="w-6 h-6 border-2 border-[#8B7355]/20 border-t-[#8B7355] rounded-full animate-spin" />
-      </div>
-    );
-  }
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: username,
+            password,
+            loginType: "admin",
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || "登录失败，请稍后重试");
+          return;
+        }
+
+        if (data.user?.is_first_login) {
+          router.push("/reset-password");
+        } else {
+          router.push("/workbench");
+        }
+        router.refresh();
+      } catch {
+        setError("网络错误，请检查网络连接");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [username, password, router, validateForm]
+  );
+
+  const handleUsernameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setUsername(e.target.value);
+      if (fieldErrors.username) {
+        setFieldErrors((prev) => ({ ...prev, username: undefined }));
+      }
+    },
+    [fieldErrors.username]
+  );
+
+  const handlePasswordChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPassword(e.target.value);
+      if (fieldErrors.password) {
+        setFieldErrors((prev) => ({ ...prev, password: undefined }));
+      }
+    },
+    [fieldErrors.password]
+  );
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAFAFA] relative overflow-hidden font-sans">
-      {/* 背景装饰 */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0"
-           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} />
-      
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-[420px] mx-4"
-      >
-        {/* 错误提示 */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-4 bg-white text-slate-800 px-5 py-3 rounded-full shadow-lg border border-slate-100 flex items-center gap-3 text-xs font-bold tracking-widest"
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brand-cream px-6">
+      {/* 面包屑导航 */}
+      <div className="absolute left-6 top-6 z-20 flex items-center gap-2 text-xs text-slate-400 sm:left-10 sm:top-8">
+        <Link href="/" className="transition-colors hover:text-slate-600">
+          首页
+        </Link>
+        <span className="text-slate-300">/</span>
+        <div className="relative">
+          <button
+            onClick={() => setBreadcrumbOpen((v) => !v)}
+            className="flex items-center gap-1 p-0 font-medium text-slate-600 transition-colors hover:text-slate-800 bg-transparent border-none cursor-pointer"
           >
-            <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-[14px] h-[14px] text-red-500" />
+            后台登录（授权管理）
+            <ChevronDown
+              className={cn(
+                "h-3 w-3 transition-transform duration-200",
+                breadcrumbOpen && "rotate-180"
+              )}
+            />
+          </button>
+          {breadcrumbOpen && (
+            <div className="absolute left-0 top-full mt-1 flex items-center gap-2 text-xs text-slate-400 -translate-x-[13px]">
+              <span className="text-slate-300 select-none">/</span>
+              <a
+                href="https://nihplod.cn/admin"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-slate-600 transition-colors hover:text-slate-800"
+                onClick={() => setBreadcrumbOpen(false)}
+              >
+                后台登录（官网）
+                <ExternalLink className="h-3 w-3 text-slate-400" />
+              </a>
             </div>
-            {error}
-          </motion.div>
-        )}
+          )}
+        </div>
+      </div>
 
-        <div className="bg-white rounded-[28px] shadow-[0_45px_80px_-16px_rgba(0,0,0,0.15)] overflow-hidden">
-          <div className="p-10 pt-14 text-center pb-10">
-            <Link href="/">
-              <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-[34px] mx-auto mb-7 cursor-pointer" />
-            </Link>
-            <h2 className="text-xl font-bold text-slate-900 tracking-[0.14em]">管理员登录</h2>
-            <p className="text-sm text-slate-400 mt-3 tracking-wide">品牌授权管理后台</p>
-          </div>
+      {/* 装饰背景光晕 */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-brand-gold/10 blur-[100px]" />
+        <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-brand-gold/10 blur-[100px]" />
+      </div>
 
-          <form onSubmit={handleLogin} className="px-10 pb-10 pt-2 flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <input
-                type="text"
-                required
-                placeholder="请输入电子邮箱"
-                className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
+      <div className="relative z-10 flex w-full flex-col items-center">
+        {/* 轨道动画 + 登录卡片 */}
+        <div
+          className={cn(
+            "transition-all duration-700",
+            mounted
+              ? "translate-y-0 opacity-100"
+              : "translate-y-4 opacity-0"
+          )}
+        >
+          <OrbitalIcons className="min-h-[620px] min-w-[380px] sm:min-h-[860px] sm:min-w-[860px]">
+            <div className="w-[260px] overflow-hidden rounded-[28px] bg-transparent sm:w-[380px]">
+              {/* Header */}
+              <div className="px-8 pb-5 pt-10 text-center sm:px-10 sm:pb-6 sm:pt-12">
+                <div className="relative mx-auto mb-4 h-[34px] w-[140px] sm:mb-5 sm:w-[160px]">
+                  <Image
+                    src="/NIHPLOD-logo.svg"
+                    alt="NIHPLOD"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+                <div className="h-1" />
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  placeholder="请输入密码"
-                  className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              {/* 表单区域 */}
+              <div className="px-8 pb-10 sm:px-10">
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                  {/* 账号 */}
+                  <div>
+                    <input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={handleUsernameChange}
+                      required
+                      autoComplete="username"
+                      disabled={isLoading}
+                      placeholder="用户名"
+                      aria-invalid={!!fieldErrors.username}
+                      aria-describedby={fieldErrors.username ? "username-error" : undefined}
+                      className={cn(
+                        "block w-full rounded-xl border bg-slate-50 py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-300 disabled:opacity-50",
+                        fieldErrors.username
+                          ? "border-red-300 focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100"
+                          : "border-slate-100 focus:border-[#C6A87C]/40 focus:bg-white focus:ring-4 focus:ring-[#C6A87C]/15"
+                      )}
+                    />
+                    <p
+                      id="username-error"
+                      className={cn(
+                        "mt-1.5 flex items-center gap-1 text-xs text-red-500 transition-all duration-200",
+                        fieldErrors.username ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none h-0 mt-0"
+                      )}
+                    >
+                      <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                      <span>{fieldErrors.username || ""}</span>
+                    </p>
+                  </div>
+
+                  {/* 密码 */}
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={handlePasswordChange}
+                      required
+                      autoComplete="current-password"
+                      disabled={isLoading}
+                      minLength={6}
+                      placeholder="密码"
+                      aria-invalid={!!fieldErrors.password}
+                      aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                      className={cn(
+                        "block w-full rounded-xl border bg-slate-50 py-3.5 px-5 pr-10 text-[13px] text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-300 disabled:opacity-50",
+                        fieldErrors.password
+                          ? "border-red-300 focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100"
+                          : "border-slate-100 focus:border-[#C6A87C]/40 focus:bg-white focus:ring-4 focus:ring-[#C6A87C]/15"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none"
+                      aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                    <p
+                      id="password-error"
+                      className={cn(
+                        "mt-1.5 flex items-center gap-1 text-xs text-red-500 transition-all duration-200",
+                        fieldErrors.password ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none h-0 mt-0"
+                      )}
+                    >
+                      <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                      <span>{fieldErrors.password || ""}</span>
+                    </p>
+                  </div>
+
+                  {/* 错误提示 */}
+                  {error && (
+                    <div
+                      role="alert"
+                      aria-live="polite"
+                      className="flex items-center gap-2 rounded-full border border-slate-100 bg-white px-5 py-3 text-xs font-bold tracking-widest text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.08)]"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {/* 登录按钮 */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#8B7355]/40 bg-[#8B7355]/10 py-3.5 text-[13px] font-bold tracking-widest text-[#8B7355] transition-all duration-300 hover:border-[#8B7355]/70 hover:bg-[#8B7355]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        登录中...
+                      </>
+                    ) : (
+                      "登 录"
+                    )}
+                  </button>
+                </form>
               </div>
             </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/40 rounded-xl py-3.5 font-bold tracking-widest text-[13px] hover:bg-[#8B7355]/20 hover:border-[#8B7355]/70 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  登录 <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
+          </OrbitalIcons>
         </div>
+      </div>
 
-        <div className="text-center mt-6">
-          <Link href="/" className="text-xs text-slate-400 hover:text-[#8B7355] transition-colors tracking-widest">
-            ← 返回核验大厅
+      {/* 页脚 */}
+      <div className="absolute bottom-6 left-0 right-0 z-20 flex flex-col items-center gap-1 px-6">
+        <p className="text-[10px] font-light tracking-widest text-brand-charcoal/40">
+          &copy; {new Date().getFullYear()} NIHPLOD. All Rights Reserved.
+        </p>
+        <div className="flex items-center justify-center gap-2 text-[9px] font-light tracking-normal text-brand-charcoal/40 whitespace-nowrap">
+          <Link
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            className="hover:text-brand-gold transition-colors"
+          >
+            沪ICP备2026014764号-1
+          </Link>
+          <span className="text-brand-charcoal/20">|</span>
+          <Link
+            href="http://www.beian.gov.cn/portal/registerSystemInfo"
+            target="_blank"
+            className="flex items-center gap-1 hover:text-brand-gold transition-colors"
+          >
+            <Image
+              src="/beian.webp"
+              alt="备案图标"
+              width={12}
+              height={12}
+              className="shrink-0 opacity-60"
+            />
+            <span>沪公网安备31010702010178号</span>
           </Link>
         </div>
-      </motion.div>
+      </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-brand-cream">
+        <Loader2 className="h-8 w-8 animate-spin text-[#8B7355]" />
+      </div>
+    }>
+      <AdminLoginForm />
+    </Suspense>
   );
 }
