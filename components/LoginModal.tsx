@@ -18,7 +18,7 @@ export default function LoginModal({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loginType, setLoginType] = useState<'dealer' | 'admin'>('admin');
+  const [loginType] = useState<'dealer'>('dealer');
 
   // 当产生错误时，开启独立生命周期的 3 秒自动回收机制
   useEffect(() => {
@@ -33,53 +33,27 @@ export default function LoginModal({
     setError(null);
     
     try {
-      if (loginType === 'dealer') {
-        // 经销商登录：用自定义认证
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, password, loginType: 'dealer' })
-        });
+      // 经销商登录
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password, loginType: 'dealer' })
+      });
 
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || "登录失败");
-          setIsLoading(false);
-          return;
-        }
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "登录失败");
+        setIsLoading(false);
+        return;
+      }
 
-        // 根据用户角色和首次登录状态处理
-        if (data.user.is_first_login) {
-          onClose();
-          onShowResetPassword?.();
-        } else if (data.user.role === "DEALER") {
-          // 经销商直接关闭登录模态框，让首页检测到变化并打开经销商模态框
-          onClose();
-        } else {
-          window.location.href = "/workbench";
-        }
-      } else {
-        // 管理员登录：使用自定义 API 认证
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, password, loginType: 'admin' })
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || "登录失败");
-          setIsLoading(false);
-          return;
-        }
-
-        // 根据首次登录状态处理
-        if (data.user.is_first_login) {
-          onClose();
-          onShowResetPassword?.();
-        } else {
-          window.location.href = "/workbench";
-        }
+      // 根据用户角色和首次登录状态处理
+      if (data.user.is_first_login) {
+        onClose();
+        onShowResetPassword?.();
+      } else if (data.user.role === "DEALER") {
+        // 经销商直接关闭登录模态框，让首页检测到变化并打开经销商模态框
+        onClose();
       }
     } catch (err) {
       console.error(err);
@@ -135,33 +109,6 @@ export default function LoginModal({
               <h2 className="text-xl font-bold text-slate-900 tracking-[0.14em]">管理员登录</h2>
             </div>
             
-            {/* 被强制隐藏的入口层（先不要显示 tab） */}
-            {false && (
-              <div className="px-10 pb-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setLoginType('admin')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all duration-300 border ${
-                    loginType === 'admin'
-                      ? 'bg-[#8B7355]/10 text-[#8B7355] border-[#8B7355]/40 shadow-sm shadow-[#8B7355]/5'
-                      : 'bg-transparent text-slate-400 border-transparent hover:bg-[#8B7355]/5 hover:text-[#8B7355]'
-                  }`}
-                >
-                  管理员
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginType('dealer')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all duration-300 border ${
-                    loginType === 'dealer'
-                      ? 'bg-[#8B7355]/10 text-[#8B7355] border-[#8B7355]/40 shadow-sm shadow-[#8B7355]/5'
-                      : 'bg-transparent text-slate-400 border-transparent hover:bg-[#8B7355]/5 hover:text-[#8B7355]'
-                  }`}
-                >
-                  经销商
-                </button>
-              </div>
-            )}
             
             <form onSubmit={handleLogin} className="px-10 pb-10 pt-2 flex flex-col gap-6">
               <div className="flex flex-col gap-2">

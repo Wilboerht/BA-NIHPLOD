@@ -385,7 +385,7 @@ export default function VerificationPage() {
     window.location.href = "/";
   };
 
-  const handleLoginClick = () => {
+  const handleDealerLoginClick = () => {
     if (loggedInUser?.role === "DEALER") {
       setShowDealerModal(true);
     } else {
@@ -970,19 +970,27 @@ export default function VerificationPage() {
             {/* 用户区域 */}
             {loggedInUser ? (
               <button
-                onClick={handleLoginClick}
+                onClick={handleDealerLoginClick}
                 className="text-slate-600 flex items-center gap-2 whitespace-nowrap cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                 <span className="hidden sm:inline max-w-[60px] truncate">{loggedInUser.phone || "已登陆"}</span>
               </button>
             ) : (
-              <button 
-                onClick={handleLoginClick} 
-                className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
-              >
-                统一登陆
-              </button>
+              <>
+                <button 
+                  onClick={handleDealerLoginClick} 
+                  className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
+                >
+                  经销商登录
+                </button>
+                <a 
+                  href="/admin/login"
+                  className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
+                >
+                  管理员入口
+                </a>
+              </>
             )}
 
             {/* 服务条款 */}

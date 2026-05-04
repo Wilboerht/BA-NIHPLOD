@@ -56,11 +56,11 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
             }
           }
         }
-        // 未登录或非管理员
-        router.replace("/");
+        // 未登录或非管理员，重定向到管理员登录页
+        router.replace("/admin/login");
       } catch (e) {
         console.error('Auth verification error:', e);
-        router.replace("/");
+        router.replace("/admin/login");
       }
     };
 
