@@ -33,15 +33,15 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
   useEffect(() => {
     if (!isOpen) return;
     
-    // 检查是否是经销商登录
-    const sessionUser = sessionStorage.getItem('user');
-    if (sessionUser) {
-      try {
-        setUser(JSON.parse(sessionUser));
-      } catch (e) {
-        console.error('Failed to parse user session:', e);
-      }
-    }
+    // 从服务端获取当前用户信息
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(e => console.error('Failed to fetch user:', e));
   }, [isOpen]);
 
   const isDealer = user?.role === 'DEALER';
@@ -105,12 +105,6 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           }
         }
 
-        // 更新 sessionStorage 中的用户信息
-        if (user) {
-          const updatedUser = { ...user, is_first_login: false };
-          sessionStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-
         setIsSuccess(true);
         // 2秒后自动关闭
         setTimeout(() => {
@@ -157,12 +151,6 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
           } catch (err) {
             console.warn("更新首次登录状态失败：", err);
           }
-        }
-
-        // 更新 sessionStorage 中的用户信息
-        if (user) {
-          const updatedUser = { ...user, is_first_login: false };
-          sessionStorage.setItem('user', JSON.stringify(updatedUser));
         }
 
         setIsSuccess(true);

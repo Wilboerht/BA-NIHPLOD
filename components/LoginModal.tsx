@@ -48,9 +48,6 @@ export default function LoginModal({
           return;
         }
 
-        // 保存用户信息到 sessionStorage
-        sessionStorage.setItem('user', JSON.stringify(data.user));
-
         // 根据用户角色和首次登录状态处理
         if (data.user.is_first_login) {
           onClose();
@@ -75,9 +72,6 @@ export default function LoginModal({
           setIsLoading(false);
           return;
         }
-
-        // 保存用户信息到 sessionStorage
-        sessionStorage.setItem('user', JSON.stringify(data.user));
 
         // 根据首次登录状态处理
         if (data.user.is_first_login) {

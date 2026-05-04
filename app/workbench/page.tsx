@@ -50,21 +50,19 @@ export default function WorkbenchPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   const fetchUserRole = useCallback(async () => {
-    // 从 sessionStorage 获取管理员用户信息
-    const sessionUserStr = sessionStorage.getItem('user');
-    if (sessionUserStr) {
-      try {
-        const sessionUser = JSON.parse(sessionUserStr);
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        const user = data.user;
         // workbench 只接受管理员用户
-        if (sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'AUDITOR' || sessionUser.role === 'MANAGER' || sessionUser.role === 'PROJECT_MANAGER') {
-          return { role: sessionUser.role, uid: sessionUser.id };
+        if (user?.role === 'SUPER_ADMIN' || user?.role === 'AUDITOR' || user?.role === 'MANAGER' || user?.role === 'PROJECT_MANAGER') {
+          return { role: user.role, uid: user.id };
         }
-      } catch (e) {
-        console.error('Failed to parse user session:', e);
       }
+    } catch (e) {
+      console.error('Failed to fetch user role:', e);
     }
-
-    // 如果没有找到管理员用户，则返回 null
     return null;
   }, []);
 

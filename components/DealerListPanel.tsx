@@ -38,18 +38,19 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
     const loadDealerData = async () => {
       setIsLoading(true);
       try {
-        const userStr = sessionStorage.getItem("user");
-        if (!userStr) {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
           console.error("No user session found");
           return;
         }
 
-        const userData = JSON.parse(userStr) as UserInfo;
-        if (process.env.NODE_ENV !== 'production') console.log("User session:", userData);
+        const data = await res.json();
+        const userData = data.user as UserInfo;
+        if (process.env.NODE_ENV !== 'production') console.log("User from API:", userData);
         
         // 只允许DEALER角色
-        if (userData.role !== "DEALER") {
-          console.error("User is not a DEALER:", userData.role);
+        if (userData?.role !== "DEALER") {
+          console.error("User is not a DEALER:", userData?.role);
           return;
         }
 
@@ -188,7 +189,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
     } catch (e) {
       console.error('Logout API error:', e);
     }
-    sessionStorage.removeItem("user");
+
     if (onLogout) {
       onLogout();
     } else {

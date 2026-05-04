@@ -35,14 +35,13 @@ export default function CertificatesPage() {
 
   const fetchUserRole = async () => {
     try {
-      // 从 sessionStorage 获取用户信息
-      const userStr = sessionStorage.getItem('user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        setUserRole(user.role);
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        setUserRole(data.user?.role ?? null);
       }
     } catch (err) {
-      console.warn("Failed to get user role from sessionStorage:", err);
+      console.warn("Failed to fetch user role:", err);
     }
   };
 

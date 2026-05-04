@@ -26,15 +26,15 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 检查是否是经销商登录
-    const sessionUser = sessionStorage.getItem('user');
-    if (sessionUser) {
-      try {
-        setUser(JSON.parse(sessionUser));
-      } catch (e) {
-        console.error('Failed to parse user session:', e);
-      }
-    }
+    // 从服务端获取当前用户信息
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(e => console.error('Failed to fetch user:', e));
   }, []);
 
   const isDealer = user?.role === 'DEALER';
@@ -81,12 +81,6 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // 更新 sessionStorage 中的用户信息
-        if (user) {
-          const updatedUser = { ...user, is_first_login: false };
-          sessionStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-
         setIsSuccess(true);
       } else {
         // 管理员改密码（通过 API）
@@ -111,12 +105,6 @@ export default function ResetPasswordPage() {
           setError(data.error || "密码修改失败");
           setIsLoading(false);
           return;
-        }
-
-        // 更新 sessionStorage 中的用户信息
-        if (user) {
-          const updatedUser = { ...user, is_first_login: false };
-          sessionStorage.setItem('user', JSON.stringify(updatedUser));
         }
 
         setIsSuccess(true);

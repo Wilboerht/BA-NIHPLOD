@@ -37,53 +37,30 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const checkAuth = async () => {
-      // 1. 首先检查 sessionStorage 里的用户信息（快速渲染）
-      const sessionUserStr = sessionStorage.getItem('user');
-      let sessionUser = null;
-      if (sessionUserStr) {
-        try {
-          sessionUser = JSON.parse(sessionUserStr);
-          
-          // 经销商用户不允许进入 workbench
-          if (sessionUser.role === 'DEALER') {
-            router.replace("/dealer");
-            return;
-          }
-          
-          // 管理员用户（从 sessionStorage）先允许进入，后续用服务端验证
-          if (sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'AUDITOR' || sessionUser.role === 'MANAGER' || sessionUser.role === 'PROJECT_MANAGER') {
-            setUser(sessionUser);
-            setUserType('admin');
-            setIsAuthorized(true);
-          }
-        } catch (e) {
-          console.error('Failed to parse user session:', e);
-        }
-      }
-
-      // 2. 服务端验证 JWT Cookie
       try {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
-            // 更新 sessionStorage 和本地状态
-            sessionStorage.setItem('user', JSON.stringify(data.user));
-            setUser(data.user);
-            setUserType('admin');
-            setIsAuthorized(true);
-            return;
+            // 经销商用户不允许进入 workbench
+            if (data.user.role === 'DEALER') {
+              router.replace("/dealer");
+              return;
+            }
+            // 管理员用户允许进入
+            if (['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(data.user.role)) {
+              setUser(data.user);
+              setUserType('admin');
+              setIsAuthorized(true);
+              return;
+            }
           }
         }
-        // 服务端验证失败
-        sessionStorage.removeItem('user');
+        // 未登录或非管理员
         router.replace("/");
       } catch (e) {
         console.error('Auth verification error:', e);
-        // 如果服务端请求失败但 sessionStorage 有数据，保留（可能是离线状态）
-        if (!sessionUser) {
-          router.replace("/");
-        }
+        router.replace("/");
       }
     };
 

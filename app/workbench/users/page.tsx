@@ -78,26 +78,28 @@ export default function AdminsManagementPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // 从 sessionStorage 获取当前用户信息
-    const userStr = sessionStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
+    // 从服务端获取当前用户信息
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        const user = data.user;
         setCurrentUser(user);
         
         // 如果用户角色是 DEALER，说明没有权限访问管理后台
-        if (user.role === 'DEALER') {
+        if (user?.role === 'DEALER') {
           alert("权限不足：您的账号非管理人员，请重新登录。");
-          sessionStorage.clear();
           window.location.href = "/";
           return;
         }
-      } catch (e) {
-        console.error("Session parse error:", e);
+      } else {
+        // 未登录，跳回首页
+        window.location.href = "/";
+        return;
       }
-    } else {
-      // 无会话信息，跳回登录
-      window.location.href = "/login";
+    } catch (e) {
+      console.error("Failed to fetch user:", e);
+      window.location.href = "/";
       return;
     }
 

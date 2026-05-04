@@ -144,7 +144,6 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
     } catch (e) {
       console.error('Logout API error:', e);
     }
-    sessionStorage.removeItem('user');
     window.location.href = "/";
   };
 

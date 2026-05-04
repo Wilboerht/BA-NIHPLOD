@@ -19,28 +19,33 @@ export default function DealerPanelPage() {
 
   useEffect(() => {
     document.title = "NIHPLOD 品牌授权管理平台";
-    const userStr = sessionStorage.getItem("user");
-    if (!userStr) {
-      router.push("/");
-      return;
-    }
+    
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          router.push("/");
+          return;
+        }
+        const data = await res.json();
+        const userData = data.user as UserSession;
+        
+        // 确保只有 DEALER 角色可以访问
+        if (userData?.role !== "DEALER") {
+          router.push("/");
+          return;
+        }
 
-    try {
-      const userData = JSON.parse(userStr) as UserSession;
-      
-      // 确保只有 DEALER 角色可以访问
-      if (userData.role !== "DEALER") {
+        setUser(userData);
+      } catch (e) {
+        console.error("Failed to fetch user:", e);
         router.push("/");
-        return;
+      } finally {
+        setIsLoading(false);
       }
-
-      setUser(userData);
-    } catch (e) {
-      console.error("Failed to parse user session:", e);
-      router.push("/");
-    } finally {
-      setIsLoading(false);
-    }
+    };
+    
+    checkAuth();
   }, [router]);
 
   if (isLoading) {
@@ -58,8 +63,12 @@ export default function DealerPanelPage() {
     return null;
   }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("user");
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     router.push("/");
   };
 

@@ -22,19 +22,19 @@ export default function Sidebar({
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
-    // 从 sessionStorage 获取当前登录用户信息
-    const userStr = sessionStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setUserName(user.full_name || user.username || "User");
-        setUserEmail(user.username || user.phone || "admin@nihplod.cn");
-        setUserRole(user.role);
-        if (process.env.NODE_ENV !== 'production') console.log("✅ User info loaded from sessionStorage:", user);
-      } catch (e) {
-        console.error("❌ Failed to parse user session:", e);
-      }
-    }
+    // 从服务端获取当前登录用户信息
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user) {
+          const user = data.user;
+          setUserName(user.full_name || user.username || "User");
+          setUserEmail(user.username || user.phone || "admin@nihplod.cn");
+          setUserRole(user.role);
+          if (process.env.NODE_ENV !== 'production') console.log("✅ User info loaded from API:", user);
+        }
+      })
+      .catch(e => console.error("❌ Failed to fetch user:", e));
   }, []);
 
   const handleLogout = async () => {
@@ -43,7 +43,6 @@ export default function Sidebar({
     } catch (e) {
       console.error('Logout API error:', e);
     }
-    sessionStorage.removeItem('user');
     window.location.href = "/";
   };
 

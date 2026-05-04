@@ -60,13 +60,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const userStr = sessionStorage.getItem('user');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-          setUserRole(user.role || 'AUDITOR');
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUserRole(data.user?.role || 'AUDITOR');
         }
       } catch (err) {
-        console.warn("Failed to get user role:", err);
+        console.warn("Failed to fetch user role:", err);
         setUserRole('AUDITOR');
       }
     };
@@ -339,10 +339,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const canvas = canvasRef.current;
       if (!canvas) throw new Error("证书图像生成失败");
       const certImageDataUrl = canvas.toDataURL("image/png");
-      const userStr = sessionStorage.getItem('user');
-      if (!userStr) throw new Error("未找到登录信息");
-      const user = JSON.parse(userStr);
-      const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(user.role);
+      const meRes = await fetch('/api/auth/me');
+      if (!meRes.ok) throw new Error("未找到登录信息");
+      const meData = await meRes.json();
+      const user = meData.user;
+      const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(user?.role);
 
       const response = await fetch("/api/certificates", {
         method: "POST",
@@ -351,7 +352,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),
           certId: initialData?.id,
           certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current, certImageDataUrl },
-          managerId: user.id
+          managerId: user?.id
         })
       });
 

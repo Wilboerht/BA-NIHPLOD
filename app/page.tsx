@@ -135,29 +135,28 @@ export default function VerificationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scannerTrigger, setScannerTrigger] = useState(0);
 
-  // 页面加载时检查登录状态
+  // 页面加载时检查登录状态（通过 JWT Cookie）
   useEffect(() => {
     const checkLoginStatus = async () => {
-      const userStr = sessionStorage.getItem("user");
-      
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr) as UserSession;
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          const user = data.user as UserSession;
 
-          // 如果是管理员，重定向到workbench
-          if (user.role === "SUPER_ADMIN" || user.role === "AUDITOR" || user.role === "MANAGER" || user.role === "PROJECT_MANAGER") {
+          // 如果是管理员，重定向到 workbench
+          if (user?.role === "SUPER_ADMIN" || user?.role === "AUDITOR" || user?.role === "MANAGER" || user?.role === "PROJECT_MANAGER") {
             window.location.href = "/workbench";
             return;
           }
 
           // 如果是经销商，设置状态但不自动打开面板
-          if (user.role === "DEALER") {
+          if (user?.role === "DEALER") {
             setLoggedInUser(user);
-            // 页面刷新时不自动打开面板，只有登陆完成后才打开
           }
-        } catch (e) {
-          console.error("Failed to parse user session:", e);
         }
+      } catch (e) {
+        console.error("Failed to check login status:", e);
       }
       setIsPageLoading(false);
     };
@@ -359,26 +358,28 @@ export default function VerificationPage() {
 
   // 检查是否有经销商用户登录，当登录模态框从打开变为关闭时（登陆完成）才打开面板
   useEffect(() => {
-    // 只在登陆模态框从true变为false时执行（即刚完成登陆）
+    // 只在登陆模态框从 true 变为 false 时执行（即刚完成登陆）
     if (prevShowLoginModalRef.current && !showLoginModal) {
-      const userStr = sessionStorage.getItem("user");
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr) as UserSession;
-          if (user.role === "DEALER") {
+      fetch('/api/auth/me')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.user?.role === "DEALER") {
+            setLoggedInUser(data.user);
             setShowDealerModal(true);
           }
-        } catch (e) {
-          console.error("Failed to parse user session:", e);
-        }
-      }
+        })
+        .catch(e => console.error("Failed to check dealer login:", e));
     }
-    // 更新ref值用于下一次比较
+    // 更新 ref 值用于下一次比较
     prevShowLoginModalRef.current = showLoginModal;
   }, [showLoginModal]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("user");
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     setLoggedInUser(null);
     setShowDealerModal(false);
     window.location.href = "/";
@@ -1021,18 +1022,18 @@ export default function VerificationPage() {
       <ResetPasswordModal 
         isOpen={showResetPasswordModal} 
         onClose={() => setShowResetPasswordModal(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           // 重置密码成功后，如果是经销商，打开经销商面板
-          const userStr = sessionStorage.getItem('user');
-          if (userStr) {
-            try {
-              const user = JSON.parse(userStr);
-              if (user.role === 'DEALER') {
+          try {
+            const res = await fetch('/api/auth/me');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.user?.role === 'DEALER') {
                 setShowDealerModal(true);
               }
-            } catch (e) {
-              console.error('Failed to parse user:', e);
             }
+          } catch (e) {
+            console.error('Failed to check user after reset:', e);
           }
         }}
       />

@@ -9,22 +9,19 @@ import { useEffect } from "react";
 export default function DealerPage() {
   useEffect(() => {
     // 检查是否有经销商用户登录
-    const userStr = sessionStorage.getItem("user");
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        if (user.role === "DEALER") {
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user?.role === "DEALER") {
           // 重定向到首页，模态框会自动打开
           window.location.href = "/";
-          return;
+        } else {
+          window.location.href = "/";
         }
-      } catch (e) {
-        console.error("Failed to parse user session:", e);
-      }
-    }
-    
-    // 如果没有经销商用户，重定向到首页
-    window.location.href = "/";
+      })
+      .catch(() => {
+        window.location.href = "/";
+      });
   }, []);
 
   return null;
