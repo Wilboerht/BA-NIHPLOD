@@ -17,7 +17,7 @@ export async function GET(
 
     if (!dealerId) {
       return NextResponse.json(
-        { error: 'dealerId is required' },
+        { error: '缺少经销商标识' },
         { status: 400 }
       );
     }

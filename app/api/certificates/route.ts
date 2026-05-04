@@ -258,16 +258,22 @@ export async function POST(req: Request) {
     // --- 流程 3: 吊销证书 (管理员行为) ---
     if (action === 'revoke_certificate') {
       if (USE_LOCAL_DB && sql) {
-        const result = await sql`SELECT id FROM certificates WHERE id = ${certId} LIMIT 1`;
+        const result = await sql`SELECT id, status FROM certificates WHERE id = ${certId} LIMIT 1`;
         if (!result || result.length === 0) throw new Error('未找到对应证书');
+        if (result[0].status === 'REVOKED') {
+          return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
+        }
         await sql`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
       } else {
         const { data: cert, error: certErr } = await supabaseAdmin
           .from('certificates')
-          .select('*, dealers(*)')
+          .select('id, status')
           .eq('id', certId)
           .single();
         if (certErr || !cert) throw new Error('未找到对应证书');
+        if (cert.status === 'REVOKED') {
+          return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
+        }
         await supabaseAdmin.from('certificates').update({ status: 'REVOKED' }).eq('id', certId);
       }
       return NextResponse.json({ success: true, status: 'REVOKED' });
@@ -293,6 +299,19 @@ export async function POST(req: Request) {
     if (action === 'update_certificate') {
       if (!certId) throw new Error('缺少证书 ID');
       if (!certData) throw new Error('缺少更新数据');
+
+      // 状态机校验：已吊销的证书不允许编辑
+      if (USE_LOCAL_DB && sql) {
+        const statusCheck = await sql`SELECT status FROM certificates WHERE id = ${certId} LIMIT 1`;
+        if (statusCheck[0]?.status === 'REVOKED') {
+          return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
+        }
+      } else {
+        const { data: check } = await supabaseAdmin.from('certificates').select('status').eq('id', certId).single();
+        if (check?.status === 'REVOKED') {
+          return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
+        }
+      }
 
       if (USE_LOCAL_DB && sql) {
         const result = await sql`SELECT dealer_id FROM certificates WHERE id = ${certId} LIMIT 1`;

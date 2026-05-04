@@ -10,7 +10,7 @@ export async function GET(
 
     if (!profileId) {
       return NextResponse.json(
-        { error: 'profileId is required' },
+        { error: '缺少用户标识' },
         { status: 400 }
       );
     }
@@ -28,7 +28,7 @@ export async function GET(
   } catch (err: any) {
     console.error('[API] Get dealers by profile error:', err);
     return NextResponse.json(
-      { error: err.message || '获取经销商信息失败' },
+      { error: '获取经销商信息失败' },
       { status: 500 }
     );
   }

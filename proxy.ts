@@ -5,6 +5,7 @@ import { verifyToken } from './lib/auth';
 // 受保护的路径模式
 const PROTECTED_PATHS = [
   '/workbench',
+  '/demo',
   '/api/admin',
   '/api/auth/change-password',
   '/api/auth/complete-first-login',
@@ -60,6 +61,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/workbench/:path*',
+    '/demo/:path*',
     '/api/admin/:path*',
     '/api/auth/change-password',
     '/api/auth/complete-first-login',

@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+      return NextResponse.json({ error: "缺少用户标识" }, { status: 400 });
     }
 
     // 获取用户 profile 信息
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     if (profileError || !profile) {
       console.error("[Dealer Certificates API] Profile fetch failed:", profileError);
       return NextResponse.json(
-        { error: "User profile not found" },
+        { error: "用户不存在" },
         { status: 404 }
       );
     }
