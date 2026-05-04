@@ -11,7 +11,6 @@
     "init:admins": "node scripts/initDefaultAdmins.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.101.1",
     "@types/qrcode": "^1.5.6",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { USE_LOCAL_DB, sql } from '@/lib/db';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sql } from '@/lib/db';
 
 /**
  * POST /api/certificates/verify
@@ -20,67 +19,34 @@ export async function POST(req: Request) {
     }
 
     let data;
-    let error;
 
-    if (USE_LOCAL_DB && sql) {
-      try {
-        const result = await sql`
-          SELECT c.id, c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
-                 d.company_name, d.phone
-          FROM certificates c
-          LEFT JOIN dealers d ON c.dealer_id = d.id
-          WHERE c.cert_number = ${certNumber.toUpperCase()}
-          LIMIT 1
-        `;
-        
-        if (result && result.length > 0) {
-          const row = result[0];
-          data = {
-            ...row,
-            dealers: row.company_name ? { company_name: row.company_name, phone: row.phone } : null
-          };
-        } else {
-          error = { code: 'PGRST116' }; // 模拟 Supabase "未找到记录"错误
-        }
-      } catch (err: unknown) {
-        console.error('[certificates/verify] 本地 DB 查询失败:', err);
-        throw err;
-      }
-    } else {
-      // 使用 Supabase
-      const sbResult = await supabaseAdmin
-        .from('certificates')
-        .select(`
-          id,
-          cert_number,
-          start_date,
-          end_date,
-          auth_scope,
-          status,
-          dealers ( company_name, phone ),
-          final_image_url
-        `)
-        .eq('cert_number', certNumber.toUpperCase())
-        .single();
+    try {
+      const result = await sql`
+        SELECT c.id, c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
+               d.company_name, d.phone
+        FROM certificates c
+        LEFT JOIN dealers d ON c.dealer_id = d.id
+        WHERE c.cert_number = ${certNumber.toUpperCase()}
+        LIMIT 1
+      `;
       
-      data = sbResult.data;
-      error = sbResult.error;
-    }
-
-    if (error) {
-      if (error.code === 'PGRST116') { // 未找到记录
+      if (result && result.length > 0) {
+        const row = result[0];
+        data = {
+          ...row,
+          dealers: row.company_name ? { company_name: row.company_name, phone: row.phone } : null
+        };
+      } else {
         return NextResponse.json(
           { success: false, error: "证书不存在" },
           { status: 404 }
         );
       }
-      throw error;
-    }
-
-    if (!data) {
+    } catch (err: unknown) {
+      console.error('[certificates/verify] DB 查询失败:', err);
       return NextResponse.json(
-        { success: false, error: "证书不存在" },
-        { status: 404 }
+        { success: false, error: "系统查询出错，请稍后再试" },
+        { status: 500 }
       );
     }
 

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { USE_LOCAL_DB, sql } from '@/lib/db';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 /**
@@ -21,13 +20,8 @@ async function generateUniqueCertNumber(): Promise<string> {
     const certNumber = `${base}${randomPart}`;
     
     // 检查是否已存在
-    if (USE_LOCAL_DB && sql) {
-      const existing = await sql`SELECT 1 FROM certificates WHERE cert_number = ${certNumber} LIMIT 1`;
-      if (existing.length === 0) return certNumber;
-    } else {
-      const { data } = await supabaseAdmin.from('certificates').select('id').eq('cert_number', certNumber).maybeSingle();
-      if (!data) return certNumber;
-    }
+    const existing = await sql`SELECT 1 FROM certificates WHERE cert_number = ${certNumber} LIMIT 1`;
+    if (existing.length === 0) return certNumber;
   }
   
   // 如果 10 次都碰撞（概率极低），使用时间戳确保唯一
@@ -36,91 +30,42 @@ async function generateUniqueCertNumber(): Promise<string> {
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
 async function getOrCreateDealer(phone: string, shopName: string) {
-  if (USE_LOCAL_DB && sql) {
-    // 先检查是否已有 (phone, company_name) 的组合记录
-    const existing = await sql`
-      SELECT id FROM dealers 
-      WHERE phone = ${phone} AND company_name = ${shopName} 
-      LIMIT 1
-    `;
-    if (existing.length > 0) {
-      return existing[0].id;
-    }
-    // 创建新的主体记录
-    const result = await sql`
-      INSERT INTO dealers (company_name, phone) 
-      VALUES (${shopName}, ${phone}) 
-      RETURNING id
-    `;
-    return result[0].id;
-  } else {
-    // 先检查是否已有 (phone, company_name) 的组合
-    const { data: existingDealer } = await supabaseAdmin
-      .from('dealers')
-      .select('id')
-      .eq('phone', phone)
-      .eq('company_name', shopName)
-      .maybeSingle();
-    
-    if (existingDealer) {
-      return existingDealer.id;
-    }
-    // 创建新的主体记录
-    const { data: newDealer, error: newDealerErr } = await supabaseAdmin
-      .from('dealers')
-      .insert({ company_name: shopName, phone })
-      .select('id')
-      .single();
-    if (newDealerErr || !newDealer) {
-      throw new Error(`经销商主体创建失败: ${newDealerErr?.message || '未知错误'}`);
-    }
-    return newDealer.id;
+  // 先检查是否已有 (phone, company_name) 的组合记录
+  const existing = await sql`
+    SELECT id FROM dealers 
+    WHERE phone = ${phone} AND company_name = ${shopName} 
+    LIMIT 1
+  `;
+  if (existing.length > 0) {
+    return existing[0].id;
   }
+  // 创建新的主体记录
+  const result = await sql`
+    INSERT INTO dealers (company_name, phone) 
+    VALUES (${shopName}, ${phone}) 
+    RETURNING id
+  `;
+  return result[0].id;
 }
 
 // 辅助函数：获取或创建经销商账户
 async function getOrCreateDealerProfile(phone: string, shopName: string) {
   const passwordHash = await bcrypt.hash(phone, 10);
 
-  if (USE_LOCAL_DB && sql) {
-    // 检查是否已有此账户
-    const existing = await sql`SELECT id, is_first_login FROM profiles WHERE username = ${phone} LIMIT 1`;
-    if (existing.length > 0) {
-      // 更新密码
-      await sql`UPDATE profiles SET password_hash = ${passwordHash} WHERE id = ${existing[0].id}`;
-      return existing[0].id;
-    }
-    // 创建新账户
-    const profileId = crypto.randomUUID();
-    await sql`
-      INSERT INTO profiles (id, username, full_name, phone, password_hash, role, is_first_login)
-      VALUES (${profileId}, ${phone}, ${shopName}, ${phone}, ${passwordHash}, 'DEALER', true)
-    `;
-    return profileId;
-  } else {
-    const { data: existingProfile } = await supabaseAdmin.from('profiles').select('id, is_first_login').eq('username', phone).maybeSingle();
-    if (existingProfile) {
-      await supabaseAdmin.from('profiles').update({ password_hash: passwordHash }).eq('id', existingProfile.id);
-      return existingProfile.id;
-    }
-    const { data: newProfile, error: newProfileErr } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: crypto.randomUUID(),
-        username: phone,
-        full_name: shopName,
-        phone: phone,
-        password_hash: passwordHash,
-        role: 'DEALER',
-        is_first_login: true
-      })
-      .select('id')
-      .single();
-    if (newProfileErr || !newProfile) {
-      throw new Error(`经销商账户创建失败: ${newProfileErr?.message || '未知错误'}`);
-    }
-    return newProfile.id;
+  // 检查是否已有此账户
+  const existing = await sql`SELECT id, is_first_login FROM profiles WHERE username = ${phone} LIMIT 1`;
+  if (existing.length > 0) {
+    // 更新密码
+    await sql`UPDATE profiles SET password_hash = ${passwordHash} WHERE id = ${existing[0].id}`;
+    return existing[0].id;
   }
+  // 创建新账户
+  const profileId = crypto.randomUUID();
+  await sql`
+    INSERT INTO profiles (id, username, full_name, phone, password_hash, role, is_first_login)
+    VALUES (${profileId}, ${phone}, ${shopName}, ${phone}, ${passwordHash}, 'DEALER', true)
+  `;
+  return profileId;
 }
 
 export async function POST(req: Request) {
@@ -141,34 +86,20 @@ export async function POST(req: Request) {
       const dealerId = await getOrCreateDealer(certData.phone, certData.shopName);
       const certNumber = await generateUniqueCertNumber();
 
-      if (USE_LOCAL_DB && sql) {
-        await sql`
-          INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, auditor_id, manager_id)
-          VALUES (
-            ${certNumber},
-            ${dealerId},
-            ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-            ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
-            ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
-            'PENDING',
-            null,
-            ${managerId},
-            null
-          )
-        `;
-      } else {
-        await supabaseAdmin.from('certificates').insert({
-          cert_number: certNumber,
-          dealer_id: dealerId,
-          auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司'),
-          start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
-          end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
-          status: 'PENDING',
-          final_image_url: null,
-          auditor_id: managerId,
-          manager_id: null
-        });
-      }
+      await sql`
+        INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, auditor_id, manager_id)
+        VALUES (
+          ${certNumber},
+          ${dealerId},
+          ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+          ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
+          ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+          'PENDING',
+          null,
+          ${managerId},
+          null
+        )
+      `;
       return NextResponse.json({ success: true, status: 'PENDING' });
     }
 
@@ -179,27 +110,15 @@ export async function POST(req: Request) {
 
       if (certId) {
         // A. 系统流程：处理已有的待审核记录
-        if (USE_LOCAL_DB && sql) {
-          const result = await sql`
-            SELECT c.*, d.phone, d.company_name FROM certificates c
-            LEFT JOIN dealers d ON c.dealer_id = d.id
-            WHERE c.id = ${certId} LIMIT 1
-          `;
-          if (!result || result.length === 0) throw new Error(`未找到待审核证书 (ID: ${certId})`);
-          certDataDb = result[0];
-          dealerPhone = certDataDb.phone;
-          dealerShopName = certDataDb.company_name;
-        } else {
-          const { data: dbData, error: getCertErr } = await supabaseAdmin
-            .from('certificates')
-            .select('*, dealers(*)')
-            .eq('id', certId)
-            .single();
-          if (getCertErr || !dbData) throw new Error(`未找到待审核证书 (ID: ${certId})`);
-          certDataDb = dbData;
-          dealerPhone = dbData.dealers.phone;
-          dealerShopName = dbData.dealers.company_name;
-        }
+        const result = await sql`
+          SELECT c.*, d.phone, d.company_name FROM certificates c
+          LEFT JOIN dealers d ON c.dealer_id = d.id
+          WHERE c.id = ${certId} LIMIT 1
+        `;
+        if (!result || result.length === 0) throw new Error(`未找到待审核证书 (ID: ${certId})`);
+        certDataDb = result[0];
+        dealerPhone = certDataDb.phone;
+        dealerShopName = certDataDb.company_name;
         certNumber = certDataDb.cert_number;
       } else if (certData) {
         // B. 管理员直发
@@ -208,34 +127,20 @@ export async function POST(req: Request) {
         dealerPhone = certData.phone;
         dealerShopName = certData.shopName;
 
-        if (USE_LOCAL_DB && sql) {
-          await sql`
-            INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, manager_id)
-            VALUES (
-              ${certNumber},
-              ${dealerId},
-              ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-              ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
-              ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
-              'ISSUED',
-              null,
-              null,
-              ${managerId}
-            )
-          `;
-        } else {
-          await supabaseAdmin.from('certificates').insert({
-            cert_number: certNumber,
-            dealer_id: dealerId,
-            auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司'),
-            start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
-            end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
-            status: 'ISSUED',
-            final_image_url: null,
-            seal_url: null,
-            manager_id: managerId
-          });
-        }
+        await sql`
+          INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, manager_id)
+          VALUES (
+            ${certNumber},
+            ${dealerId},
+            ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+            ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
+            ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+            'ISSUED',
+            null,
+            null,
+            ${managerId}
+          )
+        `;
       } else {
         throw new Error('缺少核发数据');
       }
@@ -245,11 +150,7 @@ export async function POST(req: Request) {
 
       // 如果是从待审核转为 ISSUED，更新状态
       if (certId) {
-        if (USE_LOCAL_DB && sql) {
-          await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId}`;
-        } else {
-          await supabaseAdmin.from('certificates').update({ status: 'ISSUED', manager_id: managerId }).eq('id', certId);
-        }
+        await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId}`;
       }
 
       return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, password: dealerPhone });
@@ -257,25 +158,12 @@ export async function POST(req: Request) {
 
     // --- 流程 3: 吊销证书 (管理员行为) ---
     if (action === 'revoke_certificate') {
-      if (USE_LOCAL_DB && sql) {
-        const result = await sql`SELECT id, status FROM certificates WHERE id = ${certId} LIMIT 1`;
-        if (!result || result.length === 0) throw new Error('未找到对应证书');
-        if (result[0].status === 'REVOKED') {
-          return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
-        }
-        await sql`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
-      } else {
-        const { data: cert, error: certErr } = await supabaseAdmin
-          .from('certificates')
-          .select('id, status')
-          .eq('id', certId)
-          .single();
-        if (certErr || !cert) throw new Error('未找到对应证书');
-        if (cert.status === 'REVOKED') {
-          return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
-        }
-        await supabaseAdmin.from('certificates').update({ status: 'REVOKED' }).eq('id', certId);
+      const result = await sql`SELECT id, status FROM certificates WHERE id = ${certId} LIMIT 1`;
+      if (!result || result.length === 0) throw new Error('未找到对应证书');
+      if (result[0].status === 'REVOKED') {
+        return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
       }
+      await sql`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
       return NextResponse.json({ success: true, status: 'REVOKED' });
     }
 
@@ -283,15 +171,7 @@ export async function POST(req: Request) {
     if (action === 'reject_pending') {
       if (!certId) throw new Error('缺少证书 ID');
 
-      if (USE_LOCAL_DB && sql) {
-        await sql`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING'`;
-      } else {
-        await supabaseAdmin
-          .from('certificates')
-          .update({ status: 'REJECTED', manager_id: managerId })
-          .eq('id', certId)
-          .eq('status', 'PENDING');
-      }
+      await sql`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING'`;
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
@@ -301,51 +181,27 @@ export async function POST(req: Request) {
       if (!certData) throw new Error('缺少更新数据');
 
       // 状态机校验：已吊销的证书不允许编辑
-      if (USE_LOCAL_DB && sql) {
-        const statusCheck = await sql`SELECT status FROM certificates WHERE id = ${certId} LIMIT 1`;
-        if (statusCheck[0]?.status === 'REVOKED') {
-          return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
-        }
-      } else {
-        const { data: check } = await supabaseAdmin.from('certificates').select('status').eq('id', certId).single();
-        if (check?.status === 'REVOKED') {
-          return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
-        }
+      const statusCheck = await sql`SELECT status FROM certificates WHERE id = ${certId} LIMIT 1`;
+      if (statusCheck[0]?.status === 'REVOKED') {
+        return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
       }
 
-      if (USE_LOCAL_DB && sql) {
-        const result = await sql`SELECT dealer_id FROM certificates WHERE id = ${certId} LIMIT 1`;
-        if (!result || result.length === 0) throw new Error('未找到对应证书记录');
-        const dealerId = result[0].dealer_id;
+      const result = await sql`SELECT dealer_id FROM certificates WHERE id = ${certId} LIMIT 1`;
+      if (!result || result.length === 0) throw new Error('未找到对应证书记录');
+      const dealerId = result[0].dealer_id;
 
-        // 更新经销商资料
-        await sql`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
+      // 更新经销商资料
+      await sql`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
 
-        // 更新证书
-        await sql`
-          UPDATE certificates
-          SET auth_scope = ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-              start_date = ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
-              end_date = ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
-              manager_id = ${managerId}
-          WHERE id = ${certId}
-        `;
-      } else {
-        const { data: oldCert, error: oldErr } = await supabaseAdmin.from('certificates').select('*').eq('id', certId).single();
-        if (oldErr || !oldCert) throw new Error('未找到对应证书记录');
-
-        await supabaseAdmin
-          .from('dealers')
-          .update({ company_name: certData.shopName, phone: certData.phone })
-          .eq('id', oldCert.dealer_id);
-
-        await supabaseAdmin.from('certificates').update({
-          auth_scope: certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司'),
-          start_date: certData.duration.split(' - ')[0].replace(/\./g, '-'),
-          end_date: certData.duration.split(' - ')[1].replace(/\./g, '-'),
-          manager_id: managerId
-        }).eq('id', certId);
-      }
+      // 更新证书
+      await sql`
+        UPDATE certificates
+        SET auth_scope = ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+            start_date = ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
+            end_date = ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+            manager_id = ${managerId}
+        WHERE id = ${certId}
+      `;
       return NextResponse.json({ success: true, status: 'UPDATED' });
     }
 

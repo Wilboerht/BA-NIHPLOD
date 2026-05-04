@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { USE_LOCAL_DB, sql, getProfileById } from '@/lib/db';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sql, getProfileById } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 export async function PUT(req: Request) {
@@ -49,48 +48,29 @@ export async function PUT(req: Request) {
     }
 
     // 更新用户角色
-    if (USE_LOCAL_DB && sql) {
-      try {
-        // 验证新角色值
-        const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER', 'DEALER'];
-        if (!validRoles.includes(newRole)) {
-          return NextResponse.json(
-            { error: '无效的角色值' },
-            { status: 400 }
-          );
-        }
-
-        await sql`
-          UPDATE profiles 
-          SET role = ${newRole}, updated_at = NOW()
-          WHERE id = ${userId}
-        `;
-        console.log('[update-user-role] 本地数据库: 用户角色已更新');
-        return NextResponse.json({ success: true });
-      } catch (err: unknown) {
-        console.error('[update-user-role] 本地数据库错误:', err);
+    try {
+      // 验证新角色值
+      const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER', 'DEALER'];
+      if (!validRoles.includes(newRole)) {
         return NextResponse.json(
-          { error: '操作失败' },
-          { status: 500 }
+          { error: '无效的角色值' },
+          { status: 400 }
         );
       }
-    } else {
-      try {
-        const { error } = await supabaseAdmin
-          .from('profiles')
-          .update({ role: newRole, updated_at: new Date().toISOString() })
-          .eq('id', userId);
 
-        if (error) throw error;
-        console.log('[update-user-role] Supabase: 用户角色已更新');
-        return NextResponse.json({ success: true });
-      } catch (err: unknown) {
-        console.error('[update-user-role] Supabase 错误:', err);
-        return NextResponse.json(
-          { error: '操作失败' },
-          { status: 500 }
-        );
-      }
+      await sql`
+        UPDATE profiles 
+        SET role = ${newRole}, updated_at = NOW()
+        WHERE id = ${userId}
+      `;
+      console.log('[update-user-role] 用户角色已更新');
+      return NextResponse.json({ success: true });
+    } catch (err: unknown) {
+      console.error('[update-user-role] 数据库错误:', err);
+      return NextResponse.json(
+        { error: '操作失败' },
+        { status: 500 }
+      );
     }
   } catch (err: unknown) {
     console.error('[update-user-role] API 错误:', err);

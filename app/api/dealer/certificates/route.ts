@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { USE_LOCAL_DB, sql, getProfileById, getDealersByProfileId } from "@/lib/db";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sql, getProfileById, getDealersByProfileId } from "@/lib/db";
 
 export async function GET(req: Request) {
   try {
@@ -31,76 +30,44 @@ export async function GET(req: Request) {
     }
 
     // 获取所有这些 dealers 的证书
-    if (USE_LOCAL_DB && sql) {
-      try {
-        const dealerIds = dealers.map((d: { id: string }) => d.id);
-        const certsResult = await sql`
-          SELECT * FROM certificates
-          WHERE dealer_id = ANY(${dealerIds}::uuid[])
-            AND status = 'ISSUED'
-          ORDER BY created_at DESC
-        `;
+    try {
+      const dealerIds = dealers.map((d: { id: string }) => d.id);
+      const certsResult = await sql`
+        SELECT * FROM certificates
+        WHERE dealer_id = ANY(${dealerIds}::uuid[])
+          AND status = 'ISSUED'
+        ORDER BY created_at DESC
+      `;
 
-        // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串
-        const certs = certsResult.map((row: Record<string, unknown>) => ({
-          ...row,
-          start_date: row.start_date instanceof Date
-            ? row.start_date.toISOString().split('T')[0]
-            : row.start_date,
-          end_date: row.end_date instanceof Date
-            ? row.end_date.toISOString().split('T')[0]
-            : row.end_date,
-          created_at: row.created_at instanceof Date
-            ? row.created_at.toISOString()
-            : row.created_at,
-        }));
+      // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串
+      const certs = certsResult.map((row: Record<string, unknown>) => ({
+        ...row,
+        start_date: row.start_date instanceof Date
+          ? row.start_date.toISOString().split('T')[0]
+          : row.start_date,
+        end_date: row.end_date instanceof Date
+          ? row.end_date.toISOString().split('T')[0]
+          : row.end_date,
+        created_at: row.created_at instanceof Date
+          ? row.created_at.toISOString()
+          : row.created_at,
+      }));
 
-        console.log("[Dealer Certificates API] 本地数据库: 获取证书", {
-          dealerCount: dealers.length,
-          certCount: certs.length
-        });
+      console.log("[Dealer Certificates API] 获取证书", {
+        dealerCount: dealers.length,
+        certCount: certs.length
+      });
 
-        return NextResponse.json({
-          certificates: certs || [],
-          dealers: dealers
-        });
-      } catch (err: unknown) {
-        console.error("[Dealer Certificates API] 本地数据库查询失败:", err);
-        return NextResponse.json(
-          { error: "获取证书失败" },
-          { status: 500 }
-        );
-      }
-    } else {
-      try {
-        const dealerIds = dealers.map((d: { id: string }) => d.id);
-        const { data: certs, error: certsError } = await supabaseAdmin
-          .from("certificates")
-          .select("*")
-          .in("dealer_id", dealerIds)
-          .eq("status", "ISSUED")
-          .order("created_at", { ascending: false });
-
-        if (certsError) {
-          throw certsError;
-        }
-
-        console.log("[Dealer Certificates API] Supabase: 获取证书", {
-          dealerCount: dealers.length,
-          certCount: certs?.length
-        });
-
-        return NextResponse.json({
-          certificates: certs || [],
-          dealers: dealers
-        });
-      } catch (err: unknown) {
-        console.error("[Dealer Certificates API] Supabase 查询失败:", err);
-        return NextResponse.json(
-          { error: "获取证书失败" },
-          { status: 500 }
-        );
-      }
+      return NextResponse.json({
+        certificates: certs || [],
+        dealers: dealers
+      });
+    } catch (err: unknown) {
+      console.error("[Dealer Certificates API] 数据库查询失败:", err);
+      return NextResponse.json(
+        { error: "获取证书失败" },
+        { status: 500 }
+      );
     }
   } catch (err: unknown) {
     console.error("[Dealer Certificates API] API 错误:", err);

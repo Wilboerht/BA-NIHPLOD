@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import postgres from 'postgres';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,20 +24,14 @@ envLines.forEach(line => {
   }
 });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const databaseUrl = process.env.DATABASE_URL;
 
-if (!supabaseUrl || !supabaseServiceRole) {
-  console.error("❌ Missing Supabase URL or Service Role key");
+if (!databaseUrl) {
+  console.error("❌ Missing DATABASE_URL in .env.local");
   process.exit(1);
 }
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+const sql = postgres(databaseUrl);
 
 // 默认管理员配置
 const DEFAULT_ADMINS = [
@@ -61,45 +55,29 @@ async function createOrUpdateAdmin(admin) {
   // 生成密码哈希
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // 检查用户是否存在
-  const { data: existing } = await supabaseAdmin
-    .from('profiles')
-    .select('id')
-    .eq('username', username)
-    .maybeSingle();
-
   try {
-    if (existing) {
-      // 更新现有用户
-      const { error } = await supabaseAdmin.from('profiles')
-        .update({
-          password_hash: passwordHash,
-          full_name: fullName,
-          role: role,
-          is_first_login: false,
-        })
-        .eq('username', username);
+    // 检查用户是否存在
+    const existing = await sql`
+      SELECT id FROM profiles WHERE username = ${username} LIMIT 1
+    `;
 
-      if (error) {
-        console.error(`❌ 更新 ${username} 失败:`, error.message);
-        return false;
-      }
+    if (existing.length > 0) {
+      // 更新现有用户
+      await sql`
+        UPDATE profiles 
+        SET password_hash = ${passwordHash},
+            full_name = ${fullName},
+            role = ${role},
+            is_first_login = false
+        WHERE username = ${username}
+      `;
       console.log(`✅ 更新: ${fullName} (${username}) - Role: ${role}`);
     } else {
       // 创建新用户
-      const { error } = await supabaseAdmin.from('profiles')
-        .insert({
-          username: username,
-          full_name: fullName,
-          password_hash: passwordHash,
-          role: role,
-          is_first_login: false,
-        });
-
-      if (error) {
-        console.error(`❌ 创建 ${username} 失败:`, error.message);
-        return false;
-      }
+      await sql`
+        INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
+        VALUES (${username}, ${fullName}, ${passwordHash}, ${role}, false)
+      `;
       console.log(`✅ 创建: ${fullName} (${username}) - Role: ${role}`);
     }
 
@@ -134,6 +112,8 @@ async function main() {
     console.log("⚠️  部分账户初始化失败，请检查错误信息。");
     process.exit(1);
   }
+
+  await sql.end();
 }
 
 main();

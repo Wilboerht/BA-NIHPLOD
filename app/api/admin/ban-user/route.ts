@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { USE_LOCAL_DB, sql, getProfileById } from "@/lib/db";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sql, getProfileById } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
 /**
@@ -43,49 +42,21 @@ export async function POST(req: Request) {
     }
 
     // 执行封禁/解封操作
-    if (USE_LOCAL_DB && sql) {
-      try {
-        const isBanned = action === "ban";
-        await sql`UPDATE profiles SET is_banned = ${isBanned} WHERE id = ${profileId}`;
-        console.log(`[ban-user] 本地数据库: ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
-        return NextResponse.json({
-          success: true,
-          action,
-          profileId
-        });
-      } catch (err: unknown) {
-        console.error("[ban-user] 本地数据库操作失败:", err);
-        return NextResponse.json(
-          { error: '操作失败' },
-          { status: 500 }
-        );
-      }
-    } else {
-      try {
-        const banned_until = action === "ban"
-          ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString()
-          : null;
-
-        const { error } = await supabaseAdmin
-          .from('profiles')
-          .update({ is_banned: action === "ban" })
-          .eq('id', profileId);
-
-        if (error) throw error;
-
-        console.log(`[ban-user] Supabase: ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
-        return NextResponse.json({
-          success: true,
-          action,
-          profileId
-        });
-      } catch (err: unknown) {
-        console.error("[ban-user] Supabase 操作失败:", err);
-        return NextResponse.json(
-          { error: '操作失败' },
-          { status: 500 }
-        );
-      }
+    try {
+      const isBanned = action === "ban";
+      await sql`UPDATE profiles SET is_banned = ${isBanned} WHERE id = ${profileId}`;
+      console.log(`[ban-user] ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
+      return NextResponse.json({
+        success: true,
+        action,
+        profileId
+      });
+    } catch (err: unknown) {
+      console.error("[ban-user] 数据库操作失败:", err);
+      return NextResponse.json(
+        { error: '操作失败' },
+        { status: 500 }
+      );
     }
   } catch (err: unknown) {
     console.error("[ban-user] API 错误:", err);

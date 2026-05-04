@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { USE_LOCAL_DB, sql } from '@/lib/db';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 export async function GET(req: Request) {
@@ -11,41 +10,21 @@ export async function GET(req: Request) {
       return response;
     }
 
-    if (USE_LOCAL_DB && sql) {
-      try {
-        const result = await sql`
-          SELECT id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at
-          FROM profiles 
-          WHERE role != 'DEALER'
-          ORDER BY role ASC
-        `;
-        console.log('[admin-list] 本地数据库: 获取管理员列表');
-        return NextResponse.json({ data: result || [] });
-      } catch (err: unknown) {
-        console.error('[admin-list] 本地数据库错误:', err);
-        return NextResponse.json(
-          { error: '操作失败' },
-          { status: 500 }
-        );
-      }
-    } else {
-      try {
-        const { data, error } = await supabaseAdmin
-          .from('profiles')
-          .select('id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at')
-          .neq('role', 'DEALER')
-          .order('role', { ascending: true });
-
-        if (error) throw error;
-        console.log('[admin-list] Supabase: 获取管理员列表');
-        return NextResponse.json({ data: data || [] });
-      } catch (err: unknown) {
-        console.error('[admin-list] Supabase 错误:', err);
-        return NextResponse.json(
-          { error: '操作失败' },
-          { status: 500 }
-        );
-      }
+    try {
+      const result = await sql`
+        SELECT id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at
+        FROM profiles 
+        WHERE role != 'DEALER'
+        ORDER BY role ASC
+      `;
+      console.log('[admin-list] 获取管理员列表');
+      return NextResponse.json({ data: result || [] });
+    } catch (err: unknown) {
+      console.error('[admin-list] 数据库错误:', err);
+      return NextResponse.json(
+        { error: '操作失败' },
+        { status: 500 }
+      );
     }
   } catch (err: unknown) {
     console.error('[admin-list] API 错误:', err);

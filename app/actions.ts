@@ -1,7 +1,6 @@
 "use server";
 
-import { USE_LOCAL_DB, sql } from '@/lib/db';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sql } from '@/lib/db';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -43,14 +42,36 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
   try {
     let results: DbCertRow[] | null = null;
 
-    if (USE_LOCAL_DB && sql) {
-      // 1. 尝试按证书编号精确匹配
-      let dbResults = await sql`
+    // 1. 尝试按证书编号精确匹配
+    let dbResults = await sql`
+      SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
+             d.company_name
+      FROM certificates c
+      LEFT JOIN dealers d ON c.dealer_id = d.id
+      WHERE c.cert_number = ${cleanQuery.toUpperCase()}
+    `;
+
+    if (dbResults && dbResults.length > 0) {
+      results = dbResults.map((r: DbCertRow) => ({
+        cert_number: r.cert_number,
+        start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
+        end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
+        auth_scope: r.auth_scope,
+        status: r.status,
+        final_image_url: r.final_image_url,
+        dealers: { company_name: r.company_name }
+      }));
+    }
+
+    // 2. 如果没有匹配，按公司名称搜索
+    if (!results) {
+      dbResults = await sql`
         SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
                d.company_name
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
-        WHERE c.cert_number = ${cleanQuery.toUpperCase()}
+        WHERE d.company_name = ${cleanQuery}
+        ORDER BY c.end_date DESC
       `;
 
       if (dbResults && dbResults.length > 0) {
@@ -63,70 +84,6 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           final_image_url: r.final_image_url,
           dealers: { company_name: r.company_name }
         }));
-      }
-
-      // 2. 如果没有匹配，按公司名称搜索
-      if (!results) {
-        dbResults = await sql`
-          SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
-                 d.company_name
-          FROM certificates c
-          LEFT JOIN dealers d ON c.dealer_id = d.id
-          WHERE d.company_name = ${cleanQuery}
-          ORDER BY c.end_date DESC
-        `;
-
-        if (dbResults && dbResults.length > 0) {
-          results = dbResults.map((r: DbCertRow) => ({
-            cert_number: r.cert_number,
-            start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
-            end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
-            auth_scope: r.auth_scope,
-            status: r.status,
-            final_image_url: r.final_image_url,
-            dealers: { company_name: r.company_name }
-          }));
-        }
-      }
-    } else {
-      // 使用 Supabase 查询
-      // 1. 按证书编号精确匹配
-      const { data: certMatch } = await supabaseAdmin
-        .from('certificates')
-        .select(`
-          cert_number,
-          start_date,
-          end_date,
-          auth_scope,
-          status,
-          final_image_url,
-          dealers ( company_name )
-        `)
-        .eq('cert_number', cleanQuery.toUpperCase());
-
-      if (certMatch && certMatch.length > 0) {
-        results = certMatch as DbCertRow[];
-      }
-
-      // 2. 按公司名称搜索
-      if (!results) {
-        const { data: companyMatch } = await supabaseAdmin
-          .from('certificates')
-          .select(`
-            cert_number,
-            start_date,
-            end_date,
-            auth_scope,
-            status,
-            final_image_url,
-            dealers!inner ( company_name )
-          `)
-          .eq('dealers.company_name', cleanQuery)
-          .order('end_date', { ascending: false });
-        
-        if (companyMatch && companyMatch.length > 0) {
-          results = companyMatch as DbCertRow[];
-        }
       }
     }
     
@@ -200,33 +157,17 @@ export async function submitComplaintAction(formData: {
     const cleanDescription = sanitizeInput(formData.description.trim());
     const cleanChannel = sanitizeInput(formData.channel.trim());
 
-    // 使用本地数据库支持
-    if (USE_LOCAL_DB && sql) {
-      try {
-        await sql`
-          INSERT INTO complaints (description, channel, evidence_image_url, status, created_at)
-          VALUES (${cleanDescription}, ${cleanChannel}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
-        `;
-        console.log('[submitComplaintAction] 本地数据库: 投诉已提交');
-        return { success: true };
-      } catch (err: unknown) {
-        console.error("[submitComplaintAction] 本地数据库插入失败:", err);
-        throw err;
-      }
-    } else {
-      const { error } = await supabaseAdmin
-        .from('complaints')
-        .insert({
-          description: formData.description,
-          channel: formData.channel,
-          evidence_image_url: formData.evidence_image_url,
-          status: 'PENDING',
-          created_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-      console.log('[submitComplaintAction] Supabase: 投诉已提交');
+    // 提交投诉
+    try {
+      await sql`
+        INSERT INTO complaints (description, channel, evidence_image_url, status, created_at)
+        VALUES (${cleanDescription}, ${cleanChannel}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
+      `;
+      console.log('[submitComplaintAction] 投诉已提交');
       return { success: true };
+    } catch (err: unknown) {
+      console.error("[submitComplaintAction] 数据库插入失败:", err);
+      throw err;
     }
   } catch (err: unknown) {
     console.error("[submitComplaintAction] 投诉提交失败:", err);

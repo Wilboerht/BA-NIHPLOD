@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import postgres from 'postgres';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,40 +23,32 @@ envLines.forEach(line => {
   }
 });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const databaseUrl = process.env.DATABASE_URL;
 
-if (!supabaseUrl || !supabaseServiceRole) {
-  console.error("❌ Missing Supabase URL or Service Role key in .env.local");
+if (!databaseUrl) {
+  console.error("❌ Missing DATABASE_URL in .env.local");
   process.exit(1);
 }
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+const sql = postgres(databaseUrl);
 
 async function main() {
   try {
     console.log("📋 查询数据库中的所有管理员账户...\n");
 
     // 查询所有管理员用户
-    const { data: admins, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id, username, full_name, role, is_first_login, created_at')
-      .in('role', ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER']);
-
-    if (error) {
-      console.error("❌ 查询失败:", error);
-      process.exit(1);
-    }
+    const admins = await sql`
+      SELECT id, username, full_name, role, is_first_login, created_at
+      FROM profiles
+      WHERE role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      ORDER BY role ASC
+    `;
 
     if (!admins || admins.length === 0) {
       console.log("⚠️  数据库中未找到任何管理员账户！");
       console.log("\n💡 可以运行以下命令创建默认管理员：");
-      console.log("   npm run create:admin");
+      console.log("   npm run init:admins");
+      await sql.end();
       return;
     }
 
@@ -73,10 +65,11 @@ async function main() {
 
     // 验证默认账户的密码哈希
     console.log("\n🔍 密码哈希检查：\n");
-    const { data: withHashes } = await supabaseAdmin
-      .from('profiles')
-      .select('username, password_hash')
-      .in('role', ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER']);
+    const withHashes = await sql`
+      SELECT username, password_hash
+      FROM profiles
+      WHERE role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+    `;
 
     if (withHashes) {
       withHashes.forEach(user => {
@@ -91,6 +84,8 @@ async function main() {
     console.error("❌ 发生错误:", err);
     process.exit(1);
   }
+
+  await sql.end();
 }
 
 main();

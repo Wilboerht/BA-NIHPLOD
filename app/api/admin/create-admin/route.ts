@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { supabaseAdmin, checkIsAdmin } from "@/lib/supabase-admin";
-import { USE_LOCAL_DB, sql } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { requireAdmin, validatePassword } from "@/lib/auth";
 
 export async function POST(req: Request) {
@@ -46,58 +45,27 @@ export async function POST(req: Request) {
     // 生成密码哈希
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 本地 PostgreSQL 模式
-    if (USE_LOCAL_DB && sql) {
-      try {
-        const result = await sql`
-          INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
-          VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${passwordHash}, ${role}, false)
-          RETURNING id
-        `;
-        return NextResponse.json({ success: true, email });
-      } catch (err: unknown) {
-        console.error("[create-admin] Local DB insert error:", err);
-        const msg = err instanceof Error ? err.message : '';
-        if (msg.includes("unique") || msg.includes("duplicate")) {
-          return NextResponse.json(
-            { error: `邮箱 "${email}" 已被使用，请换一个。` },
-            { status: 409 }
-          );
-        }
-        return NextResponse.json(
-          { error: '创建账户失败' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Supabase 模式
-    const { data, error: profileErr } = await supabaseAdmin.from("profiles").insert({
-      username: email.trim().toLowerCase(),
-      full_name: fullName.trim(),
-      password_hash: passwordHash,
-      role,
-      is_first_login: false,
-    }).select('id');
-
-    if (profileErr) {
-      console.error("[create-admin] Insert error:", profileErr);
-      
-      // 检查是否是唯一性冲突
-      if (profileErr.message.includes("duplicate") || profileErr.message.includes("unique")) {
+    try {
+      await sql`
+        INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
+        VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${passwordHash}, ${role}, false)
+        RETURNING id
+      `;
+      return NextResponse.json({ success: true, email });
+    } catch (err: unknown) {
+      console.error("[create-admin] DB insert error:", err);
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes("unique") || msg.includes("duplicate")) {
         return NextResponse.json(
           { error: `邮箱 "${email}" 已被使用，请换一个。` },
           { status: 409 }
         );
       }
-      
       return NextResponse.json(
-        { error: `创建账户失败: ${profileErr.message}` },
+        { error: '创建账户失败' },
         { status: 400 }
       );
     }
-
-    return NextResponse.json({ success: true, email });
   } catch (err: unknown) {
     console.error("[create-admin]", err);
     return NextResponse.json({ error: '操作失败' }, { status: 500 });
