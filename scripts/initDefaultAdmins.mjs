@@ -37,14 +37,14 @@ const sql = postgres(databaseUrl);
 const DEFAULT_ADMINS = [
   {
     username: 'hank.wang@nihplod.cn',
-    password: 'hank',
-    fullName: 'Hank Wang',
+    password: 'whk35168',
+    fullName: 'Hank',
     role: 'SUPER_ADMIN'
   },
   {
     username: 'walter@nihplod.cn',
-    password: 'walter123',
-    fullName: 'Walter Li',
+    password: 'walter',
+    fullName: 'Walter',
     role: 'SUPER_ADMIN'
   }
 ];
