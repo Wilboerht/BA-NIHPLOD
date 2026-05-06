@@ -19,7 +19,7 @@ envLines.forEach(line => {
   const match = line.match(/^([^=]+)=(.*)$/);
   if (match) {
     if (!process.env[match[1].trim()]) {
-      process.env[match[1].trim()] = match[2].trim();
+      process.env[match[1].trim()] = match[2].trim().replace(/^["']|["']$/g, '');
     }
   }
 });
