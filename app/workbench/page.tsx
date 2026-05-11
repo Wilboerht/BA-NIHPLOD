@@ -297,7 +297,7 @@ export default function WorkbenchPage() {
                   <AnimatePresence>
                     {pendingCerts.map((cert) => {
                       const scopeParts = cert.auth_scope?.split(' | ') || ['', ''];
-                      const platformId = scopeParts[0];
+                      const companyName = scopeParts[0];
                       const isApproving = processingId === cert.id;
                       const isRejecting = rejectingId === cert.id;
                       const isBusy = isApproving || isRejecting;
@@ -317,7 +317,7 @@ export default function WorkbenchPage() {
                              </div>
                              <div className="flex-1 min-w-0">
                                <p className="text-[13px] font-bold text-slate-900 truncate">{cert.dealers?.company_name || '未知经销商'}</p>
-                               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{platformId}</p>
+                               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{companyName}</p>
                              </div>
                           </div>
 

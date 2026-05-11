@@ -95,8 +95,8 @@ export async function POST(req: Request) {
       if (certData.scopeText && certData.scopeText.length > 1000) {
         return NextResponse.json({ error: '授权范围过长，最多 1000 个字符' }, { status: 400 });
       }
-      if (certData.platformId && certData.platformId.length > 100) {
-        return NextResponse.json({ error: '平台 ID 过长，最多 100 个字符' }, { status: 400 });
+      if (certData.companyName && certData.companyName.length > 100) {
+        return NextResponse.json({ error: '公司名称过长，最多 100 个字符' }, { status: 400 });
       }
       if (certData.authorizer && certData.authorizer.length > 200) {
         return NextResponse.json({ error: '授权方名称过长，最多 200 个字符' }, { status: 400 });
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
         VALUES (
           ${certNumber},
           ${dealerId},
-          ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+          ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
           ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
           ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
           'PENDING',
@@ -154,7 +154,7 @@ export async function POST(req: Request) {
           VALUES (
             ${certNumber},
             ${dealerId},
-            ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+            ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
             ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
             ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
             'ISSUED',
@@ -218,7 +218,7 @@ export async function POST(req: Request) {
       // 更新证书
       await sql`
         UPDATE certificates
-        SET auth_scope = ${certData.platformId + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+        SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
             start_date = ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
             end_date = ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
             manager_id = ${managerId}

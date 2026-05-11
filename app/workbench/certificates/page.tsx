@@ -245,8 +245,8 @@ export default function CertificatesPage() {
                               setSelectedCertData({
                                 id: cert.id,
                                 cert_number: cert.cert_number,
-                                platformId: scopeParts[0] || "",
-                                platformLabel: "识别码", 
+                                companyName: scopeParts[0] || "",
+                                companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
@@ -273,8 +273,8 @@ export default function CertificatesPage() {
                               setSelectedCertData({
                                 id: cert.id,
                                 cert_number: cert.cert_number,
-                                platformId: scopeParts[0] || "",
-                                platformLabel: "识别码", 
+                                companyName: scopeParts[0] || "",
+                                companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
@@ -300,8 +300,8 @@ export default function CertificatesPage() {
                               const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
                               setSelectedCertData({
                                 cert_number: cert.cert_number,
-                                platformId: scopeParts[0],
-                                platformLabel: "识别码", 
+                                companyName: scopeParts[0],
+                                companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",

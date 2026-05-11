@@ -9,8 +9,8 @@ import { useToast } from "@/hooks/useToast";
 
 export interface CertData {
   id?: string;
-  platformId: string;
-  platformLabel: string;
+  companyName: string;
+  companyLabel: string;
   shopName: string;
   shopLabel: string;
   scopeText: string;
@@ -33,8 +33,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
   const [data, setData] = useState<CertData>({
-    platformId: "",
-    platformLabel: "",
+    companyName: "",
+    companyLabel: "",
     shopName: "",
     shopLabel: "",
     scopeText: "拥有我公司代理的品牌 **NIHPLOD(旎柏)** 全系列产品\n在阿里巴巴集团旗下淘宝商城上的 **合格经销资格**，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
@@ -137,11 +137,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
 
-    if (data.platformId && data.shopName) {
-      offCtx.fillText(data.platformId, width / 2, 530 * scale);
+    if (data.companyName && data.shopName) {
+      offCtx.fillText(data.companyName, width / 2, 530 * scale);
       offCtx.fillText(data.shopName, width / 2, 578 * scale);
-    } else if (data.platformId) {
-      offCtx.fillText(data.platformId, width / 2, 554 * scale);
+    } else if (data.companyName) {
+      offCtx.fillText(data.companyName, width / 2, 554 * scale);
     } else if (data.shopName) {
       offCtx.fillText(data.shopName, width / 2, 554 * scale);
     }
@@ -380,17 +380,17 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             </div>
           )}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">识别码</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">公司名称</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.platformId}</div>
+                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.companyName}</div>
               ) : (
                 <input
                   type="text"
-                  placeholder="请输入识别码 (如: 平台 ID) - 选填"
+                  placeholder="请输入公司名称（如：广东省某某公司）- 选填"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
-                  value={data.platformId}
-                  onChange={(e) => setData({ ...data, platformId: e.target.value })}
+                  value={data.companyName}
+                  onChange={(e) => setData({ ...data, companyName: e.target.value })}
                 />
               )}
             </div>

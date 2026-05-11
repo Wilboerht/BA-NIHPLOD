@@ -477,8 +477,8 @@ export default function DealersPage() {
                                       setViewCertData({
                                         id: cert.id,
                                         cert_number: cert.cert_number,
-                                        platformId: scopeParts[0],
-                                        platformLabel: "识别码", 
+                                        companyName: scopeParts[0],
+                                        companyLabel: "公司名称", 
                                         shopName: dealerNameMap[cert.dealer_id] || '-',
                                         shopLabel: "授权主体",
                                         scopeText: scopeParts[1] || "品牌官方经销授权",
@@ -502,8 +502,8 @@ export default function DealersPage() {
                                     setViewCertData({
                                       id: cert.id,
                                       cert_number: cert.cert_number,
-                                      platformId: scopeParts[0],
-                                      platformLabel: "识别码", 
+                                      companyName: scopeParts[0],
+                                      companyLabel: "公司名称", 
                                       shopName: dealerNameMap[cert.dealer_id] || '-',
                                       shopLabel: "授权主体",
                                       scopeText: scopeParts[1] || "品牌官方经销授权",
