@@ -67,15 +67,19 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: true });
     } catch (err: unknown) {
       console.error('[update-user-role] 数据库错误:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { error: '操作失败' },
+        { error: '操作失败', detail: isDev ? errorMessage : undefined },
         { status: 500 }
       );
     }
   } catch (err: unknown) {
     console.error('[update-user-role] API 错误:', err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: '操作失败' },
+      { error: '操作失败', detail: isDev ? errorMessage : undefined },
       { status: 500 }
     );
   }

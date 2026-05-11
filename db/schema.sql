@@ -1,7 +1,36 @@
 -- 品牌授权及验证平台 (BAVP) - Supabase / PostgreSQL Schema
+-- 完整版：包含所有初始设计 + 后续迁移内容
 
--- 1. 用户角色与档案
-CREATE TYPE user_role AS ENUM ('SUPER_ADMIN', 'AUDITOR', 'DEALER');
+-- ============================================================================
+-- 1. 枚举类型
+-- ============================================================================
+
+CREATE TYPE user_role AS ENUM (
+  'SUPER_ADMIN',
+  'AUDITOR',
+  'MANAGER',
+  'PROJECT_MANAGER',
+  'DEALER'
+);
+
+CREATE TYPE certificate_status AS ENUM (
+  'PENDING',
+  'ISSUED',
+  'REJECTED',
+  'EXPIRED',
+  'REVOKED'
+);
+
+CREATE TYPE complaint_status AS ENUM (
+  'PENDING',
+  'INVESTIGATING',
+  'RESOLVED',
+  'REJECTED'
+);
+
+-- ============================================================================
+-- 2. 用户档案表
+-- ============================================================================
 
 CREATE TABLE profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,127 +48,244 @@ CREATE TABLE profiles (
 -- 部分唯一索引：只对非 NULL 的 phone 强制唯一性（允许多个 NULL）
 CREATE UNIQUE INDEX profiles_phone_key ON profiles(phone) WHERE phone IS NOT NULL;
 
--- 2. 经销商表（支持一个 phone 对应多个主体名称）
+-- ============================================================================
+-- 3. 经销商表（支持一个 phone 对应多个主体名称）
+-- ============================================================================
+
 CREATE TABLE dealers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    company_name TEXT NOT NULL,  -- 主体/公司名称
-    phone TEXT NOT NULL,  -- 电话号码（非唯一，允许同一phone有多条记录）
+    company_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
     contact_person TEXT,
     email TEXT,
     address TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 索引：加快按 phone 查询
-CREATE INDEX dealers_phone_idx ON dealers(phone);
+-- ============================================================================
+-- 4. 证书模板表
+-- ============================================================================
 
--- 3. 证书模板表
 CREATE TABLE templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
-    background_url TEXT NOT NULL, -- 留白模板图片路径
-    stamp_url TEXT, -- 默认公章图片路径
-    config JSONB, -- 存储文字填充坐标 (name_x, name_y, id_x, id_y, date_x, date_y, stamp_x, stamp_y, etc.)
+    background_url TEXT NOT NULL,
+    stamp_url TEXT,
+    config JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TYPE certificate_status AS ENUM ('PENDING', 'ISSUED', 'REJECTED', 'EXPIRED', 'REVOKED');
+-- ============================================================================
+-- 5. 证书表
+-- ============================================================================
 
 CREATE TABLE certificates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cert_number TEXT UNIQUE NOT NULL, -- 授权编号 如 BAVP-2024-XXXX
-    dealer_id UUID REFERENCES dealers(id) NOT NULL,
-    template_id UUID REFERENCES templates(id),
-    auth_scope TEXT, -- 授权范围
+    cert_number TEXT UNIQUE NOT NULL,
+    dealer_id UUID REFERENCES dealers(id) ON DELETE CASCADE NOT NULL,
+    template_id UUID REFERENCES templates(id) ON DELETE SET NULL,
+    auth_scope TEXT,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     status certificate_status DEFAULT 'PENDING',
-    final_image_url TEXT, -- 生成后的证书图片存储路径
-    seal_url TEXT, -- 用户上传的自定义印章 URL（核发时保存，下载时优先使用）
-    auditor_id UUID REFERENCES profiles(id), -- 初审人
-    manager_id UUID REFERENCES profiles(id), -- 终审发证人
+    final_image_url TEXT,
+    seal_url TEXT,
+    auditor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    manager_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. 审核日志
+-- ============================================================================
+-- 6. 审核日志表
+-- ============================================================================
+
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    certificate_id UUID REFERENCES certificates(id),
-    actor_id UUID REFERENCES profiles(id),
-    action TEXT NOT NULL, -- 'SUBMIT', 'AUDIT_CONFIRM', 'ISSUE', 'REJECT'
+    certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
+    actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
     comment TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS (Row Level Security) 策略示例
+-- ============================================================================
+-- 7. 打假举报投诉表
+-- ============================================================================
+
+CREATE TABLE complaints (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    description TEXT NOT NULL,
+    channel TEXT,
+    evidence_image_url TEXT,
+    status complaint_status DEFAULT 'PENDING',
+    handler_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    review_note TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 8. Token 黑名单表（用于安全注销）
+-- ============================================================================
+
+CREATE TABLE token_blacklist (
+    jti TEXT PRIMARY KEY,
+    exp_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_token_blacklist_exp_at ON token_blacklist(exp_at);
+
+-- ============================================================================
+-- 9. 登录限速表（持久化登录尝试记录）
+-- ============================================================================
+
+CREATE TABLE login_rate_limits (
+    ip TEXT PRIMARY KEY,
+    attempts INT NOT NULL DEFAULT 1,
+    window_start TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 10. 辅助函数
+-- ============================================================================
+
+-- 清理已过期的黑名单记录
+CREATE OR REPLACE FUNCTION cleanup_expired_blacklist()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM token_blacklist WHERE exp_at < NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- 11. 常用查询索引（性能优化）
+-- ============================================================================
+
+-- certificates 表索引
+CREATE INDEX idx_certificates_status ON certificates(status);
+CREATE INDEX idx_certificates_dealer_id ON certificates(dealer_id);
+CREATE INDEX idx_certificates_end_date ON certificates(end_date);
+
+-- profiles 表索引
+CREATE INDEX idx_profiles_role ON profiles(role);
+
+-- complaints 表索引
+CREATE INDEX idx_complaints_status ON complaints(status);
+
+-- dealers 表索引
+CREATE INDEX idx_dealers_phone ON dealers(phone);
+
+-- audit_logs 表索引
+CREATE INDEX idx_audit_logs_certificate_id ON audit_logs(certificate_id);
+CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
+
+-- ============================================================================
+-- 12. Row Level Security (RLS)
+-- ============================================================================
+
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dealers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
 
--- 经销商只能看到自己的证书
+-- profiles 表：管理员可以查看所有用户，经销商只能查看自己
+CREATE POLICY "Admins can view all profiles" ON profiles
+    FOR SELECT USING (
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+          AND p.role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
+
+CREATE POLICY "Users can view own profile" ON profiles
+    FOR SELECT USING (auth.uid() = id);
+
+-- dealers 表策略
+CREATE POLICY "Dealers can view all dealers" ON dealers
+    FOR SELECT USING (true);
+
+CREATE POLICY "Only admins can manage dealers" ON dealers
+    FOR INSERT USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
+
+CREATE POLICY "Only admins can update dealers" ON dealers
+    FOR UPDATE USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
+
+-- certificates 表策略
 CREATE POLICY "Dealers can view own certificates" ON certificates
-    FOR SELECT USING (auth.uid() IN (SELECT profile_id FROM dealers WHERE id = certificates.dealer_id));
+    FOR SELECT USING (
+      auth.uid() IN (
+        SELECT profile_id FROM dealers WHERE id = certificates.dealer_id
+      )
+    );
 
--- 所有用户（访客）可以按编号查看到已签发的证书
 CREATE POLICY "Public can view issued certificates" ON certificates
     FOR SELECT USING (status = 'ISSUED');
 
--- 管理员可以查看所有
-CREATE POLICY "Admins can do everything" ON certificates
-    FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+CREATE POLICY "Admins can manage all certificates" ON certificates
+    FOR ALL USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
 
--- Dealers 表 RLS 策略
-CREATE POLICY "Dealers can view all dealers" ON dealers
-    FOR SELECT USING (true); -- 允许所有用户查看（用于签发时查询）
-
-CREATE POLICY "Only admins can manage dealers" ON dealers
-    FOR INSERT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
-
-CREATE POLICY "Only admins can update dealers" ON dealers
-    FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
-
--- Templates 表 RLS 策略
+-- templates 表策略
 CREATE POLICY "Templates are public for reading" ON templates
     FOR SELECT USING (true);
 
-CREATE POLICY "Only admins can manage templates" ON templates
-    FOR INSERT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN')));
+CREATE POLICY "Only super admins can manage templates" ON templates
+    FOR INSERT USING (
+      EXISTS (
+        SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'SUPER_ADMIN'
+      )
+    );
 
-CREATE POLICY "Only admins can update templates" ON templates
-    FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN')));
+CREATE POLICY "Only super admins can update templates" ON templates
+    FOR UPDATE USING (
+      EXISTS (
+        SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'SUPER_ADMIN'
+      )
+    );
 
--- Audit Logs 表 RLS 策略
+-- audit_logs 表策略
 CREATE POLICY "Only admins can view audit logs" ON audit_logs
-    FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+    FOR SELECT USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
 
 CREATE POLICY "Only admins can create audit logs" ON audit_logs
-    FOR INSERT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+    FOR INSERT USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
 
--- 6. 打假举报投诉表 (Complaints)
-CREATE TYPE complaint_status AS ENUM ('PENDING', 'INVESTIGATING', 'RESOLVED', 'REJECTED');
-
-CREATE TABLE complaints (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    description TEXT NOT NULL, -- 涉嫌侵权描述
-    channel TEXT, -- 涉事渠道/店铺
-    evidence_image_url TEXT, -- 证据图片路径
-    status complaint_status DEFAULT 'PENDING',
-    handler_id UUID REFERENCES profiles(id), -- 处理此举报的法务/审核人
-    review_note TEXT, -- 审核备注
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 举报投诉的 RLS 策略
-ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
-
--- 允许任何人（包含访客）提交打假投诉
+-- complaints 表策略
 CREATE POLICY "Public can insert complaints" ON complaints
     FOR INSERT WITH CHECK (true);
 
--- 仅管理员可查看和管理打假投诉
 CREATE POLICY "Admins can manage complaints" ON complaints
-    FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')));
+    FOR ALL USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );

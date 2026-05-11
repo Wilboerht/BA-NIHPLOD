@@ -76,6 +76,11 @@ export async function POST(req: Request) {
     }
   } catch (err: unknown) {
     console.error("[create-admin]", err);
-    return NextResponse.json({ error: '操作失败' }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+      { error: '操作失败', detail: isDev ? errorMessage : undefined },
+      { status: 500 }
+    );
   }
 }

@@ -229,7 +229,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (err: unknown) {
-    console.error(err);
-    return NextResponse.json({ error: '操作失败' }, { status: 500 });
+    console.error('[certificates]', err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+      { error: '操作失败', detail: isDev ? errorMessage : undefined },
+      { status: 500 }
+    );
   }
 }

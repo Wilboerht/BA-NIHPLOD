@@ -4,9 +4,25 @@ import postgres from 'postgres';
  * 原生 Postgres 连接池
  * 请在 .env.local 中配置 DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
  */
-export const sql = process.env.DATABASE_URL
-  ? postgres(process.env.DATABASE_URL)
-  : (null as any);
+function createDbClient() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.error('[db] FATAL: DATABASE_URL environment variable is not set.');
+    // 返回一个代理对象，在调用时抛出明确的错误，避免 null 导致的隐晦崩溃
+    return new Proxy({} as ReturnType<typeof postgres>, {
+      get(_target, prop) {
+        throw new Error(
+          `[db] Database connection failed: DATABASE_URL is not configured. ` +
+          `Attempted to access "sql.${String(prop)}". ` +
+          `Please set DATABASE_URL in your .env.local file.`
+        );
+      },
+    });
+  }
+  return postgres(databaseUrl);
+}
+
+export const sql = createDbClient();
 
 // ============================================================================
 // 【认证类】

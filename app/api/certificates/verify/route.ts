@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let data;
+    let data: any;
 
     try {
       const result = await sql`
