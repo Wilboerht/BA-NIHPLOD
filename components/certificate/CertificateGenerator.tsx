@@ -232,7 +232,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     try {
-      const verifyUrl = `/verify?cert=${encodeURIComponent(certNumber)}`;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+      const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber)}`;
       const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
         width: 80,
         margin: 1,
