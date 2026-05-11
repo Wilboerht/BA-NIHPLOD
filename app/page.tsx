@@ -444,7 +444,7 @@ export default function VerificationPage() {
   };
 
   return (
-    <main className="relative h-screen w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
+    <main className="relative h-screen min-h-[100dvh] w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
           style={{ background: "#FAFAFA" }}>
       
       {/* 装饰渐变 & 矿物纹理叠加 */}
@@ -546,18 +546,18 @@ export default function VerificationPage() {
       {/* 核心内容区 */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10 md:-mt-20">
         <div className="w-full flex flex-col items-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-6 mb-12"
+            className="text-center space-y-4 md:space-y-6 mb-6 md:mb-10"
           >
-            <div className="space-y-6">
-              <img src="/NIHPLOD-logo.svg" alt="Logo" className="h-[34px] mx-auto md:hidden mb-8 opacity-90" />
-              <h1 className="text-3xl md:text-[44px] font-black tracking-[0.12em] text-[#2C2A29] leading-tight">
+            <div className="space-y-4 md:space-y-6">
+              <img src="/NIHPLOD-logo.svg" alt="Logo" className="h-7 mx-auto md:hidden mb-4 opacity-90" />
+              <h1 className="text-[26px] md:text-[44px] font-black tracking-[0.12em] text-[#2C2A29] leading-tight">
                 授权资质官方核查
               </h1>
-              <p className="text-[#8B7355] text-sm md:text-base max-w-lg mx-auto leading-relaxed opacity-80 tracking-[0.05em] font-medium">
-                输入授权证书编号 (SN) 或经销主体名称，<br /> 核实官方资质及合法经营区域。
+              <p className="text-[#8B7355] text-[13px] md:text-base max-w-lg mx-auto leading-relaxed opacity-80 tracking-[0.05em] font-medium">
+                输入授权证书编号 (SN) 或经销主体名称，<br className="hidden md:inline" /> 核实官方资质及合法经营区域。
               </p>
             </div>
           </motion.div>
@@ -623,7 +623,7 @@ export default function VerificationPage() {
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="md:hidden mt-14 flex justify-center"
+              className="md:hidden mt-6 flex justify-center"
             >
               <Link
                 href="https://nihplod.cn"
@@ -936,7 +936,7 @@ export default function VerificationPage() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full max-w-7xl px-6 md:px-12 py-8 md:py-10 flex flex-col md:flex-row justify-between items-center gap-6 shrink-0 border-t border-slate-100/30">
+      <footer className="w-full max-w-7xl px-6 md:px-12 py-4 md:py-10 flex flex-col md:flex-row justify-between items-center gap-3 md:gap-6 shrink-0 border-t border-slate-100/30">
          <div className="flex flex-col items-center md:items-start gap-1 order-3 md:order-1">
            <p className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 tracking-normal antialiased">
              &copy; 2026 NIHPLOD. All rights reserved
