@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle, AlertCircle, File, Lock } from "lucide-react";
 import jsPDF from "jspdf";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
+import { useToast } from "@/hooks/useToast";
 
 interface UserInfo {
   id: string;
@@ -41,6 +42,7 @@ interface DealerModalPanelProps {
 }
 
 export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword }: DealerModalPanelProps) {
+  const { toast } = useToast();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -207,7 +209,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       }
 
       if (blob.size === 0) {
-        alert("下载的文件为空！请检查证书是否已正确生成。");
+        toast({ message: "下载的文件为空！请检查证书是否已正确生成。", type: "error" });
         return;
       }
 
@@ -222,7 +224,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       if (process.env.NODE_ENV !== 'production') console.log("PNG 下载完成");
     } catch (error) {
       console.error("下载失败:", error);
-      alert("下载失败：" + (error as Error).message);
+      toast({ message: "下载失败：" + (error as Error).message, type: "error" });
     } finally {
       setIsDownloading(null);
     }
@@ -307,7 +309,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       }
 
       if (!imgData || imgData.length === 0) {
-        alert("图片数据为空！");
+        toast({ message: "图片数据为空！", type: "error" });
         return;
       }
 
@@ -335,7 +337,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
       if (process.env.NODE_ENV !== 'production') console.log("PDF 下载完成:", fileName);
     } catch (error) {
       console.error("PDF 下载失败:", error);
-      alert("PDF 下载失败：" + (error as Error).message);
+      toast({ message: "PDF 下载失败：" + (error as Error).message, type: "error" });
     } finally {
       setIsDownloading(null);
     }
@@ -405,7 +407,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
             }
           } catch (error) {
             console.error("自动下载失败:", error);
-            alert("下载失败：" + (error as Error).message);
+            toast({ message: "下载失败：" + (error as Error).message, type: "error" });
             setShowHiddenGenerator(false);
             setGeneratorDataForBackground(undefined);
             setIsPdfModeBackground(false);

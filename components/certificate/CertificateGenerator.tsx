@@ -5,6 +5,7 @@ import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Print
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
 import QRCode from "qrcode";
+import { useToast } from "@/hooks/useToast";
 
 export interface CertData {
   id?: string;
@@ -28,6 +29,7 @@ interface CertificateGeneratorProps {
 }
 
 export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, onSuccess }: CertificateGeneratorProps) {
+  const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scopeRef = useRef<HTMLTextAreaElement>(null);
   const [data, setData] = useState<CertData>({
@@ -316,7 +318,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       pdf.addImage(imgData, 'PNG', (pdfWidth - imgWidth) / 2, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
       pdf.save(`授权书_${data.shopName}.pdf`);
     } catch (err: unknown) {
-      alert("PDF 下载失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "PDF 下载失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setIsDownloading(false);
     }
@@ -331,7 +333,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const handleIssueSubmit = async () => {
     if (!data.shopName) {
-      alert("请填写必填字段：授权主体名称");
+      toast({ message: "请填写必填字段：授权主体名称", type: "warning" });
       return;
     }
     setIsSubmitting(true);
@@ -357,11 +359,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       });
 
       if (!response.ok) throw new Error("操作失败");
-      alert(mode === 'edit' ? "✅ 授权信息已更新" : "✅ 证书已处理");
+      toast({ message: mode === 'edit' ? "授权信息已更新" : "证书已处理", type: "success" });
       setIsIssued(true);
       if (onSuccess) setTimeout(onSuccess, 800);
     } catch (err: unknown) {
-      alert("操作失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setIsSubmitting(false);
     }

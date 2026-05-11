@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import postgres from 'postgres';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,24 +34,32 @@ if (!databaseUrl) {
 
 const sql = postgres(databaseUrl);
 
-// 默认管理员配置
+// 默认管理员配置（密码从环境变量读取，未设置则生成随机密码）
+function getAdminPassword() {
+  const envPassword = process.env.ADMIN_INIT_PASSWORD;
+  if (envPassword && envPassword.length >= 8) {
+    return envPassword;
+  }
+  const randomPassword = crypto.randomBytes(12).toString('hex');
+  console.log(`⚠️  未设置 ADMIN_INIT_PASSWORD 环境变量，已生成随机密码`);
+  return randomPassword;
+}
+
 const DEFAULT_ADMINS = [
   {
     username: 'hank.wang@nihplod.cn',
-    password: 'whk35168',
     fullName: 'Hank',
     role: 'SUPER_ADMIN'
   },
   {
     username: 'walter@nihplod.cn',
-    password: 'walter',
     fullName: 'Walter',
     role: 'SUPER_ADMIN'
   }
 ];
 
-async function createOrUpdateAdmin(admin) {
-  const { username, password, fullName, role } = admin;
+async function createOrUpdateAdmin(admin, password) {
+  const { username, fullName, role } = admin;
 
   // 生成密码哈希
   const passwordHash = await bcrypt.hash(password, 10);
@@ -91,9 +100,11 @@ async function createOrUpdateAdmin(admin) {
 async function main() {
   console.log("🔧 初始化默认管理员账户...\n");
 
+  const password = getAdminPassword();
+
   let successCount = 0;
   for (const admin of DEFAULT_ADMINS) {
-    const success = await createOrUpdateAdmin(admin);
+    const success = await createOrUpdateAdmin(admin, password);
     if (success) successCount++;
   }
 
@@ -105,9 +116,10 @@ async function main() {
     DEFAULT_ADMINS.forEach(admin => {
       console.log(`${admin.fullName} (${admin.role})`);
       console.log(`  📧 用户名: ${admin.username}`);
-      console.log(`  🔐 密码: ${admin.password}`);
+      console.log(`  🔐 密码: ${password}`);
       console.log();
     });
+    console.log("⚠️  请务必保存上述密码，或设置 ADMIN_INIT_PASSWORD 环境变量以使用固定密码。\n");
   } else {
     console.log("⚠️  部分账户初始化失败，请检查错误信息。");
     process.exit(1);

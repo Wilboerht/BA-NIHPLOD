@@ -9,6 +9,7 @@ import LegalModal from "@/components/LegalModal";
 import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
+import { useToast } from "@/hooks/useToast";
 import { Html5Qrcode } from "html5-qrcode";
 
 interface UserSession {
@@ -50,6 +51,7 @@ const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
 };
 
 export default function VerificationPage() {
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CertificateVerifyResult[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -73,7 +75,7 @@ export default function VerificationPage() {
 
   const handleReportSubmit = async () => {
     if (!reportDesc.trim()) {
-      alert("请填写维权描述");
+      toast({ message: "请填写维权描述", type: "warning" });
       return;
     }
     
@@ -120,7 +122,7 @@ export default function VerificationPage() {
         setReportChannel("");
       }, 2000);
     } catch (err: unknown) {
-      alert("提交失败：" + (err instanceof Error ? err.message : "提交失败"));
+      toast({ message: "提交失败：" + (err instanceof Error ? err.message : "提交失败"), type: "error" });
     } finally {
       setIsSubmittingReport(false);
     }

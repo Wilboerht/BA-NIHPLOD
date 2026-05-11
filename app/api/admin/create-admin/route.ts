@@ -6,7 +6,7 @@ import { requireAdmin, validatePassword } from "@/lib/auth";
 export async function POST(req: Request) {
   try {
     // 权限检查：只有管理员可以创建新管理员
-    const { user, response } = await requireAdmin(req);
+    const { response } = await requireAdmin(req);
     if (response) {
       return response;
     }
@@ -16,6 +16,14 @@ export async function POST(req: Request) {
     // 基本校验
     if (!fullName || !username || !password || !role) {
       return NextResponse.json({ error: "请填写所有必填字段" }, { status: 400 });
+    }
+
+    // 字段长度校验
+    if (fullName.length > 100) {
+      return NextResponse.json({ error: "姓名过长，最多 100 个字符" }, { status: 400 });
+    }
+    if (username.length > 255) {
+      return NextResponse.json({ error: "邮箱过长，最多 255 个字符" }, { status: 400 });
     }
 
     // 密码强度校验

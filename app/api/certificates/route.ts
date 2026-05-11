@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import crypto from 'crypto';
 
 /**
  * 证书管理 API - 已移除图片上传功能
@@ -15,8 +16,8 @@ async function generateUniqueCertNumber(): Promise<string> {
   const base = `BAVP-${year}-`;
   
   for (let attempt = 0; attempt < 10; attempt++) {
-    // 使用 36 进制生成 4 位随机字符（167万组合），远大于原来的 9000
-    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    // 使用 crypto.randomUUID 生成 4 位随机字符
+    const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
     const certNumber = `${base}${randomPart}`;
     
     // 检查是否已存在
@@ -24,8 +25,8 @@ async function generateUniqueCertNumber(): Promise<string> {
     if (existing.length === 0) return certNumber;
   }
   
-  // 如果 10 次都碰撞（概率极低），使用时间戳确保唯一
-  return `${base}${Date.now().toString(36).substring(2, 6).toUpperCase()}`;
+  // 如果 10 次都碰撞（概率极低），使用更多位确保唯一
+  return `${base}${crypto.randomUUID().replace(/-/g, '').substring(0, 8).toUpperCase()}`;
 }
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
@@ -49,15 +50,17 @@ async function getOrCreateDealer(phone: string, shopName: string) {
 }
 
 // 辅助函数：获取或创建经销商账户
-async function getOrCreateDealerProfile(phone: string, shopName: string) {
-  const passwordHash = await bcrypt.hash(phone, 10);
+// 返回 { id, tempPassword }
+async function getOrCreateDealerProfile(phone: string, shopName: string): Promise<{ id: string; tempPassword: string }> {
+  const tempPassword = crypto.randomBytes(8).toString('hex');
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
 
   // 检查是否已有此账户
   const existing = await sql`SELECT id, is_first_login FROM profiles WHERE username = ${phone} LIMIT 1`;
   if (existing.length > 0) {
     // 更新密码
-    await sql`UPDATE profiles SET password_hash = ${passwordHash} WHERE id = ${existing[0].id}`;
-    return existing[0].id;
+    await sql`UPDATE profiles SET password_hash = ${passwordHash}, is_first_login = true WHERE id = ${existing[0].id}`;
+    return { id: existing[0].id, tempPassword };
   }
   // 创建新账户
   const profileId = crypto.randomUUID();
@@ -65,7 +68,7 @@ async function getOrCreateDealerProfile(phone: string, shopName: string) {
     INSERT INTO profiles (id, username, full_name, phone, password_hash, role, is_first_login)
     VALUES (${profileId}, ${phone}, ${shopName}, ${phone}, ${passwordHash}, 'DEALER', true)
   `;
-  return profileId;
+  return { id: profileId, tempPassword };
 }
 
 export async function POST(req: Request) {
@@ -80,6 +83,25 @@ export async function POST(req: Request) {
     }
 
     const managerId = adminUser!.id;
+
+    // 字段长度校验
+    if (certData) {
+      if (certData.shopName && certData.shopName.length > 200) {
+        return NextResponse.json({ error: '授权主体名称过长，最多 200 个字符' }, { status: 400 });
+      }
+      if (certData.phone && certData.phone.length > 20) {
+        return NextResponse.json({ error: '手机号过长，最多 20 个字符' }, { status: 400 });
+      }
+      if (certData.scopeText && certData.scopeText.length > 1000) {
+        return NextResponse.json({ error: '授权范围过长，最多 1000 个字符' }, { status: 400 });
+      }
+      if (certData.platformId && certData.platformId.length > 100) {
+        return NextResponse.json({ error: '平台 ID 过长，最多 100 个字符' }, { status: 400 });
+      }
+      if (certData.authorizer && certData.authorizer.length > 200) {
+        return NextResponse.json({ error: '授权方名称过长，最多 200 个字符' }, { status: 400 });
+      }
+    }
 
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
@@ -146,14 +168,14 @@ export async function POST(req: Request) {
       }
 
       // 创建或更新经销商账户
-      await getOrCreateDealerProfile(dealerPhone, dealerShopName);
+      const { tempPassword } = await getOrCreateDealerProfile(dealerPhone, dealerShopName);
 
       // 如果是从待审核转为 ISSUED，更新状态
       if (certId) {
         await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId}`;
       }
 
-      return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, password: dealerPhone });
+      return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, password: tempPassword });
     }
 
     // --- 流程 3: 吊销证书 (管理员行为) ---

@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
 import { sql, getProfileById, getDealersByProfileId } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
+    // 1. 认证检查：必须登录
+    const { user, response: authResponse } = await requireAuth(req);
+    if (authResponse) {
+      return authResponse;
+    }
+
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
     if (!userId) {
       return NextResponse.json({ error: "缺少用户标识" }, { status: 400 });
+    }
+
+    // 2. 权限检查：只能查询自己的证书
+    if (user!.id !== userId) {
+      return NextResponse.json(
+        { error: "无权限访问其他用户的证书" },
+        { status: 403 }
+      );
     }
 
     // 获取用户 profile 信息

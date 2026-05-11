@@ -20,7 +20,7 @@ function sanitizeFolder(folder: string): string {
 export async function POST(req: Request) {
   try {
     // 认证检查
-    const { user, response } = await requireAuth(req);
+    const { response } = await requireAuth(req);
     if (response) {
       return response;
     }
@@ -52,10 +52,10 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // 生成安全文件名
+    // 生成安全文件名（使用密码学随机）
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const safeExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(fileExt || '') ? fileExt : 'bin';
-    const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2, 10)}.${safeExt}`;
+    const fileName = `${folder ? folder + '/' : ''}${crypto.randomUUID()}.${safeExt}`;
 
     const { path, error } = await uploadFile(
       bucket,

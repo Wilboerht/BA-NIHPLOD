@@ -7,6 +7,7 @@ import {
   Building2, Ban, ShieldOff, Loader2, Edit
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
+import { useToast } from "@/hooks/useToast";
 
 interface Dealer {
   id: string;
@@ -54,6 +55,7 @@ interface DealerGroup extends Dealer {
 }
 
 export default function DealersPage() {
+  const { toast, confirm } = useToast();
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -204,8 +206,9 @@ export default function DealersPage() {
 
   const resetDealerPassword = async (username: string) => {
     if (!username) return;
-    if (!window.confirm(`确定要重置经销商账号 [${username}] 的密码吗？\n重置后密码将恢复为该账号名称。`)) return;
-    alert("重置指令已发送（当前建议通过管理员 API 实现）");
+    const ok = await confirm({ message: `确定要重置经销商账号 [${username}] 的密码吗？\n重置后密码将恢复为该账号名称。` });
+    if (!ok) return;
+    toast({ message: "重置指令已发送（当前建议通过管理员 API 实现）", type: "info" });
   };
 
   // 第一次点击：进入待确认状态
@@ -240,7 +243,7 @@ export default function DealersPage() {
         dealerGroup.allDealerIds.includes(d.id) ? { ...d, isBanned: action === 'ban' } : d
       ));
     } catch (err: unknown) {
-      alert("操作失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setBanningId(null);
     }

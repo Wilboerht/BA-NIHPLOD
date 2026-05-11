@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { findProfileForLogin } from '@/lib/db';
+import { findProfileForLogin, sql } from '@/lib/db';
 import { createToken, setAuthCookie } from '@/lib/auth';
 
-// 内存级登录限速：{ ip -> { count, resetTime } }
-const loginAttempts = new Map<string, { count: number; resetTime: number }>();
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
 
@@ -16,27 +14,62 @@ function getClientIP(req: Request): string {
   return 'unknown';
 }
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = loginAttempts.get(ip);
+async function checkRateLimit(ip: string): Promise<boolean> {
+  const now = new Date();
+  const windowStart = new Date(Date.now() - WINDOW_MS);
 
-  if (!record || now > record.resetTime) {
-    loginAttempts.set(ip, { count: 1, resetTime: now + WINDOW_MS });
+  try {
+    // 查询当前 IP 的限速记录
+    const records = await sql`
+      SELECT attempts, window_start FROM login_rate_limits
+      WHERE ip = ${ip}
+      LIMIT 1
+    `;
+
+    if (records.length === 0) {
+      // 新记录
+      await sql`
+        INSERT INTO login_rate_limits (ip, attempts, window_start)
+        VALUES (${ip}, 1, ${now})
+      `;
+      return true;
+    }
+
+    const record = records[0];
+    const recordWindowStart = new Date(record.window_start);
+
+    if (recordWindowStart < windowStart) {
+      // 窗口已过期，重置
+      await sql`
+        UPDATE login_rate_limits
+        SET attempts = 1, window_start = ${now}
+        WHERE ip = ${ip}
+      `;
+      return true;
+    }
+
+    if (record.attempts >= MAX_ATTEMPTS) {
+      return false;
+    }
+
+    // 增加尝试次数
+    await sql`
+      UPDATE login_rate_limits
+      SET attempts = attempts + 1
+      WHERE ip = ${ip}
+    `;
+    return true;
+  } catch {
+    // 数据库故障时保守允许（避免完全锁死登录），但记录日志
+    console.error('[RateLimit] 数据库查询失败，跳过限速检查');
     return true;
   }
-
-  if (record.count >= MAX_ATTEMPTS) {
-    return false;
-  }
-
-  record.count++;
-  return true;
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phone, password, loginType } = body;
+    const { phone, password } = body;
 
     if (!phone || !password) {
       return NextResponse.json(
@@ -45,9 +78,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // 登录限速检查
+    // 登录限速检查（持久化到数据库）
     const clientIP = getClientIP(req);
-    if (!checkRateLimit(clientIP)) {
+    if (!(await checkRateLimit(clientIP))) {
       return NextResponse.json(
         { error: '登录尝试次数过多，请 5 分钟后再试' },
         { status: 429 }

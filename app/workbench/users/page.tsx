@@ -6,6 +6,7 @@ import {
   Search, UserPlus, UserCog, Key, Trash2, Info,
   ChevronDown, X, Eye, EyeOff, ShieldCheck, Loader2, CheckCircle2, Plus
 } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
 
 const ROLE_OPTIONS = [
   {
@@ -49,6 +50,7 @@ interface UserSession {
 }
 
 export default function AdminsManagementPage() {
+  const { toast, confirm } = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,7 +90,7 @@ export default function AdminsManagementPage() {
         
         // 如果用户角色是 DEALER，说明没有权限访问管理后台
         if (user?.role === 'DEALER') {
-          alert("权限不足：您的账号非管理人员，请重新登录。");
+          toast({ message: "权限不足：您的账号非管理人员，请重新登录。", type: "error" });
           window.location.href = "/";
           return;
         }
@@ -173,15 +175,16 @@ export default function AdminsManagementPage() {
         fetchData();
       } else {
         const data = await res.json();
-        alert("更新失败: " + (data.error || "未知错误"));
+        toast({ message: "更新失败: " + (data.error || "未知错误"), type: "error" });
       }
     } catch (err: unknown) {
-      alert("更新出错: " + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "更新出错: " + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     }
   };
 
   const deleteUser = async (id: string, name: string) => {
-    if (confirm(`确定要彻底移除管理员 "${name}" 吗？此操作不可逆。`)) {
+    const ok = await confirm({ message: `确定要彻底移除管理员 "${name}" 吗？此操作不可逆。` });
+    if (ok) {
       try {
         const res = await fetch("/api/admin/delete-user", {
           method: "POST",
@@ -192,13 +195,13 @@ export default function AdminsManagementPage() {
         const result = await res.json();
         
         if (res.ok && result.success) {
-          alert(`✅ ${result.message}`);
+          toast({ message: result.message, type: "success" });
           fetchData();
         } else {
-          alert(`❌ ${result.error || "删除失败"}`);
+          toast({ message: result.error || "删除失败", type: "error" });
         }
       } catch (err: unknown) {
-        alert(`❌ 错误：${err instanceof Error ? err.message : "未知错误"}`);
+        toast({ message: `错误：${err instanceof Error ? err.message : "未知错误"}`, type: "error" });
       }
     }
   };
@@ -206,8 +209,9 @@ export default function AdminsManagementPage() {
   const resetPassword = async (user: AdminUser) => {
     const newPass = prompt(`重置「${user.full_name}」的登录密码\n请输入新密码（至少 8 位，包含大小写字母和数字）：`);
     if (!newPass) return;
-    if (newPass.length < 8) { alert("密码过短，至少需要 8 个字符。"); return; }
-    if (!confirm(`确认将该账户密码强制改为 "${newPass}" 吗？`)) return;
+    if (newPass.length < 8) { toast({ message: "密码过短，至少需要 8 个字符。", type: "warning" }); return; }
+    const ok = await confirm({ message: `确认将该账户密码强制改为 "${newPass}" 吗？` });
+    if (!ok) return;
 
     try {
       const res = await fetch("/api/admin/reset-password", {
@@ -216,10 +220,10 @@ export default function AdminsManagementPage() {
         body: JSON.stringify({ userId: user.id, newPassword: newPass }),
       });
       const result = await res.json();
-      if (result.success) alert(`✅ 密码重置成功！`);
-      else alert("❌ 重置失败：" + result.error);
+      if (result.success) toast({ message: "密码重置成功！", type: "success" });
+      else toast({ message: "重置失败：" + result.error, type: "error" });
     } catch (err: unknown) {
-      alert("❌ 错误：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "错误：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     }
   };
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, CheckCircle, AlertCircle, File } from "lucide-react";
 import jsPDF from "jspdf";
+import { useToast } from "@/hooks/useToast";
 
 interface UserInfo {
   id: string;
@@ -28,6 +29,7 @@ interface DealerListPanelProps {
 }
 
 export default function DealerListPanel({ isVisible = true, onLogout }: DealerListPanelProps) {
+  const { toast } = useToast();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -127,7 +129,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("下载失败:", error);
-      alert("下载失败，请重试");
+      toast({ message: "下载失败，请重试", type: "error" });
     } finally {
       setIsDownloading(null);
     }
@@ -177,7 +179,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
       pdf.save(fileName);
     } catch (error) {
       console.error("PDF 下载失败:", error);
-      alert("PDF 下载失败，请重试");
+      toast({ message: "PDF 下载失败，请重试", type: "error" });
     } finally {
       setIsDownloading(null);
     }

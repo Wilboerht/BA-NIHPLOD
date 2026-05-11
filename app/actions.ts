@@ -1,5 +1,6 @@
 "use server";
 
+import DOMPurify from 'isomorphic-dompurify';
 import { sql } from '@/lib/db';
 
 export interface CertificateVerifyResult {
@@ -129,14 +130,12 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
  * 提交维权申诉工单
  */
 function sanitizeInput(input: string): string {
-  // 移除潜在的危险 HTML 标签和属性
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-    .replace(/<embed\b[^<]*>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+\s*=/gi, '');
+  // 使用 DOMPurify 白名单方式彻底消毒 HTML
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,
+  });
 }
 
 export async function submitComplaintAction(formData: {

@@ -1,7 +1,9 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from './db';
+import crypto from 'crypto';
 
-const TOKEN_COOKIE = 'auth-token';
+const TOKEN_COOKIE = '__Host-auth-token';
 const AUTH_SECRET = process.env.AUTH_SECRET;
 
 function getSecret(): Uint8Array {
@@ -28,6 +30,7 @@ export interface TokenPayload extends JWTPayload {
   phone?: string;
   full_name?: string;
   role: string;
+  jti?: string;
 }
 
 /**
@@ -35,12 +38,14 @@ export interface TokenPayload extends JWTPayload {
  */
 export async function createToken(user: AuthUser): Promise<string> {
   const secret = getSecret();
+  const jti = crypto.randomUUID();
   return new SignJWT({
     id: user.id,
     username: user.username,
     phone: user.phone,
     full_name: user.full_name,
     role: user.role,
+    jti,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -50,6 +55,7 @@ export async function createToken(user: AuthUser): Promise<string> {
 
 /**
  * 从请求中提取并验证 JWT
+ * 同时检查 Token 黑名单（注销安全）
  */
 export async function verifyToken(request: NextRequest | Request): Promise<TokenPayload | null> {
   try {
@@ -68,6 +74,21 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
     const { payload } = await jwtVerify(token, secret, {
       clockTolerance: 60,
     });
+
+    // 检查 Token 黑名单
+    if (payload.jti) {
+      try {
+        // 顺带清理过期黑名单记录（低频率触发，利用请求分摊）
+        await sql`SELECT cleanup_expired_blacklist()`;
+        const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
+        if (blacklisted.length > 0) {
+          return null;
+        }
+      } catch {
+        // 黑名单查询失败时，保守起见拒绝令牌（安全优先）
+        return null;
+      }
+    }
 
     return payload as TokenPayload;
   } catch {

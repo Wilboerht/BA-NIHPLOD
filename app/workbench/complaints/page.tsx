@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
 
 interface Complaint {
   id: string;
@@ -15,6 +16,7 @@ interface Complaint {
 }
 
 export default function ComplaintsPage() {
+  const { toast } = useToast();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export default function ComplaintsPage() {
         const result = await response.json();
         setComplaints(result.data || []);
       } else if (response.status === 403) {
-        alert('无权访问，需要管理员权限');
+        toast({ message: '无权访问，需要管理员权限', type: 'error' });
       } else {
         console.error('Failed to fetch complaints:', response.status);
       }
@@ -55,18 +57,18 @@ export default function ComplaintsPage() {
         body: JSON.stringify({ status: newStatus, review_note: reviewNote })
       });
       if (response.ok) {
-        alert("工单状态已更新！");
+        toast({ message: "工单状态已更新！", type: "success" });
         setActiveReviewId(null);
         setReviewNote("");
         fetchComplaints();
       } else if (response.status === 403) {
-        alert("无权操作，需要管理员权限");
+        toast({ message: "无权操作，需要管理员权限", type: "error" });
       } else {
         const result = await response.json().catch(() => ({}));
-        alert(result.error || "更新失败");
+        toast({ message: result.error || "更新失败", type: "error" });
       }
     } catch (err: unknown) {
-      alert("更新失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "更新失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     }
   };
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
+import { useToast } from "@/hooks/useToast";
 
 interface Certificate {
   id: string;
@@ -18,6 +19,7 @@ interface Certificate {
 }
 
 export default function CertificatesPage() {
+  const { toast, confirm } = useToast();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +66,8 @@ export default function CertificatesPage() {
 
   const revokeCertificate = async (id: string, currentStatus: string) => {
     if (currentStatus === 'EXPIRED') return;
-    if (!window.confirm("确定要吊销此证书吗？一旦吊销：\n该证书图像在防伪系统中将显示为已失效。如果您需要修正信息，请在吊销后重新签发。")) return;
+    const ok = await confirm({ message: "确定要吊销此证书吗？一旦吊销：\n该证书图像在防伪系统中将显示为已失效。如果您需要修正信息，请在吊销后重新签发。" });
+    if (!ok) return;
     
     setIsLoading(true);
     try {
@@ -77,17 +80,18 @@ export default function CertificatesPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
 
-      alert("✅ 证书已吊销，该授权在防伪系统中已失效。");
+      toast({ message: "证书已吊销，该授权在防伪系统中已失效。", type: "success" });
       fetchCertificates();
     } catch (err: unknown) {
-      alert("吊销操作失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "吊销操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setIsLoading(false);
     }
   };
 
   const approveCertificate = async (id: string) => {
-    if (!window.confirm("确定审核通过并核发此授权书吗？\n系统将自动为经销商创建登录账户。")) return;
+    const ok = await confirm({ message: "确定审核通过并核发此授权书吗？\n系统将自动为经销商创建登录账户。" });
+    if (!ok) return;
     
     setIsLoading(true);
     try {
@@ -104,15 +108,15 @@ export default function CertificatesPage() {
       
       if (!response.ok) {
         console.error("❌ 核发失败:", result);
-        alert("❌ 核发失败\n\n" + result.error);
+        toast({ message: "核发失败\n\n" + result.error, type: "error" });
         return;
       }
 
-      alert(`✅ 审核通过！授权书已核发。\n经销商账户已开通。`);
+      toast({ message: `审核通过！授权书已核发。经销商账户已开通。`, type: "success" });
       fetchCertificates();
     } catch (err: unknown) {
       console.error("❌ 异常:", err);
-      alert("❌ 发生错误：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "发生错误：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setIsLoading(false);
     }

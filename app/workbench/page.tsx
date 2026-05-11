@@ -8,6 +8,7 @@ import {
   Loader2, UserCog
 } from "lucide-react";
 import Link from "next/link";
+import { useToast } from "@/hooks/useToast";
 
 interface Complaint {
   id: string;
@@ -40,6 +41,7 @@ interface UserSession {
 }
 
 export default function WorkbenchPage() {
+  const { toast, confirm } = useToast();
   const [stats, setStats] = useState({ certs: 0, validCerts: 0, pendingComplaints: 0, pendingCerts: 0 });
   const [recentComplaints, setRecentComplaints] = useState<Complaint[]>([]);
   const [pendingCerts, setPendingCerts] = useState<PendingCert[]>([]);
@@ -118,7 +120,8 @@ export default function WorkbenchPage() {
   }, [fetchUserRole, loadDashboard]);
 
   const handleApprove = async (cert: PendingCert) => {
-    if (!window.confirm(`确定审核通过并核发「${cert.dealers?.company_name}」的授权书吗？\n系统将自动为经销商创建登录账户。`)) return;
+    const ok = await confirm({ message: `确定审核通过并核发「${cert.dealers?.company_name}」的授权书吗？\n系统将自动为经销商创建登录账户。` });
+    if (!ok) return;
     setProcessingId(cert.id);
     try {
       const response = await fetch('/api/certificates', {
@@ -128,17 +131,18 @@ export default function WorkbenchPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      alert(`✅ 核发成功！\n授权书已签发，经销商账户已开通。`);
+      toast({ message: `核发成功！授权书已签发，经销商账户已开通。`, type: "success" });
       await loadDashboard(userRole ?? undefined);
     } catch (err: unknown) {
-      alert("核发失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "核发失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleReject = async (cert: PendingCert) => {
-    if (!window.confirm(`确定退回「${cert.dealers?.company_name}」的申请吗？\n此操作将把申请状态标记为已拒绝。`)) return;
+    const ok = await confirm({ message: `确定退回「${cert.dealers?.company_name}」的申请吗？\n此操作将把申请状态标记为已拒绝。` });
+    if (!ok) return;
     setRejectingId(cert.id);
     try {
       const response = await fetch('/api/certificates', {
@@ -150,7 +154,7 @@ export default function WorkbenchPage() {
       if (!response.ok) throw new Error(result.error);
       await loadDashboard(userRole ?? undefined);
     } catch (err: unknown) {
-      alert("退回操作失败：" + (err instanceof Error ? err.message : "未知错误"));
+      toast({ message: "退回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setRejectingId(null);
     }
