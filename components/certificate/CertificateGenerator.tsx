@@ -137,13 +137,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
 
-    if (data.companyName && data.shopName) {
-      offCtx.fillText(data.companyName, width / 2, 530 * scale);
-      offCtx.fillText(data.shopName, width / 2, 578 * scale);
-    } else if (data.companyName) {
-      offCtx.fillText(data.companyName, width / 2, 554 * scale);
+    if (data.shopName && data.companyName) {
+      offCtx.fillText(data.shopName, width / 2, 530 * scale);
+      offCtx.fillText(data.companyName, width / 2, 578 * scale);
     } else if (data.shopName) {
       offCtx.fillText(data.shopName, width / 2, 554 * scale);
+    } else if (data.companyName) {
+      offCtx.fillText(data.companyName, width / 2, 554 * scale);
     }
 
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
@@ -198,9 +198,21 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, 210 * scale, startY + 25 * scale);
 
+    // 预计算公章尺寸和中心位置，用于对齐授权方文字
+    let sealCenterX = width - 260 * scale;
+    let sealDrawWidth = 160 * scale;
+    let sealDrawHeight = 160 * scale;
+    if (sealImg) {
+      const maxSealSize = 160 * scale;
+      const aspect = sealImg.width / sealImg.height;
+      sealDrawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
+      sealDrawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
+      sealCenterX = width - 210 * scale - sealDrawWidth / 2;
+    }
+
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(data.authorizer || "", width - 345 * scale, 848 * scale);
+    offCtx.fillText(data.authorizer || "", sealCenterX - 85 * scale, 848 * scale);
 
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
@@ -211,15 +223,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     if (sealImg) {
-      const maxSealSize = 160 * scale;
-      const aspect = sealImg.width / sealImg.height;
-      const drawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
-      const drawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
       offCtx.save();
-      offCtx.translate(width - 260 * scale, 875 * scale);
+      offCtx.translate(sealCenterX, 875 * scale);
       offCtx.rotate(-0.06);
       offCtx.globalAlpha = 0.88;
-      offCtx.drawImage(sealImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+      offCtx.drawImage(sealImg, -sealDrawWidth / 2, -sealDrawHeight / 2, sealDrawWidth, sealDrawHeight);
       offCtx.restore();
     }
 
@@ -240,7 +248,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
-        offCtx.fillText("扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
+        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
       }
     } catch (err) {
       console.warn("QR code generation failed:", err);
@@ -379,23 +387,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium pl-3">{data.cert_number}</div>
             </div>
           )}
-          <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">公司名称</div>
-            <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.companyName}</div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="请输入公司名称（如：广东省某某公司）- 选填"
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
-                  value={data.companyName}
-                  onChange={(e) => setData({ ...data, companyName: e.target.value })}
-                />
-              )}
-            </div>
-          </div>
-
           {/* 授权主体/经销商 */}
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权主体</div>
@@ -409,6 +400,23 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.shopName}
                   onChange={(e) => setData({ ...data, shopName: e.target.value })}
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">公司名称</div>
+            <div className="flex-1">
+              {mode === 'view' ? (
+                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.companyName}</div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="请输入公司名称（如：广东省某某公司）- 选填"
+                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
+                  value={data.companyName}
+                  onChange={(e) => setData({ ...data, companyName: e.target.value })}
                 />
               )}
             </div>
