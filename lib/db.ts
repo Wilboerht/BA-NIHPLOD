@@ -215,20 +215,37 @@ export async function getActiveIssuedCertificatesCount(): Promise<{ data: { coun
 // ============================================================================
 
 /**
- * 获取所有投诉列表（支持分页）
+ * 获取所有投诉列表（支持分页和状态过滤）
  */
-export async function getAllComplaints(page?: number, pageSize?: number): Promise<{ data: any[]; total: number; error: Error | null }> {
+export async function getAllComplaints(
+  page?: number,
+  pageSize?: number,
+  status?: string
+): Promise<{ data: any[]; total: number; error: Error | null }> {
   try {
     const limit = pageSize && pageSize > 0 ? pageSize : 50;
     const offset = page && page > 0 ? (page - 1) * limit : 0;
 
-    const result = await sql`
-      SELECT * FROM complaints
-      ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    let result;
+    let countRes;
 
-    const countRes = await sql`SELECT COUNT(*) as count FROM complaints`;
+    if (status && status !== 'ALL') {
+      result = await sql`
+        SELECT * FROM complaints
+        WHERE status = ${status}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countRes = await sql`SELECT COUNT(*) as count FROM complaints WHERE status = ${status}`;
+    } else {
+      result = await sql`
+        SELECT * FROM complaints
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countRes = await sql`SELECT COUNT(*) as count FROM complaints`;
+    }
+
     const total = parseInt(countRes[0]?.count || 0);
 
     return { data: result || [], total, error: null };

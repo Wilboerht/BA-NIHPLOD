@@ -13,8 +13,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+    const status = searchParams.get('status') || undefined;
 
-    const { data, total, error } = await getAllComplaints(page, pageSize);
+    const { data, total, error } = await getAllComplaints(page, pageSize, status);
 
     if (error) {
       return NextResponse.json(

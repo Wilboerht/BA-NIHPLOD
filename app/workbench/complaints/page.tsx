@@ -46,8 +46,8 @@ export default function ComplaintsPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   useEffect(() => {
-    fetchComplaints();
-  }, [page]);
+    fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
+  }, [page, activeTab]);
 
   useEffect(() => {
     if (activeReviewId) {
@@ -55,10 +55,12 @@ export default function ComplaintsPage() {
     }
   }, [activeReviewId]);
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = async (status?: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/db/complaints?page=${page}&pageSize=${pageSize}`);
+      let url = `/api/db/complaints?page=${page}&pageSize=${pageSize}`;
+      if (status) url += `&status=${status}`;
+      const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
         setComplaints(result.data || []);
@@ -103,7 +105,7 @@ export default function ComplaintsPage() {
         setActiveReviewId(null);
         setReviewNote("");
         setAuditLogs([]);
-        fetchComplaints();
+        fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
       } else if (response.status === 403) {
         toast({ message: "无权操作，需要管理员权限", type: "error" });
       } else {
@@ -124,7 +126,7 @@ export default function ComplaintsPage() {
       });
       if (response.ok) {
         toast({ message: "工单已删除", type: "success" });
-        fetchComplaints();
+        fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
       } else {
         const result = await response.json().catch(() => ({}));
         toast({ message: result.error || "删除失败", type: "error" });
@@ -152,13 +154,6 @@ export default function ComplaintsPage() {
   const activeComplaint = complaints.find(c => c.id === activeReviewId);
 
   const filteredComplaints = complaints.filter(c => {
-    // 1. Tab filter
-    if (activeTab === 'PENDING' && c.status !== 'PENDING') return false;
-    if (activeTab === 'INVESTIGATING' && c.status !== 'INVESTIGATING') return false;
-    if (activeTab === 'RESOLVED' && c.status !== 'RESOLVED') return false;
-    if (activeTab === 'REJECTED' && c.status !== 'REJECTED') return false;
-
-    // 2. Search filter
     const q = searchQuery.toLowerCase();
     if (q) {
       return (
