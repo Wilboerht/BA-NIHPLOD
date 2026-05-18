@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       const certNumber = await generateUniqueCertNumber();
 
       await sql`
-        INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, auditor_id, manager_id)
+        INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id)
         VALUES (
           ${certNumber},
           ${dealerId},
@@ -118,6 +118,7 @@ export async function POST(req: Request) {
           ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
           'PENDING',
           null,
+          ${certData.sealImage || null},
           ${managerId},
           null
         )
@@ -159,7 +160,7 @@ export async function POST(req: Request) {
             ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
             'ISSUED',
             null,
-            null,
+            ${certData.sealImage || null},
             ${managerId}
           )
         `;
@@ -221,6 +222,7 @@ export async function POST(req: Request) {
         SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
             start_date = ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
             end_date = ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+            seal_url = ${certData.sealImage || null},
             manager_id = ${managerId}
         WHERE id = ${certId}
       `;

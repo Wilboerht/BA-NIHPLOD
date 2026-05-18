@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, ZoomOut, File } from "lucide-react";
+import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, ZoomOut, File, FileImage } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
 import QRCode from "qrcode";
@@ -116,7 +116,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     const [bgImage, sealImg] = await Promise.all([
       loadImage("/cert-template.svg"),
-      data.sealImage ? loadImage(data.sealImage) : loadImage("/default-seal.svg")
+      data.sealImage ? loadImage(data.sealImage) : loadImage("/default-seal.png")
     ]);
 
     const offCanvas = document.createElement("canvas");
@@ -487,13 +487,76 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           </div>
 
           {/* 签字盖章 */}
-          <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">签字盖章</div>
-            <div className="flex-1 flex items-center gap-2 pl-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              <div className="text-[12px] text-slate-900 font-medium">
-                {data.sealImage ? "自定义签章文件" : "使用系统默认公章"}
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">签字盖章</div>
+            <div className="flex-1 pl-3">
+              {mode === 'view' ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <div className="text-[12px] text-slate-900 font-medium">
+                    {data.sealImage ? "自定义签章文件" : "使用系统默认公章"}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[12px] font-bold rounded-lg cursor-pointer transition-all border border-slate-100">
+                      <FileImage className="w-3.5 h-3.5" />
+                      {data.sealImage ? "更换签章" : "上传自定义签章"}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+                          const MAX_SIZE = 2 * 1024 * 1024;
+                          if (!ALLOWED_TYPES.includes(file.type)) {
+                            toast({ message: '仅支持 PNG/JPG/WebP 格式', type: 'error' });
+                            return;
+                          }
+                          if (file.size > MAX_SIZE) {
+                            toast({ message: '图片大小不能超过 2MB', type: 'error' });
+                            return;
+                          }
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            const res = await fetch('/api/upload', {
+                              method: 'POST',
+                              body: formData
+                            });
+                            if (!res.ok) {
+                              const data = await res.json();
+                              throw new Error(data.error || '上传失败');
+                            }
+                            const { url } = await res.json();
+                            setData({ ...data, sealImage: url });
+                            toast({ message: '签章上传成功', type: 'success' });
+                          } catch (err: unknown) {
+                            toast({ message: '签章上传失败：' + (err instanceof Error ? err.message : '未知错误'), type: 'error' });
+                          }
+                        }}
+                      />
+                    </label>
+                    {data.sealImage && (
+                      <button
+                        onClick={() => setData({ ...data, sealImage: "" })}
+                        className="text-[11px] text-slate-400 hover:text-rose-500 font-bold transition-colors"
+                      >
+                        恢复默认公章
+                      </button>
+                    )}
+                  </div>
+                  {data.sealImage && (
+                    <img src={data.sealImage} alt="预览签章" className="w-12 h-12 object-contain rounded border border-slate-100 bg-white" />
+                  )}
+                  <div className="text-[11px] text-slate-400">
+                    {data.sealImage ? "已使用自定义签章" : "使用系统默认公章（旎柏官方公章）"}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

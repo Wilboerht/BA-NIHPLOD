@@ -252,7 +252,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
-                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(false);
@@ -280,7 +280,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
-                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(false);
@@ -307,7 +307,7 @@ export default function CertificatesPage() {
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
-                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                 phone: cert.dealers?.phone || ""
                               });
                               setIsViewVoided(true);
