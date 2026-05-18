@@ -539,8 +539,8 @@ export default function VerificationPage() {
             className="group flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs md:text-[13px] font-semibold tracking-[0.05em] text-[#8B7355] hover:text-[#6B5346] transition-all"
          >
             <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
-            <span className="hidden sm:inline">旎柏官网</span>
-            <span className="sm:hidden">旎柏官网</span>
+            <span className="hidden sm:inline">旎柏中国官网</span>
+            <span className="sm:hidden">旎柏中国官网</span>
             <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
          </Link>
       </nav>
@@ -633,7 +633,7 @@ export default function VerificationPage() {
                 className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355]/70 hover:text-[#8B7355] transition-all"
               >
                 <Building2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                旎柏官网
+                旎柏中国官网
                 <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
               </Link>
             </motion.div>
