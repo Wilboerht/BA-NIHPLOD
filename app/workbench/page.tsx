@@ -82,10 +82,12 @@ export default function WorkbenchPage() {
       const statsRes = await fetch('/api/db/stats');
       const statsData = await statsRes.json();
       
-      // 获取最近的投诉
+      // 获取最近的待处理投诉（PENDING + INVESTIGATING）
       const complaintsRes = await fetch('/api/db/complaints');
       const complaintsData = await complaintsRes.json();
-      const recentComplaints = complaintsData.data?.slice(0, 4) || [];
+      const recentComplaints = (complaintsData.data || [])
+        .filter((c: Complaint) => c.status === 'PENDING' || c.status === 'INVESTIGATING')
+        .slice(0, 4);
       
       // 获取待审证书
       const pendingRes = await fetch('/api/db/certificates/pending?limit=6');

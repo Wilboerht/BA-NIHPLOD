@@ -215,38 +215,62 @@ export async function getActiveIssuedCertificatesCount(): Promise<{ data: { coun
 // ============================================================================
 
 /**
- * 获取所有投诉列表
+ * 获取所有投诉列表（支持分页）
  */
-export async function getAllComplaints(): Promise<{ data: any[]; error: Error | null }> {
-  const result = await sql`
-    SELECT * FROM complaints
-    ORDER BY created_at DESC
-  `;
-  return { data: result || [], error: null };
+export async function getAllComplaints(page?: number, pageSize?: number): Promise<{ data: any[]; total: number; error: Error | null }> {
+  try {
+    const limit = pageSize && pageSize > 0 ? pageSize : 50;
+    const offset = page && page > 0 ? (page - 1) * limit : 0;
+
+    const result = await sql`
+      SELECT * FROM complaints
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const countRes = await sql`SELECT COUNT(*) as count FROM complaints`;
+    const total = parseInt(countRes[0]?.count || 0);
+
+    return { data: result || [], total, error: null };
+  } catch (err: any) {
+    return { data: [], total: 0, error: new Error(err.message || '数据库查询失败') };
+  }
 }
 
 /**
- * 获取待处理投诉
+ * 获取待处理投诉（PENDING + INVESTIGATING）
  */
 export async function getPendingComplaints(): Promise<{ data: any[]; error: Error | null }> {
   const result = await sql`
     SELECT * FROM complaints
-    WHERE status = 'PENDING'
+    WHERE status IN ('PENDING', 'INVESTIGATING')
     ORDER BY created_at DESC
   `;
   return { data: result || [], error: null };
 }
 
 /**
- * 获取待处理投诉计数
+ * 获取待处理投诉计数（PENDING + INVESTIGATING）
  */
 export async function getPendingComplaintsCount(): Promise<{ data: { count: number }; error: Error | null }> {
   const result = await sql`
     SELECT COUNT(*) as count
     FROM complaints
-    WHERE status = 'PENDING'
+    WHERE status IN ('PENDING', 'INVESTIGATING')
   `;
   return { data: { count: parseInt(result[0]?.count || 0) }, error: null };
+}
+
+/**
+ * 删除投诉工单（软/硬删除）
+ */
+export async function deleteComplaint(id: string): Promise<{ success: boolean; error: Error | null }> {
+  try {
+    await sql`DELETE FROM complaints WHERE id = ${id}`;
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: new Error(err.message || '删除失败') };
+  }
 }
 
 // ============================================================================
@@ -259,7 +283,7 @@ export async function getPendingComplaintsCount(): Promise<{ data: { count: numb
 export async function getDashboardStats(): Promise<{ data: any; error: Error | null }> {
   const [certCountRes, complaintCountRes, issuedCountRes] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM certificates`,
-    sql`SELECT COUNT(*) as count FROM complaints WHERE status = 'PENDING'`,
+    sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING')`,
     sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND end_date >= CURRENT_DATE`
   ]);
   
@@ -271,4 +295,106 @@ export async function getDashboardStats(): Promise<{ data: any; error: Error | n
     },
     error: null
   };
+}
+
+
+// ============================================================================
+// 【限流与审计类】
+// ============================================================================
+
+const DEFAULT_ACTION_MAX_ATTEMPTS = 5;
+const DEFAULT_ACTION_WINDOW_MS = 5 * 60 * 1000; // 5 分钟
+
+/**
+ * 通用行为限流检查（基于 IP + 动作类型）
+ * @returns true 表示允许通过，false 表示已触发限流
+ */
+export async function checkActionRateLimit(
+  key: string,
+  maxAttempts: number = DEFAULT_ACTION_MAX_ATTEMPTS,
+  windowMs: number = DEFAULT_ACTION_WINDOW_MS
+): Promise<boolean> {
+  const now = new Date();
+  const windowStart = new Date(Date.now() - windowMs);
+
+  try {
+    const records = await sql`
+      SELECT attempts, window_start FROM action_rate_limits
+      WHERE key = ${key}
+      LIMIT 1
+    `;
+
+    if (records.length === 0) {
+      await sql`
+        INSERT INTO action_rate_limits (key, attempts, window_start)
+        VALUES (${key}, 1, ${now})
+      `;
+      return true;
+    }
+
+    const record = records[0];
+    const recordWindowStart = new Date(record.window_start);
+
+    if (recordWindowStart < windowStart) {
+      await sql`
+        UPDATE action_rate_limits
+        SET attempts = 1, window_start = ${now}
+        WHERE key = ${key}
+      `;
+      return true;
+    }
+
+    if (record.attempts >= maxAttempts) {
+      return false;
+    }
+
+    await sql`
+      UPDATE action_rate_limits
+      SET attempts = attempts + 1
+      WHERE key = ${key}
+    `;
+    return true;
+  } catch (err) {
+    console.error('[RateLimit] 数据库查询失败，跳过限速检查:', err);
+    return true;
+  }
+}
+
+/**
+ * 创建投诉审核日志
+ */
+export async function createComplaintAuditLog(
+  complaintId: string,
+  actorId: string,
+  action: string,
+  comment?: string
+): Promise<{ success: boolean; error: Error | null }> {
+  try {
+    await sql`
+      INSERT INTO audit_logs (complaint_id, actor_id, action, comment, created_at)
+      VALUES (${complaintId}, ${actorId}, ${action}, ${comment || null}, NOW())
+    `;
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('[AuditLog] 创建投诉审计日志失败:', err);
+    return { success: false, error: new Error(err.message || '审计日志写入失败') };
+  }
+}
+
+/**
+ * 获取投诉审核日志
+ */
+export async function getComplaintAuditLogs(complaintId: string): Promise<{ data: any[]; error: Error | null }> {
+  try {
+    const result = await sql`
+      SELECT a.*, p.full_name as actor_name, p.username as actor_username
+      FROM audit_logs a
+      LEFT JOIN profiles p ON a.actor_id = p.id
+      WHERE a.complaint_id = ${complaintId}
+      ORDER BY a.created_at DESC
+    `;
+    return { data: result || [], error: null };
+  } catch (err: any) {
+    return { data: [], error: new Error(err.message || '查询审计日志失败') };
+  }
 }

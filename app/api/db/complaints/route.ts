@@ -10,7 +10,11 @@ export async function GET(req: Request) {
       return response;
     }
 
-    const { data, error } = await getAllComplaints();
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+
+    const { data, total, error } = await getAllComplaints(page, pageSize);
 
     if (error) {
       return NextResponse.json(
@@ -19,7 +23,7 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json({ data: data || [] });
+    return NextResponse.json({ data: data || [], total: total || 0 });
   } catch (err: unknown) {
     console.error('[API] Get complaints error:', err);
     return NextResponse.json(

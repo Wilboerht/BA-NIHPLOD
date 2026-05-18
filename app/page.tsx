@@ -72,6 +72,15 @@ export default function VerificationPage() {
   const [reportSuccess, setReportSuccess] = useState(false);
   const [reportDesc, setReportDesc] = useState("");
   const [reportChannel, setReportChannel] = useState("");
+  const [reportContact, setReportContact] = useState("");
+
+  const resetReportForm = () => {
+    setReportSuccess(false);
+    setEvidenceFile(null);
+    setReportDesc("");
+    setReportChannel("");
+    setReportContact("");
+  };
 
   const handleReportSubmit = async () => {
     if (!reportDesc.trim()) {
@@ -84,12 +93,22 @@ export default function VerificationPage() {
     try {
       let evidence_url = "";
       
-      // 1. 如果有上传文件，先处理上传
+      // 1. 如果有上传文件，先处理上传（使用匿名公开上传接口）
       if (evidenceFile) {
+        // 前端预校验文件大小（5MB）和类型
+        const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const MAX_FILE_SIZE = 5 * 1024 * 1024;
+        if (!ALLOWED_TYPES.includes(evidenceFile.type)) {
+          throw new Error("仅支持 JPG/PNG/GIF/WebP 格式的图片");
+        }
+        if (evidenceFile.size > MAX_FILE_SIZE) {
+          throw new Error("图片大小不能超过 5MB");
+        }
+
         const formData = new FormData();
         formData.append('file', evidenceFile);
         
-        const uploadResponse = await fetch('/api/upload', {
+        const uploadResponse = await fetch('/api/upload/public', {
           method: 'POST',
           body: formData
         });
@@ -106,7 +125,8 @@ export default function VerificationPage() {
       // 2. 提交数据
       const res = await submitComplaintAction({
         description: reportDesc,
-        channel: reportChannel,
+        channel: reportChannel || undefined,
+        contact_info: reportContact || undefined,
         evidence_image_url: evidence_url
       });
       
@@ -115,11 +135,8 @@ export default function VerificationPage() {
       setReportSuccess(true);
       // 成功展示2秒后自动清空数据并关闭弹窗
       setTimeout(() => {
-        setReportSuccess(false);
         setShowReportModal(false);
-        setEvidenceFile(null);
-        setReportDesc("");
-        setReportChannel("");
+        resetReportForm();
       }, 2000);
     } catch (err: unknown) {
       toast({ message: "提交失败：" + (err instanceof Error ? err.message : "提交失败"), type: "error" });
@@ -769,7 +786,7 @@ export default function VerificationPage() {
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               onClick={() => { setShowReportModal(false); setEvidenceFile(null); }}
+               onClick={() => { setShowReportModal(false); resetReportForm(); }}
                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             <motion.div 
@@ -780,7 +797,7 @@ export default function VerificationPage() {
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
-                  onClick={() => { setShowReportModal(false); setEvidenceFile(null); }}
+                  onClick={() => { setShowReportModal(false); resetReportForm(); }}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
                   <X size={16} strokeWidth={2.5} />
@@ -804,7 +821,7 @@ export default function VerificationPage() {
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌违规渠道/商铺</label>
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌违规渠道/商铺 <span className="text-slate-300 normal-case">(选填)</span></label>
                        <input 
                           type="text" 
                           value={reportChannel}
@@ -814,28 +831,49 @@ export default function VerificationPage() {
                        />
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">证据图片 (可选)</label>
-                       <label className="w-full h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden group">
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setEvidenceFile(e.target.files[0]);
-                              }
-                            }}
-                          />
-                          {evidenceFile ? (
-                            <div className="flex items-center justify-center gap-2 px-4 w-full">
-                               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                               <span className="text-xs text-slate-600 truncate">{evidenceFile.name}</span>
-                            </div>
-                          ) : (
-                            <Camera className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                          )}
-                       </label>
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">联系方式 <span className="text-slate-300 normal-case">(选填，便于回访)</span></label>
+                       <input 
+                          type="text" 
+                          value={reportContact}
+                          onChange={(e) => setReportContact(e.target.value)}
+                          placeholder="手机号 / 邮箱 / 微信号"
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all"
+                       />
                     </div>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">证据图片 <span className="text-slate-300 normal-case">(可选，限 5MB 内)</span></label>
+                    <label className="w-full h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden group">
+                       <input 
+                         type="file" 
+                         accept="image/jpeg,image/png,image/gif,image/webp" 
+                         className="hidden" 
+                         onChange={(e) => {
+                           if (e.target.files && e.target.files[0]) {
+                             const file = e.target.files[0];
+                             const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                             const MAX_SIZE = 5 * 1024 * 1024;
+                             if (!ALLOWED_TYPES.includes(file.type)) {
+                               toast({ message: '仅支持 JPG/PNG/GIF/WebP 格式的图片', type: 'error' });
+                               return;
+                             }
+                             if (file.size > MAX_SIZE) {
+                               toast({ message: '图片大小不能超过 5MB', type: 'error' });
+                               return;
+                             }
+                             setEvidenceFile(file);
+                           }
+                         }}
+                       />
+                       {evidenceFile ? (
+                         <div className="flex items-center justify-center gap-2 px-4 w-full">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span className="text-xs text-slate-600 truncate">{evidenceFile.name}</span>
+                         </div>
+                       ) : (
+                         <Camera className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                       )}
+                    </label>
                  </div>
                  <button 
                    onClick={handleReportSubmit}

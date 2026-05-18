@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X } from "lucide-react";
+import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 
 interface Complaint {
@@ -13,10 +13,20 @@ interface Complaint {
   created_at: string;
   evidence_image_url?: string;
   review_note?: string;
+  contact_info?: string;
+}
+
+interface AuditLog {
+  id: string;
+  action: string;
+  comment?: string;
+  created_at: string;
+  actor_name?: string;
+  actor_username?: string;
 }
 
 export default function ComplaintsPage() {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -25,17 +35,34 @@ export default function ComplaintsPage() {
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
 
+  // 分页
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.ceil(total / pageSize);
+
+  // 审计日志
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
   useEffect(() => {
     fetchComplaints();
-  }, []);
+  }, [page]);
+
+  useEffect(() => {
+    if (activeReviewId) {
+      fetchAuditLogs(activeReviewId);
+    }
+  }, [activeReviewId]);
 
   const fetchComplaints = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/db/complaints');
+      const response = await fetch(`/api/db/complaints?page=${page}&pageSize=${pageSize}`);
       if (response.ok) {
         const result = await response.json();
         setComplaints(result.data || []);
+        setTotal(result.total || 0);
       } else if (response.status === 403) {
         toast({ message: '无权访问，需要管理员权限', type: 'error' });
       } else {
@@ -45,6 +72,21 @@ export default function ComplaintsPage() {
       console.error('Error fetching complaints:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAuditLogs = async (complaintId: string) => {
+    setIsLoadingLogs(true);
+    try {
+      const res = await fetch(`/api/db/complaints/${complaintId}/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuditLogs(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch audit logs:', err);
+    } finally {
+      setIsLoadingLogs(false);
     }
   };
 
@@ -60,6 +102,7 @@ export default function ComplaintsPage() {
         toast({ message: "工单状态已更新！", type: "success" });
         setActiveReviewId(null);
         setReviewNote("");
+        setAuditLogs([]);
         fetchComplaints();
       } else if (response.status === 403) {
         toast({ message: "无权操作，需要管理员权限", type: "error" });
@@ -69,6 +112,25 @@ export default function ComplaintsPage() {
       }
     } catch (err: unknown) {
       toast({ message: "更新失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    }
+  };
+
+  const handleDelete = async (complaint: Complaint) => {
+    const ok = await confirm({ message: `确定删除工单「${complaint.id.split('-')[0]}」吗？\n此操作不可恢复。` });
+    if (!ok) return;
+    try {
+      const response = await fetch(`/api/db/complaints/${complaint.id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        toast({ message: "工单已删除", type: "success" });
+        fetchComplaints();
+      } else {
+        const result = await response.json().catch(() => ({}));
+        toast({ message: result.error || "删除失败", type: "error" });
+      }
+    } catch (err: unknown) {
+      toast({ message: "删除失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     }
   };
 
@@ -87,6 +149,8 @@ export default function ComplaintsPage() {
     }
   };
 
+  const activeComplaint = complaints.find(c => c.id === activeReviewId);
+
   const filteredComplaints = complaints.filter(c => {
     // 1. Tab filter
     if (activeTab === 'PENDING' && c.status !== 'PENDING') return false;
@@ -100,7 +164,8 @@ export default function ComplaintsPage() {
       return (
         c.id.toLowerCase().includes(q) ||
         (c.channel || "").toLowerCase().includes(q) ||
-        (c.description || "").toLowerCase().includes(q)
+        (c.description || "").toLowerCase().includes(q) ||
+        (c.contact_info || "").toLowerCase().includes(q)
       );
     }
     return true;
@@ -121,11 +186,11 @@ export default function ComplaintsPage() {
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
         <div className="px-0 py-6 border-b border-slate-100/50 flex items-center justify-between bg-transparent">
           <div className="flex items-center gap-6 text-slate-500 font-semibold text-[13px] ml-2">
-             <span onClick={() => setActiveTab("ALL")} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
-             <span onClick={() => setActiveTab("PENDING")} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
-             <span onClick={() => setActiveTab("INVESTIGATING")} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
-             <span onClick={() => setActiveTab("RESOLVED")} className={`${activeTab === "RESOLVED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已解决</span>
-             <span onClick={() => setActiveTab("REJECTED")} className={`${activeTab === "REJECTED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已驳回</span>
+             <span onClick={() => { setActiveTab("ALL"); setPage(1); }} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
+             <span onClick={() => { setActiveTab("PENDING"); setPage(1); }} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
+             <span onClick={() => { setActiveTab("INVESTIGATING"); setPage(1); }} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
+             <span onClick={() => { setActiveTab("RESOLVED"); setPage(1); }} className={`${activeTab === "RESOLVED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已解决</span>
+             <span onClick={() => { setActiveTab("REJECTED"); setPage(1); }} className={`${activeTab === "REJECTED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已驳回</span>
           </div>
           <div className="relative w-full max-w-sm">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -156,6 +221,7 @@ export default function ComplaintsPage() {
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">工单号 (ID)</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">涉事店铺/渠道</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">侵权描述</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">联系方式</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证据图片</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提交时间</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">状态</th>
@@ -168,6 +234,7 @@ export default function ComplaintsPage() {
                     <td className="px-6 py-4 font-mono text-[10px] text-slate-400" title={complaint.id}>{complaint.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{complaint.channel || "-"}</td>
                     <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={complaint.description}>{complaint.description}</td>
+                    <td className="px-6 py-4 text-slate-500 max-w-[120px] truncate" title={complaint.contact_info || ''}>{complaint.contact_info || "-"}</td>
                     <td className="px-6 py-4">
                       {complaint.evidence_image_url ? (
                         <button onClick={() => setSelectedImage(complaint.evidence_image_url || null)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors">
@@ -184,16 +251,25 @@ export default function ComplaintsPage() {
                       {getStatusBadge(complaint.status)}
                     </td>
                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => {
-                            setActiveReviewId(complaint.id);
-                            setReviewNote(complaint.review_note || '');
-                          }}
-                          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
-                        >
-                           进入审核
-                           <ExternalLink className="w-3 h-3 opacity-60" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setActiveReviewId(complaint.id);
+                              setReviewNote(complaint.review_note || '');
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
+                          >
+                             进入审核
+                             <ExternalLink className="w-3 h-3 opacity-60" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(complaint)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200 active:scale-95 border border-slate-100/50"
+                            title="删除工单"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                      </td>
                   </tr>
                 ))
@@ -210,6 +286,31 @@ export default function ComplaintsPage() {
             </div>
           )}
         </div>
+
+        {/* 分页 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-2 py-4 border-t border-slate-100">
+            <span className="text-xs text-slate-400 font-medium">
+              共 {total} 条，第 {page} / {totalPages} 页
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 图片预览模态框 */}
@@ -226,7 +327,7 @@ export default function ComplaintsPage() {
 
       {/* 审核面板模态框 */}
       <AnimatePresence>
-        {activeReviewId && (
+        {activeReviewId && activeComplaint && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <motion.div 
                initial={{ opacity: 0 }} 
@@ -239,10 +340,10 @@ export default function ComplaintsPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative max-w-lg w-full bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden" 
+               className="relative max-w-xl w-full bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden max-h-[90vh] overflow-y-auto" 
                onClick={e => e.stopPropagation()}
             >
-               <div className="flex justify-between items-start mb-8">
+               <div className="flex justify-between items-start mb-6">
                   <div className="space-y-1">
                     <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                       <Megaphone className="w-5 h-5 text-rose-500" />
@@ -258,7 +359,61 @@ export default function ComplaintsPage() {
                   </button>
                </div>
 
-               <div className="space-y-6">
+               {/* 投诉详情展示 */}
+               <div className="space-y-4 mb-6">
+                 <div className="bg-slate-50 rounded-2xl p-5 space-y-3">
+                   <div>
+                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">侵权描述</span>
+                     <p className="text-[13px] text-slate-700 font-medium mt-1 leading-relaxed">{activeComplaint.description}</p>
+                   </div>
+                   {activeComplaint.channel && (
+                     <div>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">涉事渠道/商铺</span>
+                       <p className="text-[13px] text-slate-700 font-medium mt-1">{activeComplaint.channel}</p>
+                     </div>
+                   )}
+                   {activeComplaint.contact_info && (
+                     <div className="flex items-center gap-2">
+                       <User className="w-3.5 h-3.5 text-slate-400" />
+                       <span className="text-[12px] text-slate-600 font-medium">{activeComplaint.contact_info}</span>
+                     </div>
+                   )}
+                   {activeComplaint.evidence_image_url && (
+                     <div>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">证据图片</span>
+                       <button 
+                         onClick={() => setSelectedImage(activeComplaint.evidence_image_url || null)}
+                         className="mt-2 block w-full max-w-[200px] aspect-video bg-slate-100 rounded-xl overflow-hidden hover:ring-2 hover:ring-slate-300 transition-all"
+                       >
+                         <img src={activeComplaint.evidence_image_url} alt="证据" className="w-full h-full object-cover" />
+                       </button>
+                     </div>
+                   )}
+                   <div className="flex items-center gap-4 pt-1">
+                     <span className="text-[11px] text-slate-400">提交时间: {new Date(activeComplaint.created_at).toLocaleString()}</span>
+                     <span className="text-[11px]">{getStatusBadge(activeComplaint.status)}</span>
+                   </div>
+                 </div>
+
+                 {/* 历史审核记录 */}
+                 {auditLogs.length > 0 && (
+                   <div className="space-y-2">
+                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">审核历史</span>
+                     <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                       {auditLogs.map((log) => (
+                         <div key={log.id} className="bg-slate-50/50 rounded-xl px-4 py-2.5 text-[12px]">
+                           <div className="flex items-center justify-between mb-0.5">
+                             <span className="font-bold text-slate-700">{log.action}</span>
+                             <span className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</span>
+                           </div>
+                           {log.comment && <p className="text-slate-500">{log.comment}</p>}
+                           {log.actor_name && <p className="text-slate-400 text-[10px] mt-0.5">操作人: {log.actor_name}</p>}
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+
                  <div className="space-y-3">
                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">内部审核备注</label>
                    <textarea 
@@ -269,25 +424,35 @@ export default function ComplaintsPage() {
                    />
                  </div>
                  
-                 <div className="flex flex-col gap-3 pt-4">
-                    <button 
-                      onClick={() => handleStatusUpdate('INVESTIGATING')} 
-                      className="w-full py-3 bg-blue-50 text-blue-700 hover:bg-blue-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
-                    >
-                       <AlertTriangle className="w-4 h-4" /> 标记为“调查中”
-                    </button>
-                    <button 
-                      onClick={() => handleStatusUpdate('RESOLVED')} 
-                      className="w-full py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
-                    >
-                       <CheckCircle2 className="w-4 h-4" /> 确认违规，标记已解决
-                    </button>
-                    <button 
-                      onClick={() => handleStatusUpdate('REJECTED')} 
-                      className="w-full py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
-                    >
-                       <X className="w-4 h-4" /> 证据不足，拒绝工单
-                    </button>
+                 <div className="flex flex-col gap-3 pt-2">
+                    {activeComplaint.status !== 'RESOLVED' && activeComplaint.status !== 'REJECTED' && (
+                      <>
+                        <button 
+                          onClick={() => handleStatusUpdate('INVESTIGATING')} 
+                          disabled={activeComplaint.status === 'INVESTIGATING'}
+                          className="w-full py-3 bg-blue-50 text-blue-700 hover:bg-blue-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                           <AlertTriangle className="w-4 h-4" /> 标记为“调查中”
+                        </button>
+                        <button 
+                          onClick={() => handleStatusUpdate('RESOLVED')} 
+                          className="w-full py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                           <CheckCircle2 className="w-4 h-4" /> 确认违规，标记已解决
+                        </button>
+                        <button 
+                          onClick={() => handleStatusUpdate('REJECTED')} 
+                          className="w-full py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                           <X className="w-4 h-4" /> 证据不足，拒绝工单
+                        </button>
+                      </>
+                    )}
+                    {(activeComplaint.status === 'RESOLVED' || activeComplaint.status === 'REJECTED') && (
+                      <div className="py-3 bg-slate-50 text-slate-400 text-center text-[13px] font-bold rounded-xl">
+                        该工单已处于终态，无法继续操作
+                      </div>
+                    )}
                  </div>
                </div>
             </motion.div>

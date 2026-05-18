@@ -1,7 +1,8 @@
 "use server";
 
 import DOMPurify from 'isomorphic-dompurify';
-import { sql } from '@/lib/db';
+import { sql, checkActionRateLimit } from '@/lib/db';
+import { headers } from 'next/headers';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -138,29 +139,66 @@ function sanitizeInput(input: string): string {
   });
 }
 
+async function getClientIP(): Promise<string> {
+  try {
+    const h = await headers();
+    const forwarded = h.get('x-forwarded-for');
+    if (forwarded) return forwarded.split(',')[0].trim();
+    const realIp = h.get('x-real-ip');
+    if (realIp) return realIp;
+  } catch {
+    // headers() 在部分边缘环境可能异常
+  }
+  return 'unknown';
+}
+
+function isInternalUploadUrl(url?: string): boolean {
+  if (!url) return true;
+  // 只允许内部上传路径，防止传入恶意外链
+  return url.startsWith('/uploads/');
+}
+
 export async function submitComplaintAction(formData: {
   description: string;
-  channel: string;
+  channel?: string;
+  contact_info?: string;
   evidence_image_url?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    // 限流检查：每个 IP 5 分钟内最多提交 3 次投诉
+    const clientIP = await getClientIP();
+    const rateKey = `complaint:${clientIP}`;
+    const allowed = await checkActionRateLimit(rateKey, 3, 5 * 60 * 1000);
+    if (!allowed) {
+      return { success: false, error: "提交过于频繁，请 5 分钟后再试" };
+    }
+
     // 输入长度校验
     if (!formData.description?.trim() || formData.description.length > 2000) {
       return { success: false, error: "描述不能为空且不超过 2000 字" };
     }
-    if (!formData.channel?.trim() || formData.channel.length > 500) {
-      return { success: false, error: "渠道信息不能为空且不超过 500 字" };
+    if (formData.channel && formData.channel.length > 500) {
+      return { success: false, error: "渠道信息不能超过 500 字" };
+    }
+    if (formData.contact_info && formData.contact_info.length > 200) {
+      return { success: false, error: "联系方式不能超过 200 字" };
+    }
+
+    // 证据图片 URL 安全校验
+    if (!isInternalUploadUrl(formData.evidence_image_url)) {
+      return { success: false, error: "证据图片来源不合法" };
     }
 
     // XSS 消毒
     const cleanDescription = sanitizeInput(formData.description.trim());
-    const cleanChannel = sanitizeInput(formData.channel.trim());
+    const cleanChannel = formData.channel ? sanitizeInput(formData.channel.trim()) : null;
+    const cleanContact = formData.contact_info ? sanitizeInput(formData.contact_info.trim()) : null;
 
     // 提交投诉
     try {
       await sql`
-        INSERT INTO complaints (description, channel, evidence_image_url, status, created_at)
-        VALUES (${cleanDescription}, ${cleanChannel}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
+        INSERT INTO complaints (description, channel, contact_info, evidence_image_url, status, created_at)
+        VALUES (${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
       `;
       console.log('[submitComplaintAction] 投诉已提交');
       return { success: true };
