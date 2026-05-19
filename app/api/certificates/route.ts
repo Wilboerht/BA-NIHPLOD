@@ -198,7 +198,11 @@ export async function POST(req: Request) {
     if (action === 'reject_pending') {
       if (!certId) throw new Error('缺少证书 ID');
 
-      await sql`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING'`;
+      const updateResult = await sql`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING'`;
+      // postgres 库返回更新后的行数组，若为空表示没有匹配到 PENDING 状态的记录
+      if (!updateResult || updateResult.length === 0) {
+        return NextResponse.json({ error: '该证书不是待审核状态，无法拒绝' }, { status: 400 });
+      }
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 

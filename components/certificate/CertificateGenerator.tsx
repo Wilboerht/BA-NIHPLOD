@@ -382,7 +382,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const qrBaseY = Math.max(currentY + 20 * scale, height - 320 * scale);
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-      const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber)}`;
+      const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
       const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
         width: 80,
         margin: 1,
@@ -677,7 +677,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                               throw new Error(data.error || '上传失败');
                             }
                             const { url } = await res.json();
-                            setData({ ...data, sealImage: url });
+                            setData(prev => ({ ...prev, sealImage: url }));
                             toast({ message: '签章上传成功', type: 'success' });
                           } catch (err: unknown) {
                             toast({ message: '签章上传失败：' + (err instanceof Error ? err.message : '未知错误'), type: 'error' });

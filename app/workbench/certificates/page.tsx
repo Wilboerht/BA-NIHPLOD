@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 
@@ -224,11 +224,11 @@ export default function CertificatesPage() {
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
                           <XCircle className="w-3 h-3" /> 已拒绝
                         </span>
-                      ) : cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
+                      ) : cert.status === 'ISSUED' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase border border-emerald-100">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
                         </span>
-                      ) : (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && new Date() > new Date(cert.end_date + 'T23:59:59'))) ? (
+                      ) : (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && cert.end_date && new Date() > new Date(cert.end_date + 'T23:59:59'))) ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
                           <XCircle className="w-3.5 h-3.5" /> 已失效
                         </span>
@@ -332,7 +332,7 @@ export default function CertificatesPage() {
                             调阅档案
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
+                        {cert.status === 'ISSUED' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
                           <button 
                             onClick={() => revokeCertificate(cert.id, cert.status)}
                             className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
