@@ -232,7 +232,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
 
-    let currentY = 510 * scale;
+    let currentY = 472 * scale;
 
     // 淘宝ID / 店铺ID（大字加粗，格式：label: value）
     offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
