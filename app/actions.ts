@@ -163,7 +163,7 @@ export async function submitComplaintAction(formData: {
   channel?: string;
   contact_info?: string;
   evidence_image_url?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     // 限流检查：每个 IP 5 分钟内最多提交 3 次投诉
     const clientIP = await getClientIP();
