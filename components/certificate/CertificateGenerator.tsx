@@ -241,7 +241,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
       shopLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
-        currentY += 38 * scale;
+        currentY += 42 * scale;
       });
     } else {
       currentY += 38 * scale; // 未输入时预留一行位置
@@ -252,7 +252,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
       companyLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
-        currentY += 38 * scale;
+        currentY += 42 * scale;
       });
     } else {
       currentY += 38 * scale; // 未输入时预留一行位置
@@ -268,7 +268,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     scopeLines.forEach((line) => {
       const trimmed = line.trim();
       if (!trimmed) {
-        currentY += 20 * scale;
+        currentY += 24 * scale;
         return;
       }
       const parts = parseMarkdownBold(trimmed);
@@ -287,7 +287,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         } else {
           offCtx.fillText(trimmed, leftMargin, currentY);
         }
-        currentY += 30 * scale;
+        currentY += 34 * scale;
       } else {
         // 需要换行：按字符构建 bold 映射后逐字换行
         const charList: { text: string; bold: boolean }[] = [];
@@ -324,13 +324,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             offCtx.fillText(segment, currentX, currentY);
             currentX += offCtx.measureText(segment).width;
           }
-          currentY += 30 * scale;
+          currentY += 34 * scale;
         }
       }
 
       // 渠道列表行与下一段之间增加段间距
       if ((trimmed.match(/\|/g) || []).length >= 2) {
-        currentY += 20 * scale;
+        currentY += 24 * scale;
       }
     });
 
