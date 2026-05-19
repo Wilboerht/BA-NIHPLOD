@@ -234,22 +234,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     let currentY = 472 * scale;
 
-    // 淘宝ID / 店铺ID（大字加粗，格式：label: value）
+    // 店铺名称（大字加粗，仅显示输入值）
     offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
     if (data.shopName) {
-      const shopDisplay = data.shopLabel ? `${data.shopLabel}: ${data.shopName}` : data.shopName;
-      const shopLines = wrapText(offCtx, shopDisplay, maxTextWidth);
+      const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
       shopLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
         currentY += 38 * scale;
       });
     }
 
-    // 店铺名称 / 公司名称（大字加粗，格式：label: value）
+    // 公司名称（大字加粗，仅显示输入值）
     if (data.companyName) {
-      const companyDisplay = data.companyLabel ? `${data.companyLabel}: ${data.companyName}` : data.companyName;
-      const companyLines = wrapText(offCtx, companyDisplay, maxTextWidth);
+      const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
       companyLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
         currentY += 38 * scale;

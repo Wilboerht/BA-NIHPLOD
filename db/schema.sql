@@ -5,28 +5,37 @@
 -- 1. 枚举类型
 -- ============================================================================
 
-CREATE TYPE user_role AS ENUM (
-  'SUPER_ADMIN',
-  'AUDITOR',
-  'MANAGER',
-  'PROJECT_MANAGER',
-  'DEALER'
-);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM (
+          'SUPER_ADMIN',
+          'AUDITOR',
+          'MANAGER',
+          'PROJECT_MANAGER',
+          'DEALER'
+        );
+    END IF;
 
-CREATE TYPE certificate_status AS ENUM (
-  'PENDING',
-  'ISSUED',
-  'REJECTED',
-  'EXPIRED',
-  'REVOKED'
-);
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'certificate_status') THEN
+        CREATE TYPE certificate_status AS ENUM (
+          'PENDING',
+          'ISSUED',
+          'REJECTED',
+          'EXPIRED',
+          'REVOKED'
+        );
+    END IF;
 
-CREATE TYPE complaint_status AS ENUM (
-  'PENDING',
-  'INVESTIGATING',
-  'RESOLVED',
-  'REJECTED'
-);
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'complaint_status') THEN
+        CREATE TYPE complaint_status AS ENUM (
+          'PENDING',
+          'INVESTIGATING',
+          'RESOLVED',
+          'REJECTED'
+        );
+    END IF;
+END$$;
 
 -- ============================================================================
 -- 2. 用户档案表
