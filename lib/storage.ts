@@ -24,9 +24,11 @@ export async function uploadFile(
     }
 
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', safeBucket);
-    await fs.mkdir(uploadDir, { recursive: true });
-    
     const fullPath = path.join(uploadDir, safeFilePath);
+    
+    // 确保目标文件的所有父目录都存在（包括子目录路径）
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    
     const bufferToWrite = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     await fs.writeFile(fullPath, bufferToWrite);
     
