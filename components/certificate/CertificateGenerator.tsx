@@ -193,8 +193,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     const textPrimary = "#334155";
-    const leftMargin = 210 * scale;
-    const maxTextWidth = width - leftMargin - 60 * scale;
+    const leftMargin = 240 * scale;
+    const maxTextWidth = width - leftMargin - 90 * scale;
 
     // 文字自动换行辅助函数
     const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] => {
