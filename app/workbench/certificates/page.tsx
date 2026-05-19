@@ -363,7 +363,7 @@ export default function CertificatesPage() {
       {/* ── 签发/调阅模态框 ── */}
       <AnimatePresence>
         {showIssueModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
+          <div className="fixed inset-0 z-[100]">
             {/* 背景蒙层 */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -376,18 +376,18 @@ export default function CertificatesPage() {
                 setIsEditMode(false);
                 setIsViewVoided(false);
               }}
-              className="absolute inset-0 bg-white/60 backdrop-blur-md"
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
             />
 
-            {/* 弹窗主体 */}
+            {/* 弹窗主体 - 全屏从右滑入 */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 15 }}
-              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-100/80"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="absolute inset-0 bg-white flex flex-col overflow-hidden"
             >
-              <div className="px-10 pt-10 pb-6 flex justify-between items-center bg-white shrink-0">
+              <div className="px-8 md:px-12 pt-8 pb-5 flex justify-between items-center bg-white shrink-0 border-b border-slate-100">
                   <div className="space-y-1">
                     <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
                       {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
@@ -415,8 +415,8 @@ export default function CertificatesPage() {
                     </button>
                   )}
               </div>
-              <div className="flex-1 overflow-y-auto px-10 pb-6 custom-scrollbar bg-slate-50/10">
-                <div className="pt-0 pb-4">
+              <div className="flex-1 overflow-y-auto px-8 md:px-12 py-6 custom-scrollbar bg-slate-50/10">
+                <div className="max-w-5xl mx-auto">
                   <CertificateGenerator 
                     initialData={selectedCertData} 
                     mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'} 
