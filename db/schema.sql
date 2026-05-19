@@ -63,6 +63,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_key ON profiles(phone) WHERE ph
 
 CREATE TABLE IF NOT EXISTS dealers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     company_name TEXT NOT NULL,
     phone TEXT NOT NULL,
     contact_person TEXT,
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS certificates (
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
+    complaint_id UUID REFERENCES complaints(id) ON DELETE CASCADE,
     actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     comment TEXT,
@@ -130,6 +132,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     status complaint_status DEFAULT 'PENDING',
     handler_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     review_note TEXT,
+    contact_info TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -156,6 +159,16 @@ CREATE TABLE IF NOT EXISTS login_rate_limits (
 );
 
 -- ============================================================================
+-- 9.5. 通用行为限流表（用于防刷：投诉提交、验证码发送等）
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS action_rate_limits (
+    key TEXT PRIMARY KEY,
+    attempts INT NOT NULL DEFAULT 1,
+    window_start TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================================
 -- 10. 辅助函数
 -- ============================================================================
 
@@ -166,6 +179,21 @@ BEGIN
   DELETE FROM token_blacklist WHERE exp_at < NOW();
 END;
 $$ LANGUAGE plpgsql;
+
+-- complaints 表 updated_at 自动更新触发器
+CREATE OR REPLACE FUNCTION update_complaints_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_complaints_updated_at ON complaints;
+CREATE TRIGGER trg_complaints_updated_at
+    BEFORE UPDATE ON complaints
+    FOR EACH ROW
+    EXECUTE FUNCTION update_complaints_updated_at();
 
 -- ============================================================================
 -- 11. 常用查询索引（性能优化）
@@ -184,10 +212,15 @@ CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 
 -- dealers 表索引
 CREATE INDEX IF NOT EXISTS idx_dealers_phone ON dealers(phone);
+CREATE INDEX IF NOT EXISTS idx_dealers_profile_id ON dealers(profile_id);
 
 -- audit_logs 表索引
 CREATE INDEX IF NOT EXISTS idx_audit_logs_certificate_id ON audit_logs(certificate_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_complaint_id ON audit_logs(complaint_id);
+
+-- action_rate_limits 表索引
+CREATE INDEX IF NOT EXISTS idx_action_rate_limits_window ON action_rate_limits(window_start);
 
 -- ============================================================================
 -- 12. Row Level Security (RLS)
@@ -199,6 +232,7 @@ ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- profiles 表：管理员可以查看所有用户，经销商只能查看自己
 DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
@@ -222,7 +256,7 @@ CREATE POLICY "Dealers can view all dealers" ON dealers
 
 DROP POLICY IF EXISTS "Only admins can manage dealers" ON dealers;
 CREATE POLICY "Only admins can manage dealers" ON dealers
-    FOR INSERT USING (
+    FOR INSERT WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
@@ -267,7 +301,7 @@ CREATE POLICY "Templates are public for reading" ON templates
 
 DROP POLICY IF EXISTS "Only super admins can manage templates" ON templates;
 CREATE POLICY "Only super admins can manage templates" ON templates
-    FOR INSERT USING (
+    FOR INSERT WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'SUPER_ADMIN'
       )
@@ -293,7 +327,7 @@ CREATE POLICY "Only admins can view audit logs" ON audit_logs
 
 DROP POLICY IF EXISTS "Only admins can create audit logs" ON audit_logs;
 CREATE POLICY "Only admins can create audit logs" ON audit_logs
-    FOR INSERT USING (
+    FOR INSERT WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
@@ -308,6 +342,23 @@ CREATE POLICY "Public can insert complaints" ON complaints
 DROP POLICY IF EXISTS "Admins can manage complaints" ON complaints;
 CREATE POLICY "Admins can manage complaints" ON complaints
     FOR ALL USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    );
+
+-- action_rate_limits 表策略：仅服务账号可读写
+DROP POLICY IF EXISTS "Service role can manage rate limits" ON action_rate_limits;
+CREATE POLICY "Service role can manage rate limits" ON action_rate_limits
+    FOR ALL
+    USING (
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      )
+    )
+    WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')

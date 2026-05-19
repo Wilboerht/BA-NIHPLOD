@@ -232,7 +232,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
 
-    let currentY = 472 * scale;
+    let currentY = 500 * scale;
 
     // 店铺名称（大字加粗，仅显示输入值）
     offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
