@@ -243,6 +243,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         offCtx.fillText(line, leftMargin, currentY);
         currentY += 38 * scale;
       });
+    } else {
+      currentY += 38 * scale; // 未输入时预留一行位置
     }
 
     // 公司名称（大字加粗，仅显示输入值）
@@ -252,6 +254,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         offCtx.fillText(line, leftMargin, currentY);
         currentY += 38 * scale;
       });
+    } else {
+      currentY += 38 * scale; // 未输入时预留一行位置
     }
 
     currentY += 18 * scale;
