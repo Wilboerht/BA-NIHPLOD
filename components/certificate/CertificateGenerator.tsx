@@ -37,7 +37,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     companyLabel: "公司名称",
     shopName: "",
     shopLabel: "店铺名称",
-    scopeText: "予以下渠道:\n淘宝 | 天猫 | 京东 | 小红书 | 抖音 | 微信 | 线下门店\n运营我司代理的品牌NIHPLOD(旎柏)\n全系列产品的[合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务",
+    scopeText: "予以下渠道:\n淘宝 | 天猫 | 京东 | 小红书 | 抖音 | 微信 | 线下门店\n运营我司代理的品牌 NIHPLOD (旎柏)\n全系列产品的 [合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务",
     duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
     authorizer: "旎柏（上海）商贸有限公司",
     sealImage: "",
