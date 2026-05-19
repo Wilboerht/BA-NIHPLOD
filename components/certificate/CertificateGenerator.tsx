@@ -376,7 +376,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     // 公章：底部对齐
     if (sealImg) {
       offCtx.save();
-      offCtx.translate(sealCenterX, bottomAlignY - sealDrawHeight / 2);
+      offCtx.translate(sealCenterX, bottomAlignY - sealDrawHeight / 2 + 20 * scale);
       offCtx.rotate(-0.06);
       offCtx.globalAlpha = 0.88;
       offCtx.drawImage(sealImg, -sealDrawWidth / 2, -sealDrawHeight / 2, sealDrawWidth, sealDrawHeight);
@@ -387,7 +387,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.textAlign = "center";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
-    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY - sealDrawHeight / 2 + 5 * scale);
+    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY - sealDrawHeight / 2 + 5 * scale + 20 * scale);
 
     // 二维码：底部对齐（与公章同一水平线）
     const qrX = leftMargin;
