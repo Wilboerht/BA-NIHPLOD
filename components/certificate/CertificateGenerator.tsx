@@ -342,7 +342,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const dateRange = data.duration.split(' - ');
     offCtx.textAlign = "left";
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
+    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])} 至 ${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
     currentY += 50 * scale;
 
     // 预计算公章尺寸和中心位置
