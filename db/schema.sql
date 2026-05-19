@@ -41,7 +41,7 @@ END$$;
 -- 2. 用户档案表
 -- ============================================================================
 
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT UNIQUE,
     full_name TEXT,
@@ -55,13 +55,13 @@ CREATE TABLE profiles (
 );
 
 -- 部分唯一索引：只对非 NULL 的 phone 强制唯一性（允许多个 NULL）
-CREATE UNIQUE INDEX profiles_phone_key ON profiles(phone) WHERE phone IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_key ON profiles(phone) WHERE phone IS NOT NULL;
 
 -- ============================================================================
 -- 3. 经销商表（支持一个 phone 对应多个主体名称）
 -- ============================================================================
 
-CREATE TABLE dealers (
+CREATE TABLE IF NOT EXISTS dealers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_name TEXT NOT NULL,
     phone TEXT NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE dealers (
 -- 4. 证书模板表
 -- ============================================================================
 
-CREATE TABLE templates (
+CREATE TABLE IF NOT EXISTS templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     background_url TEXT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE templates (
 -- 5. 证书表
 -- ============================================================================
 
-CREATE TABLE certificates (
+CREATE TABLE IF NOT EXISTS certificates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cert_number TEXT UNIQUE NOT NULL,
     dealer_id UUID REFERENCES dealers(id) ON DELETE CASCADE NOT NULL,
@@ -109,7 +109,7 @@ CREATE TABLE certificates (
 -- 6. 审核日志表
 -- ============================================================================
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
     actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -122,7 +122,7 @@ CREATE TABLE audit_logs (
 -- 7. 打假举报投诉表
 -- ============================================================================
 
-CREATE TABLE complaints (
+CREATE TABLE IF NOT EXISTS complaints (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     description TEXT NOT NULL,
     channel TEXT,
@@ -138,18 +138,18 @@ CREATE TABLE complaints (
 -- 8. Token 黑名单表（用于安全注销）
 -- ============================================================================
 
-CREATE TABLE token_blacklist (
+CREATE TABLE IF NOT EXISTS token_blacklist (
     jti TEXT PRIMARY KEY,
     exp_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX idx_token_blacklist_exp_at ON token_blacklist(exp_at);
+CREATE INDEX IF NOT EXISTS idx_token_blacklist_exp_at ON token_blacklist(exp_at);
 
 -- ============================================================================
 -- 9. 登录限速表（持久化登录尝试记录）
 -- ============================================================================
 
-CREATE TABLE login_rate_limits (
+CREATE TABLE IF NOT EXISTS login_rate_limits (
     ip TEXT PRIMARY KEY,
     attempts INT NOT NULL DEFAULT 1,
     window_start TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -172,22 +172,22 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 
 -- certificates 表索引
-CREATE INDEX idx_certificates_status ON certificates(status);
-CREATE INDEX idx_certificates_dealer_id ON certificates(dealer_id);
-CREATE INDEX idx_certificates_end_date ON certificates(end_date);
+CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status);
+CREATE INDEX IF NOT EXISTS idx_certificates_dealer_id ON certificates(dealer_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_end_date ON certificates(end_date);
 
 -- profiles 表索引
-CREATE INDEX idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
 
 -- complaints 表索引
-CREATE INDEX idx_complaints_status ON complaints(status);
+CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 
 -- dealers 表索引
-CREATE INDEX idx_dealers_phone ON dealers(phone);
+CREATE INDEX IF NOT EXISTS idx_dealers_phone ON dealers(phone);
 
 -- audit_logs 表索引
-CREATE INDEX idx_audit_logs_certificate_id ON audit_logs(certificate_id);
-CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_certificate_id ON audit_logs(certificate_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 
 -- ============================================================================
 -- 12. Row Level Security (RLS)
@@ -201,6 +201,7 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
 
 -- profiles 表：管理员可以查看所有用户，经销商只能查看自己
+DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 CREATE POLICY "Admins can view all profiles" ON profiles
     FOR SELECT USING (
       EXISTS (
@@ -210,13 +211,16 @@ CREATE POLICY "Admins can view all profiles" ON profiles
       )
     );
 
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
     FOR SELECT USING (auth.uid() = id);
 
 -- dealers 表策略
+DROP POLICY IF EXISTS "Dealers can view all dealers" ON dealers;
 CREATE POLICY "Dealers can view all dealers" ON dealers
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Only admins can manage dealers" ON dealers;
 CREATE POLICY "Only admins can manage dealers" ON dealers
     FOR INSERT USING (
       EXISTS (
@@ -225,6 +229,7 @@ CREATE POLICY "Only admins can manage dealers" ON dealers
       )
     );
 
+DROP POLICY IF EXISTS "Only admins can update dealers" ON dealers;
 CREATE POLICY "Only admins can update dealers" ON dealers
     FOR UPDATE USING (
       EXISTS (
@@ -234,6 +239,7 @@ CREATE POLICY "Only admins can update dealers" ON dealers
     );
 
 -- certificates 表策略
+DROP POLICY IF EXISTS "Dealers can view own certificates" ON certificates;
 CREATE POLICY "Dealers can view own certificates" ON certificates
     FOR SELECT USING (
       auth.uid() IN (
@@ -241,9 +247,11 @@ CREATE POLICY "Dealers can view own certificates" ON certificates
       )
     );
 
+DROP POLICY IF EXISTS "Public can view issued certificates" ON certificates;
 CREATE POLICY "Public can view issued certificates" ON certificates
     FOR SELECT USING (status = 'ISSUED');
 
+DROP POLICY IF EXISTS "Admins can manage all certificates" ON certificates;
 CREATE POLICY "Admins can manage all certificates" ON certificates
     FOR ALL USING (
       EXISTS (
@@ -253,9 +261,11 @@ CREATE POLICY "Admins can manage all certificates" ON certificates
     );
 
 -- templates 表策略
+DROP POLICY IF EXISTS "Templates are public for reading" ON templates;
 CREATE POLICY "Templates are public for reading" ON templates
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Only super admins can manage templates" ON templates;
 CREATE POLICY "Only super admins can manage templates" ON templates
     FOR INSERT USING (
       EXISTS (
@@ -263,6 +273,7 @@ CREATE POLICY "Only super admins can manage templates" ON templates
       )
     );
 
+DROP POLICY IF EXISTS "Only super admins can update templates" ON templates;
 CREATE POLICY "Only super admins can update templates" ON templates
     FOR UPDATE USING (
       EXISTS (
@@ -271,6 +282,7 @@ CREATE POLICY "Only super admins can update templates" ON templates
     );
 
 -- audit_logs 表策略
+DROP POLICY IF EXISTS "Only admins can view audit logs" ON audit_logs;
 CREATE POLICY "Only admins can view audit logs" ON audit_logs
     FOR SELECT USING (
       EXISTS (
@@ -279,6 +291,7 @@ CREATE POLICY "Only admins can view audit logs" ON audit_logs
       )
     );
 
+DROP POLICY IF EXISTS "Only admins can create audit logs" ON audit_logs;
 CREATE POLICY "Only admins can create audit logs" ON audit_logs
     FOR INSERT USING (
       EXISTS (
@@ -288,9 +301,11 @@ CREATE POLICY "Only admins can create audit logs" ON audit_logs
     );
 
 -- complaints 表策略
+DROP POLICY IF EXISTS "Public can insert complaints" ON complaints;
 CREATE POLICY "Public can insert complaints" ON complaints
     FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admins can manage complaints" ON complaints;
 CREATE POLICY "Admins can manage complaints" ON complaints
     FOR ALL USING (
       EXISTS (
