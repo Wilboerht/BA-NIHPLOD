@@ -364,11 +364,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       height - 30 * scale
     );
 
-    // 授权方文字（在公章下方居中）
-    offCtx.textAlign = "center";
-    offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY + 20 * scale);
-
     // 证书编号
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
@@ -387,6 +382,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.drawImage(sealImg, -sealDrawWidth / 2, -sealDrawHeight / 2, sealDrawWidth, sealDrawHeight);
       offCtx.restore();
     }
+
+    // 授权方文字（压印在公章中央）
+    offCtx.textAlign = "center";
+    offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
+    offCtx.fillStyle = textPrimary;
+    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY - sealDrawHeight / 2 + 5 * scale);
 
     // 二维码：底部对齐（与公章同一水平线）
     const qrX = leftMargin;
