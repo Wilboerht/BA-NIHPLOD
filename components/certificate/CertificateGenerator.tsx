@@ -232,29 +232,31 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
 
-    let currentY = 500 * scale;
+    let currentY = 510 * scale;
 
-    // 店铺名称（大字加粗，仅显示名称本身）
+    // 淘宝ID / 店铺ID（大字加粗，格式：label: value）
     offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
     if (data.shopName) {
-      const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
+      const shopDisplay = data.shopLabel ? `${data.shopLabel}: ${data.shopName}` : data.shopName;
+      const shopLines = wrapText(offCtx, shopDisplay, maxTextWidth);
       shopLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
-        currentY += 34 * scale;
+        currentY += 38 * scale;
       });
     }
 
-    // 公司名称（大字加粗，仅显示名称本身）
+    // 店铺名称 / 公司名称（大字加粗，格式：label: value）
     if (data.companyName) {
-      const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
+      const companyDisplay = data.companyLabel ? `${data.companyLabel}: ${data.companyName}` : data.companyName;
+      const companyLines = wrapText(offCtx, companyDisplay, maxTextWidth);
       companyLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
-        currentY += 34 * scale;
+        currentY += 38 * scale;
       });
     }
 
-    currentY += 30 * scale;
+    currentY += 28 * scale;
 
     // 授权业务范围
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
