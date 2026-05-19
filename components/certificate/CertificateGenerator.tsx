@@ -233,30 +233,42 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     };
 
     let currentY = 515 * scale;
+    const hasShop = !!data.shopName;
+    const hasCompany = !!data.companyName;
+    const shopLineH = 40 * scale;
+    const companyLineH = hasCompany ? 40 * scale : 36 * scale;
+    const totalNameBlockH = shopLineH + companyLineH;
+    const nameBaseY = currentY;
 
     // 店铺名称（大字加粗，仅显示输入值）
     offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
+    let shopY = nameBaseY;
+    if (hasShop && !hasCompany) {
+      shopY = nameBaseY + totalNameBlockH / 2 - shopLineH / 2 + 4 * scale;
+    }
     if (data.shopName) {
       const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
       shopLines.forEach(line => {
-        offCtx.fillText(line, leftMargin, currentY);
-        currentY += 40 * scale;
+        offCtx.fillText(line, leftMargin, shopY);
+        shopY += shopLineH;
       });
-    } else {
-      currentY += 36 * scale; // 未输入时预留一行位置
     }
+    currentY += shopLineH;
 
     // 公司名称（大字加粗，仅显示输入值）
+    let companyY = currentY;
+    if (!hasShop && hasCompany) {
+      companyY = nameBaseY + totalNameBlockH / 2 - companyLineH / 2 + 4 * scale;
+    }
     if (data.companyName) {
       const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
       companyLines.forEach(line => {
-        offCtx.fillText(line, leftMargin, currentY);
-        currentY += 40 * scale;
+        offCtx.fillText(line, leftMargin, companyY);
+        companyY += companyLineH;
       });
-    } else {
-      currentY += 36 * scale; // 未输入时预留一行位置
     }
+    currentY += companyLineH;
 
     currentY += 16 * scale;
 
