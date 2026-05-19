@@ -247,9 +247,11 @@ export async function getAllComplaints(
     }
 
     const total = parseInt(countRes[0]?.count || 0);
+    console.log('[getAllComplaints] 查询到', total, '条投诉, 本页', result.length, '条, status=', status);
 
     return { data: result || [], total, error: null };
   } catch (err: any) {
+    console.error('[getAllComplaints] 查询失败:', err);
     return { data: [], total: 0, error: new Error(err.message || '数据库查询失败') };
   }
 }

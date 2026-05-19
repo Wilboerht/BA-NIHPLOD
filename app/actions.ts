@@ -196,12 +196,14 @@ export async function submitComplaintAction(formData: {
 
     // 提交投诉
     try {
-      await sql`
+      const insertResult = await sql`
         INSERT INTO complaints (description, channel, contact_info, evidence_image_url, status, created_at)
         VALUES (${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
+        RETURNING id
       `;
-      console.log('[submitComplaintAction] 投诉已提交');
-      return { success: true };
+      const insertedId = insertResult[0]?.id;
+      console.log('[submitComplaintAction] 投诉已提交, id:', insertedId);
+      return { success: true, id: insertedId };
     } catch (err: unknown) {
       console.error("[submitComplaintAction] 数据库插入失败:", err);
       throw err;
