@@ -56,8 +56,12 @@ async function getOrCreateDealerProfile(phone: string, shopName: string): Promis
   const passwordHash = await bcrypt.hash(tempPassword, 10);
 
   // 检查是否已有此账户
-  const existing = await sql`SELECT id, is_first_login FROM profiles WHERE username = ${phone} LIMIT 1`;
+  const existing = await sql`SELECT id, is_first_login, role FROM profiles WHERE username = ${phone} LIMIT 1`;
   if (existing.length > 0) {
+    // 安全校验：已有账户必须是经销商角色，防止重置管理员密码
+    if (existing[0].role !== 'DEALER') {
+      throw new Error(`该手机号已绑定非经销商账户（角色: ${existing[0].role}），无法为其创建/重置经销商账户`);
+    }
     // 更新密码
     await sql`UPDATE profiles SET password_hash = ${passwordHash}, is_first_login = true WHERE id = ${existing[0].id}`;
     return { id: existing[0].id, tempPassword };
@@ -114,8 +118,8 @@ export async function POST(req: Request) {
           ${certNumber},
           ${dealerId},
           ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-          ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
-          ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+          ${(certData.duration?.split(' - ')[0] || '').replace(/\./g, '-')},
+          ${(certData.duration?.split(' - ')[1] || '').replace(/\./g, '-')},
           'PENDING',
           null,
           ${certData.sealImage || null},
@@ -156,8 +160,8 @@ export async function POST(req: Request) {
             ${certNumber},
             ${dealerId},
             ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-            ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
-            ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+            ${(certData.duration?.split(' - ')[0] || '').replace(/\./g, '-')},
+            ${(certData.duration?.split(' - ')[1] || '').replace(/\./g, '-')},
             'ISSUED',
             null,
             ${certData.sealImage || null},
@@ -220,8 +224,8 @@ export async function POST(req: Request) {
       await sql`
         UPDATE certificates
         SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-            start_date = ${certData.duration.split(' - ')[0].replace(/\./g, '-')},
-            end_date = ${certData.duration.split(' - ')[1].replace(/\./g, '-')},
+            start_date = ${(certData.duration?.split(' - ')[0] || '').replace(/\./g, '-')},
+            end_date = ${(certData.duration?.split(' - ')[1] || '').replace(/\./g, '-')},
             seal_url = ${certData.sealImage || null},
             manager_id = ${managerId}
         WHERE id = ${certId}

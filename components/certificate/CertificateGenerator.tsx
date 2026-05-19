@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Download, RefreshCw, FileText, CheckCircle2, XCircle, Type, Move, Printer, ChevronDown, X, ZoomIn, ZoomOut, File, FileImage } from "lucide-react";
+import { Download, CheckCircle2, XCircle, X, ZoomIn, ZoomOut, File, FileImage } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
 import QRCode from "qrcode";
@@ -31,7 +31,7 @@ interface CertificateGeneratorProps {
 export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, onSuccess }: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const scopeRef = useRef<HTMLTextAreaElement>(null);
+
   const [data, setData] = useState<CertData>({
     companyName: "",
     companyLabel: "公司名称",
@@ -55,7 +55,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [zoomScale, setZoomScale] = useState(1);
 
   const renderRequestId = useRef(0);
-  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase()}`);
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -167,6 +167,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       if (!src || src.trim() === "" || src === "undefined") return Promise.resolve(null);
       return new Promise((resolve) => {
         const img = new Image();
+        img.crossOrigin = 'anonymous';
         img.src = src;
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
@@ -193,31 +194,25 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     const textPrimary = "#334155";
     const leftMargin = 210 * scale;
+    const maxTextWidth = width - leftMargin - 60 * scale;
 
-    // "现授权" 前缀
-    offCtx.textAlign = "left";
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillStyle = textPrimary;
-    offCtx.fillText("现授权", leftMargin, 480 * scale);
-
-    // 店铺名称（大字加粗，带 label）
-    offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillStyle = "#1e293b";
-    const shopLine = data.shopLabel ? `${data.shopLabel}: ${data.shopName}` : data.shopName;
-    if (shopLine) {
-      offCtx.fillText(shopLine, leftMargin, 530 * scale);
-    }
-
-    // 公司名称（大字加粗，带 label）
-    if (data.companyName) {
-      const companyLine = data.companyLabel ? `${data.companyLabel}: ${data.companyName}` : data.companyName;
-      offCtx.fillText(companyLine, leftMargin, 580 * scale);
-    }
-
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillStyle = textPrimary;
-    const scopeLines = (data.scopeText || "").split('\n');
-    let startY = (data.companyName ? 660 : 620) * scale;
+    // 文字自动换行辅助函数
+    const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] => {
+      const chars = text.split('');
+      const lines: string[] = [];
+      let currentLine = '';
+      for (const char of chars) {
+        const testLine = currentLine + char;
+        if (ctx.measureText(testLine).width > maxW && currentLine !== '') {
+          lines.push(currentLine);
+          currentLine = char;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    };
 
     const parseMarkdownBold = (line: string) => {
       const parts = [];
@@ -237,23 +232,106 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
 
+    let currentY = 480 * scale;
+
+    // "现授权" 前缀
+    offCtx.textAlign = "left";
+    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+    offCtx.fillStyle = textPrimary;
+    offCtx.fillText("现授权", leftMargin, currentY);
+    currentY += 40 * scale;
+
+    // 店铺名称（大字加粗，带 label）
+    offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
+    offCtx.fillStyle = "#1e293b";
+    const shopLine = data.shopLabel ? `${data.shopLabel}: ${data.shopName}` : data.shopName;
+    if (shopLine) {
+      const shopLines = wrapText(offCtx, shopLine, maxTextWidth);
+      shopLines.forEach(line => {
+        offCtx.fillText(line, leftMargin, currentY);
+        currentY += 34 * scale;
+      });
+    }
+
+    // 公司名称（大字加粗，带 label）
+    if (data.companyName) {
+      const companyLine = data.companyLabel ? `${data.companyLabel}: ${data.companyName}` : data.companyName;
+      const companyLines = wrapText(offCtx, companyLine, maxTextWidth);
+      companyLines.forEach(line => {
+        offCtx.fillText(line, leftMargin, currentY);
+        currentY += 34 * scale;
+      });
+    }
+
+    currentY += 30 * scale;
+
+    // 授权业务范围
+    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+    offCtx.fillStyle = textPrimary;
+    const scopeLines = (data.scopeText || "").split('\n');
+
     scopeLines.forEach((line) => {
-      const parts = parseMarkdownBold(line.trim());
-      const leftMargin = 210 * scale;
-      if (parts.some(p => p.bold)) {
-        offCtx.textAlign = "left";
-        let currentX = leftMargin;
-        parts.forEach(part => {
-          offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
-          offCtx.fillText(part.text, currentX, startY);
-          currentX += offCtx.measureText(part.text).width;
-        });
-      } else {
-        offCtx.textAlign = "left";
-        offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-        offCtx.fillText(line.trim(), leftMargin, startY);
+      const trimmed = line.trim();
+      if (!trimmed) {
+        currentY += 20 * scale;
+        return;
       }
-      startY += 30 * scale;
+      const parts = parseMarkdownBold(trimmed);
+      const plainText = parts.map(p => p.text).join('');
+      const plainWidth = offCtx.measureText(plainText).width;
+
+      if (plainWidth <= maxTextWidth) {
+        // 无需换行
+        if (parts.some(p => p.bold)) {
+          let currentX = leftMargin;
+          parts.forEach(part => {
+            offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+            offCtx.fillText(part.text, currentX, currentY);
+            currentX += offCtx.measureText(part.text).width;
+          });
+        } else {
+          offCtx.fillText(trimmed, leftMargin, currentY);
+        }
+        currentY += 30 * scale;
+      } else {
+        // 需要换行：按字符构建 bold 映射后逐字换行
+        const charList: { text: string; bold: boolean }[] = [];
+        parts.forEach(p => { for (const c of p.text) charList.push({ text: c, bold: p.bold }); });
+
+        const wrappedLines: typeof charList[] = [];
+        let curLine: typeof charList = [];
+        let curWidth = 0;
+        for (const item of charList) {
+          offCtx.font = item.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+          const w = offCtx.measureText(item.text).width;
+          if (curWidth + w > maxTextWidth && curLine.length > 0) {
+            wrappedLines.push(curLine);
+            curLine = [item];
+            curWidth = w;
+          } else {
+            curLine.push(item);
+            curWidth += w;
+          }
+        }
+        if (curLine.length > 0) wrappedLines.push(curLine);
+
+        for (const wl of wrappedLines) {
+          let currentX = leftMargin;
+          let i = 0;
+          while (i < wl.length) {
+            const isBold = wl[i].bold;
+            let segment = '';
+            while (i < wl.length && wl[i].bold === isBold) {
+              segment += wl[i].text;
+              i++;
+            }
+            offCtx.font = isBold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+            offCtx.fillText(segment, currentX, currentY);
+            currentX += offCtx.measureText(segment).width;
+          }
+          currentY += 30 * scale;
+        }
+      }
     });
 
     const formatDate = (dateStr: string) => {
@@ -264,9 +342,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const dateRange = data.duration.split(' - ');
     offCtx.textAlign = "left";
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, 210 * scale, startY + 25 * scale);
+    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
+    currentY += 60 * scale;
 
-    // 预计算公章尺寸和中心位置，用于对齐授权方文字
+    // 预计算公章尺寸和中心位置
     let sealCenterX = width - 260 * scale;
     let sealDrawWidth = 160 * scale;
     let sealDrawHeight = 160 * scale;
@@ -280,7 +359,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(data.authorizer || "", sealCenterX - 85 * scale, 848 * scale);
+    offCtx.fillText(data.authorizer || "", sealCenterX - 85 * scale, currentY);
 
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
@@ -292,13 +371,15 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     if (sealImg) {
       offCtx.save();
-      offCtx.translate(sealCenterX, 875 * scale);
+      offCtx.translate(sealCenterX, currentY + 27 * scale);
       offCtx.rotate(-0.06);
       offCtx.globalAlpha = 0.88;
       offCtx.drawImage(sealImg, -sealDrawWidth / 2, -sealDrawHeight / 2, sealDrawWidth, sealDrawHeight);
       offCtx.restore();
     }
 
+    // 二维码位置跟随文字内容动态调整，避免重叠
+    const qrBaseY = Math.max(currentY + 20 * scale, height - 320 * scale);
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
       const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber)}`;
@@ -311,13 +392,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const qrImg = await loadImage(qrDataUrl);
       if (qrImg) {
         const qrSize = 100 * scale;
-        const qrX = 210 * scale;
-        const qrY = height - 310 * scale;
-        offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+        const qrX = leftMargin;
+        offCtx.drawImage(qrImg, qrX, qrBaseY, qrSize, qrSize);
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
-        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
+        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrBaseY + qrSize + 16 * scale);
       }
     } catch (err) {
       console.warn("QR code generation failed:", err);
@@ -415,9 +495,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
     setIsSubmitting(true);
     try {
-      const canvas = canvasRef.current;
-      if (!canvas) throw new Error("证书图像生成失败");
-      const certImageDataUrl = canvas.toDataURL("image/png");
       const meRes = await fetch('/api/auth/me');
       if (!meRes.ok) throw new Error("未找到登录信息");
       const meData = await meRes.json();
@@ -430,7 +507,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         body: JSON.stringify({
           action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),
           certId: initialData?.id,
-          certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current, certImageDataUrl },
+          certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
           managerId: user?.id
         })
       });

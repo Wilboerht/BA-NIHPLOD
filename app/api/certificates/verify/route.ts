@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     const rawStatus = data.status?.toUpperCase() || '';
     
     // 检查撤销
-    if (rawStatus === 'REVOKED' || rawStatus === '已撤销') {
+    if (rawStatus === 'REVOKED') {
       return NextResponse.json({
         success: false,
         error: "该主体的商业授权已被品牌官方撤销终止"
@@ -63,7 +63,6 @@ export async function POST(req: Request) {
 
     // 检查过期（双重检查：status 和 end_date）
     const isExpired = rawStatus === 'EXPIRED' || 
-                     rawStatus === '已失效' || 
                      new Date() > new Date((data.end_date || '') + 'T23:59:59');
     if (isExpired) {
       return NextResponse.json({
@@ -73,7 +72,7 @@ export async function POST(req: Request) {
     }
 
     // 检查其他异常状态
-    if (rawStatus !== 'ISSUED' && rawStatus !== '已生效' && rawStatus !== 'ISSUING') {
+    if (rawStatus !== 'ISSUED') {
       return NextResponse.json({
         success: false,
         error: "该授权状态异常，请核查资质"
@@ -81,17 +80,8 @@ export async function POST(req: Request) {
     }
 
     // 安全提取经销商信息
-    let companyName = "未知经销商";
-    let phone = "";
-    if (data.dealers) {
-      if (Array.isArray(data.dealers)) {
-        companyName = data.dealers[0]?.company_name || companyName;
-        phone = data.dealers[0]?.phone || "";
-      } else {
-        companyName = (data.dealers as { company_name?: string }).company_name || companyName;
-        phone = (data.dealers as { phone?: string }).phone || "";
-      }
-    }
+    const companyName = data.dealers?.company_name || "未知经销商";
+    const phone = data.dealers?.phone || "";
 
     return NextResponse.json({
       success: true,

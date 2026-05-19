@@ -65,7 +65,10 @@ export default function CertificatesPage() {
   };
 
   const revokeCertificate = async (id: string, currentStatus: string) => {
-    if (currentStatus === 'EXPIRED') return;
+    if (currentStatus === 'EXPIRED') {
+      toast({ message: "已过期证书无需吊销，其授权已自然失效。", type: "warning" });
+      return;
+    }
     const ok = await confirm({ message: "确定要吊销此证书吗？一旦吊销：\n该证书图像在防伪系统中将显示为已失效。如果您需要修正信息，请在吊销后重新签发。" });
     if (!ok) return;
     
@@ -213,7 +216,15 @@ export default function CertificatesPage() {
                       {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-6 text-center">
-                      {cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
+                      {cert.status === 'REVOKED' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-rose-50 text-rose-600 text-[10px] font-bold tracking-widest uppercase border border-rose-100">
+                          <ShieldOff className="w-3 h-3" /> 已吊销
+                        </span>
+                      ) : cert.status === 'REJECTED' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
+                          <XCircle className="w-3 h-3" /> 已拒绝
+                        </span>
+                      ) : cert.status === 'ISSUED' && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase border border-emerald-100">
                           <CheckCircle2 className="w-3 h-3" /> 生效中
                         </span>
@@ -248,7 +259,7 @@ export default function CertificatesPage() {
                                 companyName: scopeParts[0] || "",
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
-                                shopLabel: "授权主体",
+                                shopLabel: "店铺名称",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
@@ -276,7 +287,7 @@ export default function CertificatesPage() {
                                 companyName: scopeParts[0] || "",
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
-                                shopLabel: "授权主体",
+                                shopLabel: "店铺名称",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
@@ -303,7 +314,7 @@ export default function CertificatesPage() {
                                 companyName: scopeParts[0],
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
-                                shopLabel: "授权主体",
+                                shopLabel: "店铺名称",
                                 scopeText: scopeParts[1] || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: "旎柏（上海）商贸有限公司",
