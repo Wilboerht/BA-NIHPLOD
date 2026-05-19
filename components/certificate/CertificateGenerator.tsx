@@ -241,10 +241,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
       shopLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
-        currentY += 42 * scale;
+        currentY += 40 * scale;
       });
     } else {
-      currentY += 38 * scale; // 未输入时预留一行位置
+      currentY += 36 * scale; // 未输入时预留一行位置
     }
 
     // 公司名称（大字加粗，仅显示输入值）
@@ -252,13 +252,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
       companyLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
-        currentY += 42 * scale;
+        currentY += 40 * scale;
       });
     } else {
-      currentY += 38 * scale; // 未输入时预留一行位置
+      currentY += 36 * scale; // 未输入时预留一行位置
     }
 
-    currentY += 18 * scale;
+    currentY += 16 * scale;
 
     // 授权业务范围
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
@@ -268,7 +268,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     scopeLines.forEach((line) => {
       const trimmed = line.trim();
       if (!trimmed) {
-        currentY += 24 * scale;
+        currentY += 22 * scale;
         return;
       }
       const parts = parseMarkdownBold(trimmed);
@@ -287,7 +287,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         } else {
           offCtx.fillText(trimmed, leftMargin, currentY);
         }
-        currentY += 34 * scale;
+        currentY += 32 * scale;
       } else {
         // 需要换行：按字符构建 bold 映射后逐字换行
         const charList: { text: string; bold: boolean }[] = [];
@@ -324,13 +324,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             offCtx.fillText(segment, currentX, currentY);
             currentX += offCtx.measureText(segment).width;
           }
-          currentY += 34 * scale;
+          currentY += 32 * scale;
         }
       }
 
       // 渠道列表行与下一段之间增加段间距
       if ((trimmed.match(/\|/g) || []).length >= 2) {
-        currentY += 24 * scale;
+        currentY += 22 * scale;
       }
     });
 
@@ -343,7 +343,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.textAlign = "left";
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillText(`授权有效期：${formatDate(dateRange[0])} 至 ${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
-    currentY += 50 * scale;
+    currentY += 46 * scale;
 
     // 预计算公章尺寸和中心位置
     let sealCenterX = width - 260 * scale;
@@ -360,7 +360,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     // 计算二维码和公章的底部对齐位置：靠近画布底部，同时确保不与上方文字重叠
     const qrSize = 100 * scale;
     const bottomAlignY = Math.min(
-      currentY + 130 * scale,
+      currentY + 125 * scale,
       height - 30 * scale
     );
 
