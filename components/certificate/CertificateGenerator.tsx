@@ -364,10 +364,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       height - 30 * scale
     );
 
-    // 授权方文字（跟随公章位置，固定在公章上方）
-    offCtx.textAlign = "left";
+    // 授权方文字（在公章下方居中）
+    offCtx.textAlign = "center";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(data.authorizer || "", sealCenterX - 85 * scale, bottomAlignY - sealDrawHeight - 16 * scale);
+    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY + 20 * scale);
 
     // 证书编号
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
