@@ -193,8 +193,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     const textPrimary = "#334155";
-    const leftMargin = 240 * scale;
-    const maxTextWidth = width - leftMargin - 90 * scale;
+    const leftMargin = 220 * scale;
+    const maxTextWidth = width - leftMargin - 70 * scale;
 
     // 文字自动换行辅助函数
     const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] => {
@@ -322,6 +322,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           }
           currentY += 30 * scale;
         }
+      }
+
+      // 渠道列表行与下一段之间增加段间距
+      if ((trimmed.match(/\|/g) || []).length >= 2) {
+        currentY += 20 * scale;
       }
     });
 
