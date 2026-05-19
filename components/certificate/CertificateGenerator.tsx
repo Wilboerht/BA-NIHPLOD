@@ -232,31 +232,22 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return parts.length > 0 ? parts : [{ text: line, bold: false }];
     };
 
-    let currentY = 480 * scale;
+    let currentY = 500 * scale;
 
-    // "现授权" 前缀
-    offCtx.textAlign = "left";
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillStyle = textPrimary;
-    offCtx.fillText("现授权", leftMargin, currentY);
-    currentY += 40 * scale;
-
-    // 店铺名称（大字加粗，带 label）
+    // 店铺名称（大字加粗，仅显示名称本身）
     offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = "#1e293b";
-    const shopLine = data.shopLabel ? `${data.shopLabel}: ${data.shopName}` : data.shopName;
-    if (shopLine) {
-      const shopLines = wrapText(offCtx, shopLine, maxTextWidth);
+    if (data.shopName) {
+      const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
       shopLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
         currentY += 34 * scale;
       });
     }
 
-    // 公司名称（大字加粗，带 label）
+    // 公司名称（大字加粗，仅显示名称本身）
     if (data.companyName) {
-      const companyLine = data.companyLabel ? `${data.companyLabel}: ${data.companyName}` : data.companyName;
-      const companyLines = wrapText(offCtx, companyLine, maxTextWidth);
+      const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
       companyLines.forEach(line => {
         offCtx.fillText(line, leftMargin, currentY);
         currentY += 34 * scale;
@@ -343,7 +334,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.textAlign = "left";
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillText(`授权有效期：${formatDate(dateRange[0])}至${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
-    currentY += 60 * scale;
+    currentY += 50 * scale;
 
     // 预计算公章尺寸和中心位置
     let sealCenterX = width - 260 * scale;
@@ -357,10 +348,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       sealCenterX = width - 210 * scale - sealDrawWidth / 2;
     }
 
+    // 计算二维码和公章的底部对齐位置：靠近画布底部，同时确保不与上方文字重叠
+    const qrSize = 100 * scale;
+    const bottomAlignY = Math.min(
+      Math.max(currentY + 140 * scale, height - 120 * scale),
+      height - 30 * scale
+    );
+
+    // 授权方文字（跟随公章位置，固定在公章上方）
     offCtx.textAlign = "left";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillText(data.authorizer || "", sealCenterX - 85 * scale, currentY);
+    offCtx.fillText(data.authorizer || "", sealCenterX - 85 * scale, bottomAlignY - sealDrawHeight - 16 * scale);
 
+    // 证书编号
     const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
       offCtx.textAlign = "right";
@@ -369,17 +369,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.fillText(`证书号：${certNumber}`, width - 40 * scale, height - 30 * scale);
     }
 
+    // 公章：底部对齐
     if (sealImg) {
       offCtx.save();
-      offCtx.translate(sealCenterX, currentY + 27 * scale);
+      offCtx.translate(sealCenterX, bottomAlignY - sealDrawHeight / 2);
       offCtx.rotate(-0.06);
       offCtx.globalAlpha = 0.88;
       offCtx.drawImage(sealImg, -sealDrawWidth / 2, -sealDrawHeight / 2, sealDrawWidth, sealDrawHeight);
       offCtx.restore();
     }
 
-    // 二维码位置跟随文字内容动态调整，避免重叠
-    const qrBaseY = Math.max(currentY + 20 * scale, height - 320 * scale);
+    // 二维码：底部对齐（与公章同一水平线）
+    const qrX = leftMargin;
+    const qrY = bottomAlignY - qrSize;
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
       const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
@@ -391,13 +393,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       });
       const qrImg = await loadImage(qrDataUrl);
       if (qrImg) {
-        const qrSize = 100 * scale;
-        const qrX = leftMargin;
-        offCtx.drawImage(qrImg, qrX, qrBaseY, qrSize, qrSize);
+        offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
-        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrBaseY + qrSize + 16 * scale);
+        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, bottomAlignY + 16 * scale);
       }
     } catch (err) {
       console.warn("QR code generation failed:", err);
