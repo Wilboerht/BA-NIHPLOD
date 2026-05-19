@@ -360,7 +360,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     // 计算二维码和公章的底部对齐位置：靠近画布底部，同时确保不与上方文字重叠
     const qrSize = 100 * scale;
     const bottomAlignY = Math.min(
-      Math.max(currentY + 80 * scale, height - 120 * scale),
+      currentY + 80 * scale,
       height - 30 * scale
     );
 
