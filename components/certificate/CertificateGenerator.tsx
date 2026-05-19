@@ -254,7 +254,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       });
     }
 
-    currentY += 20 * scale;
+    currentY += 18 * scale;
 
     // 授权业务范围
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
