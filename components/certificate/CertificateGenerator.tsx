@@ -34,10 +34,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const scopeRef = useRef<HTMLTextAreaElement>(null);
   const [data, setData] = useState<CertData>({
     companyName: "",
-    companyLabel: "",
+    companyLabel: "公司名称",
     shopName: "",
-    shopLabel: "",
-    scopeText: "拥有我公司代理的品牌 **NIHPLOD(旎柏)** 全系列产品\n在阿里巴巴集团旗下淘宝商城上的 **合格经销资格**，\n负责该品牌产品在网站内一切相关的商务推广及售后服务。",
+    shopLabel: "店铺名称",
+    scopeText: "予以下渠道:\n淘宝 | 天猫 | 京东 | 小红书 | 抖音 | 微信 | 线下门店\n运营我司代理的品牌NIHPLOD(旎柏)\n全系列产品的[合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务",
     duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
     authorizer: "旎柏（上海）商贸有限公司",
     sealImage: "",
@@ -91,6 +91,65 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
   }, [initialData, mode, initialVoided]);
 
+  // 预设渠道列表
+  const CHANNELS = ['淘宝', '天猫', '京东', '小红书', '抖音', '微信', '线下门店', '其他'];
+
+  const [customChannel, setCustomChannel] = useState('');
+
+  // 从 scopeText 解析选中的预设渠道
+  const getChannelsFromScopeText = (text: string): string[] => {
+    const lines = text.split('\n');
+    if (lines.length >= 2) {
+      const items = lines[1].split(/\s*\|\s*/).filter(Boolean);
+      return CHANNELS.filter(ch => items.includes(ch));
+    }
+    return [];
+  };
+
+  // 从 scopeText 解析自定义渠道内容
+  const getCustomChannel = (text: string): string => {
+    const lines = text.split('\n');
+    if (lines.length >= 2) {
+      const items = lines[1].split(/\s*\|\s*/).filter(Boolean);
+      const presetSet = new Set(CHANNELS);
+      const custom = items.find(item => !presetSet.has(item));
+      return custom || '';
+    }
+    return '';
+  };
+
+  const updateScopeTextChannels = (text: string, channels: string[], custom: string): string => {
+    const lines = text.split('\n');
+    if (lines.length >= 2) {
+      const items = channels.filter(ch => ch !== '其他');
+      if (channels.includes('其他')) {
+        if (custom.trim()) {
+          items.push(custom.trim());
+        } else {
+          items.push('其他');
+        }
+      }
+      lines[1] = items.join(' | ');
+    }
+    return lines.join('\n');
+  };
+
+  const toggleChannel = (channel: string) => {
+    const current = getChannelsFromScopeText(data.scopeText);
+    const next = current.includes(channel)
+      ? current.filter(c => c !== channel)
+      : [...current, channel];
+    const newText = updateScopeTextChannels(data.scopeText, next, customChannel);
+    setData(prev => ({ ...prev, scopeText: newText }));
+  };
+
+  // 从已有证书加载时解析自定义渠道
+  useEffect(() => {
+    if (initialData?.scopeText) {
+      setCustomChannel(getCustomChannel(initialData.scopeText));
+    }
+  }, [initialData]);
+
   const renderCertificate = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -133,23 +192,32 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
 
     const textPrimary = "#334155";
-    offCtx.textAlign = "center";
-    offCtx.font = `bold ${21 * scale}px "Noto Serif SC", serif`;
-    offCtx.fillStyle = "#1e293b";
+    const leftMargin = 210 * scale;
 
-    if (data.shopName && data.companyName) {
-      offCtx.fillText(data.shopName, width / 2, 530 * scale);
-      offCtx.fillText(data.companyName, width / 2, 578 * scale);
-    } else if (data.shopName) {
-      offCtx.fillText(data.shopName, width / 2, 554 * scale);
-    } else if (data.companyName) {
-      offCtx.fillText(data.companyName, width / 2, 554 * scale);
+    // "现授权" 前缀
+    offCtx.textAlign = "left";
+    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+    offCtx.fillStyle = textPrimary;
+    offCtx.fillText("现授权", leftMargin, 480 * scale);
+
+    // 店铺名称（大字加粗，带 label）
+    offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
+    offCtx.fillStyle = "#1e293b";
+    const shopLine = data.shopLabel ? `${data.shopLabel}: ${data.shopName}` : data.shopName;
+    if (shopLine) {
+      offCtx.fillText(shopLine, leftMargin, 530 * scale);
+    }
+
+    // 公司名称（大字加粗，带 label）
+    if (data.companyName) {
+      const companyLine = data.companyLabel ? `${data.companyLabel}: ${data.companyName}` : data.companyName;
+      offCtx.fillText(companyLine, leftMargin, 580 * scale);
     }
 
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
     const scopeLines = (data.scopeText || "").split('\n');
-    let startY = 630 * scale;
+    let startY = (data.companyName ? 660 : 620) * scale;
 
     const parseMarkdownBold = (line: string) => {
       const parts = [];
@@ -342,7 +410,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const handleIssueSubmit = async () => {
     if (!data.shopName) {
-      toast({ message: "请填写必填字段：授权主体名称", type: "warning" });
+      toast({ message: "请填写必填字段：店铺名称", type: "warning" });
       return;
     }
     setIsSubmitting(true);
@@ -388,16 +456,16 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium pl-3">{data.cert_number}</div>
             </div>
           )}
-          {/* 授权主体/经销商 */}
+          {/* 店铺名称/经销商 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权主体</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">店铺名称</div>
             <div className="flex-1">
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium pl-3">{data.shopName}</div>
               ) : (
                 <input
                   type="text"
-                  placeholder="请输入授权主体名称"
+                  placeholder="请输入店铺名称"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.shopName}
                   onChange={(e) => setData({ ...data, shopName: e.target.value })}
@@ -567,12 +635,48 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2 pl-3">{data.scopeText}</div>
               ) : (
-                <textarea
-                  rows={4}
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28"
-                  value={data.scopeText}
-                  onChange={(e) => setData({ ...data, scopeText: e.target.value })}
-                />
+                <>
+                  <div className="flex flex-wrap gap-2 mb-3 items-center">
+                    {CHANNELS.map(channel => {
+                      const isSelected = getChannelsFromScopeText(data.scopeText).includes(channel);
+                      return (
+                        <button
+                          key={channel}
+                          type="button"
+                          onClick={() => toggleChannel(channel)}
+                          className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all border ${
+                            isSelected
+                              ? 'bg-slate-900 text-white border-slate-900'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {channel}
+                        </button>
+                      );
+                    })}
+                    {getChannelsFromScopeText(data.scopeText).includes('其他') && (
+                      <input
+                        type="text"
+                        placeholder="请输入其他渠道"
+                        value={customChannel}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomChannel(val);
+                          const current = getChannelsFromScopeText(data.scopeText);
+                          const newText = updateScopeTextChannels(data.scopeText, current, val);
+                          setData(prev => ({ ...prev, scopeText: newText }));
+                        }}
+                        className="flex-1 min-w-[120px] bg-white px-3 py-1.5 rounded-lg text-[12px] text-slate-900 font-medium border border-slate-200 outline-none focus:border-slate-400 transition-all"
+                      />
+                    )}
+                  </div>
+                  <textarea
+                    rows={4}
+                    className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28"
+                    value={data.scopeText}
+                    onChange={(e) => setData({ ...data, scopeText: e.target.value })}
+                  />
+                </>
               )}
             </div>
           </div>
