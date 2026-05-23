@@ -94,10 +94,10 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
           console.log('[verifyToken] Token 在黑名单中');
           return null;
         }
-      } catch {
-        // 黑名单查询失败时，保守起见拒绝令牌（安全优先）
-        console.log('[verifyToken] 黑名单查询失败');
-        return null;
+      } catch (err) {
+        // 黑名单查询失败时不应拒绝合法令牌，仅记录错误
+        // 黑名单是注销增强层，不是核心认证机制；fail-open 避免数据库迁移/连接问题导致全员被踢出
+        console.error('[verifyToken] 黑名单查询失败（已放行）:', err instanceof Error ? err.message : String(err));
       }
     }
 
