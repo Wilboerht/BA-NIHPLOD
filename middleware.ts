@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken } from './lib/auth';
+import { verifyTokenBasic } from './lib/auth';
 
 // 受保护的路径模式
 const PROTECTED_PATHS = [
@@ -32,8 +32,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 验证 JWT
-  const payload = await verifyToken(request);
+  // 验证 JWT（Edge Runtime 安全，不查数据库）
+  const payload = await verifyTokenBasic(request);
 
   if (!payload) {
     // API 路由返回 401

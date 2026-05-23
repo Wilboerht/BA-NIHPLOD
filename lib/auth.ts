@@ -54,17 +54,13 @@ export async function createToken(user: AuthUser): Promise<string> {
 }
 
 /**
- * 从请求中提取并验证 JWT
- * 同时检查 Token 黑名单（注销安全）
+ * 仅验证 JWT 签名和过期时间（Edge Runtime 安全，不依赖数据库）
+ * 适用于 Middleware 等 Edge 环境
  */
-export async function verifyToken(request: NextRequest | Request): Promise<TokenPayload | null> {
+export async function verifyTokenBasic(request: NextRequest | Request): Promise<TokenPayload | null> {
   try {
     const cookieHeader = request.headers.get('cookie');
-    console.log('[verifyToken] cookieHeader:', cookieHeader ? '存在' : '不存在');
-    if (!cookieHeader) {
-      console.log('[verifyToken] Cookie 头为空');
-      return null;
-    }
+    if (!cookieHeader) return null;
 
     const token = cookieHeader
       .split(';')
@@ -72,40 +68,44 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
       .find(c => c.startsWith(`${TOKEN_COOKIE}=`))
       ?.slice(TOKEN_COOKIE.length + 1);
 
-    console.log('[verifyToken] TOKEN_COOKIE:', TOKEN_COOKIE, 'token 找到:', !!token);
-    if (!token) {
-      console.log('[verifyToken] 未找到 token，所有 cookies:', cookieHeader.split(';').map(c => c.trim().split('=')[0]));
-      return null;
-    }
+    if (!token) return null;
 
     const secret = getSecret();
     const { payload } = await jwtVerify(token, secret, {
       clockTolerance: 60,
     });
-    console.log('[verifyToken] JWT 验证成功，payload.id:', payload.id, 'role:', payload.role);
-
-    // 检查 Token 黑名单
-    if (payload.jti) {
-      try {
-        // 顺带清理过期黑名单记录（低频率触发，利用请求分摊）
-        await sql`SELECT cleanup_expired_blacklist()`;
-        const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
-        if (blacklisted.length > 0) {
-          console.log('[verifyToken] Token 在黑名单中');
-          return null;
-        }
-      } catch (err) {
-        // 黑名单查询失败时不应拒绝合法令牌，仅记录错误
-        // 黑名单是注销增强层，不是核心认证机制；fail-open 避免数据库迁移/连接问题导致全员被踢出
-        console.error('[verifyToken] 黑名单查询失败（已放行）:', err instanceof Error ? err.message : String(err));
-      }
-    }
 
     return payload as TokenPayload;
   } catch (err) {
-    console.error('[verifyToken] JWT 验证失败:', err instanceof Error ? err.message : String(err));
+    console.error('[verifyTokenBasic] JWT 验证失败:', err instanceof Error ? err.message : String(err));
     return null;
   }
+}
+
+/**
+ * 完整验证 JWT（含黑名单检查）
+ * 仅在 Node.js Runtime（API 路由、Server Action）中使用
+ */
+export async function verifyToken(request: NextRequest | Request): Promise<TokenPayload | null> {
+  const payload = await verifyTokenBasic(request);
+  if (!payload) return null;
+
+  // 检查 Token 黑名单
+  if (payload.jti) {
+    try {
+      // 顺带清理过期黑名单记录（低频率触发，利用请求分摊）
+      await sql`SELECT cleanup_expired_blacklist()`;
+      const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
+      if (blacklisted.length > 0) {
+        console.log('[verifyToken] Token 在黑名单中');
+        return null;
+      }
+    } catch (err) {
+      console.error('[verifyToken] 黑名单查询失败（已放行）:', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return payload;
 }
 
 /**
