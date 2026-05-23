@@ -60,7 +60,11 @@ export async function createToken(user: AuthUser): Promise<string> {
 export async function verifyToken(request: NextRequest | Request): Promise<TokenPayload | null> {
   try {
     const cookieHeader = request.headers.get('cookie');
-    if (!cookieHeader) return null;
+    console.log('[verifyToken] cookieHeader:', cookieHeader ? '存在' : '不存在');
+    if (!cookieHeader) {
+      console.log('[verifyToken] Cookie 头为空');
+      return null;
+    }
 
     const token = cookieHeader
       .split(';')
@@ -68,12 +72,17 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
       .find(c => c.startsWith(`${TOKEN_COOKIE}=`))
       ?.slice(TOKEN_COOKIE.length + 1);
 
-    if (!token) return null;
+    console.log('[verifyToken] TOKEN_COOKIE:', TOKEN_COOKIE, 'token 找到:', !!token);
+    if (!token) {
+      console.log('[verifyToken] 未找到 token，所有 cookies:', cookieHeader.split(';').map(c => c.trim().split('=')[0]));
+      return null;
+    }
 
     const secret = getSecret();
     const { payload } = await jwtVerify(token, secret, {
       clockTolerance: 60,
     });
+    console.log('[verifyToken] JWT 验证成功，payload.id:', payload.id, 'role:', payload.role);
 
     // 检查 Token 黑名单
     if (payload.jti) {
@@ -82,16 +91,19 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
         await sql`SELECT cleanup_expired_blacklist()`;
         const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
         if (blacklisted.length > 0) {
+          console.log('[verifyToken] Token 在黑名单中');
           return null;
         }
       } catch {
         // 黑名单查询失败时，保守起见拒绝令牌（安全优先）
+        console.log('[verifyToken] 黑名单查询失败');
         return null;
       }
     }
 
     return payload as TokenPayload;
-  } catch {
+  } catch (err) {
+    console.error('[verifyToken] JWT 验证失败:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }
