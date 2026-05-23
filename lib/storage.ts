@@ -2,18 +2,24 @@ import * as fs from 'fs/promises';
 import path from 'path';
 
 function sanitizeFilePath(input: string): string {
-  // 禁止路径遍历：移除 .. 和绝对路径前缀
-  return input
-    .replace(/\.\./g, '')
-    .replace(/^[/\\]+/, '')
-    .replace(/\\/g, '/');
+  // 禁止路径遍历：规范化后再次检查
+  let sanitized = input
+    .replace(/\\/g, '/')
+    .replace(/^[/]+/, '');
+  // 循环移除 .. 直到无法移除，防止 .../..../ 绕过
+  while (sanitized.includes('..')) {
+    sanitized = sanitized.replace(/\.\./g, '');
+  }
+  // 最终确保没有绝对路径前缀和剩余 ..
+  sanitized = sanitized.replace(/^[/]+/, '').replace(/\.\./g, '');
+  return sanitized;
 }
 
 export async function uploadFile(
   bucket: string,
   filePath: string,
   fileBuffer: Buffer | ArrayBuffer,
-  contentType: string
+  _contentType: string
 ): Promise<{ path: string; error: string | null }> {
   try {
     const safeBucket = sanitizeFilePath(bucket);
@@ -33,9 +39,10 @@ export async function uploadFile(
     await fs.writeFile(fullPath, bufferToWrite);
     
     return { path: safeFilePath, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Storage] Local upload error:', error);
-    return { path: '', error: error.message };
+    const message = error instanceof Error ? error.message : '上传失败';
+    return { path: '', error: message };
   }
 }
 

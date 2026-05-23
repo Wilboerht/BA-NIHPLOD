@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     // 生成新密码哈希
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     const result = await sql`
       UPDATE profiles 

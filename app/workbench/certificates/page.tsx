@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
+import { parseAuthScope } from "@/lib/utils";
 
 interface Certificate {
   id: string;
@@ -252,17 +253,17 @@ export default function CertificatesPage() {
                         {cert.status === 'ISSUED' && (
                           <button 
                             onClick={() => {
-                              const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                              const parsed = parseAuthScope(cert.auth_scope);
                               setSelectedCertData({
                                 id: cert.id,
                                 cert_number: cert.cert_number,
-                                companyName: scopeParts[0] || "",
+                                companyName: parsed.companyName,
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺名称",
-                                scopeText: scopeParts[1] || "品牌官方经销授权",
+                                scopeText: parsed.scopeText || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-                                authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
+                                authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                 phone: cert.dealers?.phone || ""
                               });
@@ -280,17 +281,17 @@ export default function CertificatesPage() {
                         {cert.status === 'ISSUED' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
                           <button 
                             onClick={() => {
-                              const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                              const parsed = parseAuthScope(cert.auth_scope);
                               setSelectedCertData({
                                 id: cert.id,
                                 cert_number: cert.cert_number,
-                                companyName: scopeParts[0] || "",
+                                companyName: parsed.companyName,
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺名称",
-                                scopeText: scopeParts[1] || "品牌官方经销授权",
+                                scopeText: parsed.scopeText || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-                                authorizer: scopeParts[2] || "旎柏（上海）商贸有限公司",
+                                authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                 phone: cert.dealers?.phone || ""
                               });
@@ -308,16 +309,16 @@ export default function CertificatesPage() {
                         {cert.status === 'EXPIRED' && (
                           <button 
                             onClick={() => {
-                              const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                              const parsed = parseAuthScope(cert.auth_scope);
                               setSelectedCertData({
                                 cert_number: cert.cert_number,
-                                companyName: scopeParts[0],
+                                companyName: parsed.companyName,
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺名称",
-                                scopeText: scopeParts[1] || "品牌官方经销授权",
+                                scopeText: parsed.scopeText || "品牌官方经销授权",
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-                                authorizer: "旎柏（上海）商贸有限公司",
+                                authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                 phone: cert.dealers?.phone || ""
                               });

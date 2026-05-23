@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone } from "lucide-react";
 import Link from "next/link";
+import { parseAuthScope } from "@/lib/utils";
 
 interface Certificate {
   cert_number: string;
@@ -158,7 +159,7 @@ export default function VerifyPageContent() {
               <div>
                 <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">授权范围</h2>
                 <p className="text-slate-700 whitespace-pre-wrap bg-slate-50 p-4 rounded-lg leading-relaxed">
-                  {certificate.auth_scope}
+                  {parseAuthScope(certificate.auth_scope).scopeText || certificate.auth_scope}
                 </p>
               </div>
 

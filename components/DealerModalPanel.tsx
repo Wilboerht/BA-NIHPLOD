@@ -6,6 +6,7 @@ import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle
 import jsPDF from "jspdf";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
+import { parseAuthScope } from "@/lib/utils";
 
 interface UserInfo {
   id: string;
@@ -131,16 +132,16 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     // ✅ 如果图片为空，在后台生成证书
     if (!cert.final_image_url) {
       if (process.env.NODE_ENV !== 'production') console.log("检测到证书未生成，后台生成中...");
-      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+      const parsed = parseAuthScope(cert.auth_scope);
       const certData = {
         cert_number: cert.cert_number,
-        companyName: scopeParts[0],
+        companyName: parsed.companyName,
         companyLabel: "公司名称", 
         shopName: cert.dealers?.company_name || "",
         shopLabel: "授权主体",
-        scopeText: scopeParts[1] || "品牌官方经销授权",
+        scopeText: parsed.scopeText || "品牌官方经销授权",
         duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-        authorizer: "旎柏（上海）商贸有限公司",
+        authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
         sealImage: cert.templates?.stamp_url || "/default-seal.svg",
         phone: cert.dealers?.phone || ""
       };
@@ -158,16 +159,16 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
     if (isPlaceholder) {
       if (process.env.NODE_ENV !== 'production') console.log("检测到占位符图片，后台生成中...");
-      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+      const parsed = parseAuthScope(cert.auth_scope);
       const certData = {
         cert_number: cert.cert_number,
-        companyName: scopeParts[0],
+        companyName: parsed.companyName,
         companyLabel: "公司名称", 
         shopName: cert.dealers?.company_name || "",
         shopLabel: "授权主体",
-        scopeText: scopeParts[1] || "品牌官方经销授权",
+        scopeText: parsed.scopeText || "品牌官方经销授权",
         duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-        authorizer: "旎柏（上海）商贸有限公司",
+        authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
         sealImage: cert.templates?.stamp_url || "/default-seal.svg",
         phone: cert.dealers?.phone || ""
       };
@@ -234,16 +235,16 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     // ✅ 如果图片为空，在后台生成证书
     if (!cert.final_image_url) {
       if (process.env.NODE_ENV !== 'production') console.log("检测到证书未生成，后台生成中...");
-      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+      const parsed = parseAuthScope(cert.auth_scope);
       const certData = {
         cert_number: cert.cert_number,
-        companyName: scopeParts[0],
+        companyName: parsed.companyName,
         companyLabel: "公司名称", 
         shopName: cert.dealers?.company_name || "",
         shopLabel: "授权主体",
-        scopeText: scopeParts[1] || "品牌官方经销授权",
+        scopeText: parsed.scopeText || "品牌官方经销授权",
         duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-        authorizer: "旎柏（上海）商贸有限公司",
+        authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
         sealImage: cert.templates?.stamp_url || "/default-seal.svg",
         phone: cert.dealers?.phone || ""
       };
@@ -258,16 +259,16 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     const isPlaceholder = cert.final_image_url.includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ");
     if (isPlaceholder) {
       if (process.env.NODE_ENV !== 'production') console.log("检测到占位符图片，后台生成中...");
-      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+      const parsed = parseAuthScope(cert.auth_scope);
       const certData = {
         cert_number: cert.cert_number,
-        companyName: scopeParts[0],
+        companyName: parsed.companyName,
         companyLabel: "公司名称", 
         shopName: cert.dealers?.company_name || "",
         shopLabel: "授权主体",
-        scopeText: scopeParts[1] || "品牌官方经销授权",
+        scopeText: parsed.scopeText || "品牌官方经销授权",
         duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-        authorizer: "旎柏（上海）商贸有限公司",
+        authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
         sealImage: cert.templates?.stamp_url || "/default-seal.svg",
         phone: cert.dealers?.phone || ""
       };

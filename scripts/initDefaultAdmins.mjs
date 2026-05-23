@@ -34,7 +34,7 @@ if (!databaseUrl) {
 
 const sql = postgres(databaseUrl);
 
-// 默认管理员配置（密码从环境变量读取，未设置则生成随机密码）
+// 默认管理员配置（从环境变量读取，未设置则不创建）
 function getAdminPassword() {
   const envPassword = process.env.ADMIN_INIT_PASSWORD;
   if (envPassword && envPassword.length >= 8) {
@@ -45,24 +45,40 @@ function getAdminPassword() {
   return randomPassword;
 }
 
-const DEFAULT_ADMINS = [
-  {
-    username: 'hank.wang@nihplod.cn',
-    fullName: 'Hank',
-    role: 'SUPER_ADMIN'
-  },
-  {
-    username: 'walter@nihplod.cn',
-    fullName: 'Walter',
-    role: 'SUPER_ADMIN'
+function getDefaultAdmins() {
+  const adminsEnv = process.env.DEFAULT_ADMINS;
+  if (adminsEnv) {
+    try {
+      return JSON.parse(adminsEnv);
+    } catch {
+      console.error("❌ DEFAULT_ADMINS 环境变量格式错误，应为 JSON 数组");
+      process.exit(1);
+    }
   }
-];
+  // 默认空数组：强制通过环境变量配置，避免硬编码真实邮箱
+  return [];
+}
+
+const DEFAULT_ADMINS = getDefaultAdmins();
+
+if (DEFAULT_ADMINS.length === 0) {
+  console.log("ℹ️  未配置 DEFAULT_ADMINS 环境变量，跳过默认管理员初始化。");
+  console.log("   如需初始化，请在 .env.local 中设置：");
+  console.log('   DEFAULT_ADMINS=[{"username":"admin@example.com","fullName":"Admin","role":"SUPER_ADMIN"}]');
+  await sql.end();
+  process.exit(0);
+}
 
 async function createOrUpdateAdmin(admin, password) {
   const { username, fullName, role } = admin;
 
+  if (!username || !fullName || !role) {
+    console.error(`❌ 管理员配置缺少必要字段: ${JSON.stringify(admin)}`);
+    return false;
+  }
+
   // 生成密码哈希
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   try {
     // 检查用户是否存在

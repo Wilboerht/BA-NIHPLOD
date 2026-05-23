@@ -32,12 +32,12 @@ export default function ErrorBoundary({
           >
             重试
           </button>
-          <a
-            href="/"
+          <button
+            onClick={() => window.location.href = '/'}
             className="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors"
           >
             返回首页
-          </a>
+          </button>
         </div>
       </div>
     </div>

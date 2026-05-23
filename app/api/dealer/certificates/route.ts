@@ -46,7 +46,7 @@ export async function GET(req: Request) {
 
     // 获取所有这些 dealers 的证书
     try {
-      const dealerIds = dealers.map((d: { id: string }) => d.id);
+      const dealerIds = dealers.map((d) => String(d.id));
       const certsResult = await sql`
         SELECT * FROM certificates
         WHERE dealer_id = ANY(${dealerIds}::uuid[])

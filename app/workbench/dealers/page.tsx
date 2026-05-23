@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
+import { parseAuthScope } from "@/lib/utils";
 
 interface Dealer {
   id: string;
@@ -473,17 +474,17 @@ export default function DealersPage() {
                                 {cert.status === 'ISSUED' && ['SUPER_ADMIN', 'MANAGER', 'PROJECT_MANAGER'].includes(userRole || '') && (
                                   <button
                                     onClick={() => {
-                                      const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                                      const parsed = parseAuthScope(cert.auth_scope);
                                       setViewCertData({
                                         id: cert.id,
                                         cert_number: cert.cert_number,
-                                        companyName: scopeParts[0],
+                                        companyName: parsed.companyName,
                                         companyLabel: "公司名称", 
                                         shopName: dealerNameMap[cert.dealer_id] || '-',
                                         shopLabel: "授权主体",
-                                        scopeText: scopeParts[1] || "品牌官方经销授权",
+                                        scopeText: parsed.scopeText || "品牌官方经销授权",
                                         duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                        authorizer: "旎柏（上海）商贸有限公司",
+                                        authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
                                         sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                         phone: dealerPhoneMap[cert.dealer_id] || ""
                                       });
@@ -498,17 +499,17 @@ export default function DealersPage() {
                                 )}
                                 <button
                                   onClick={() => {
-                                    const scopeParts = cert.auth_scope?.split(' | ') || ["", ""];
+                                    const parsed = parseAuthScope(cert.auth_scope);
                                     setViewCertData({
                                       id: cert.id,
                                       cert_number: cert.cert_number,
-                                      companyName: scopeParts[0],
+                                      companyName: parsed.companyName,
                                       companyLabel: "公司名称", 
                                       shopName: dealerNameMap[cert.dealer_id] || '-',
                                       shopLabel: "授权主体",
-                                      scopeText: scopeParts[1] || "品牌官方经销授权",
+                                      scopeText: parsed.scopeText || "品牌官方经销授权",
                                       duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                      authorizer: "旎柏（上海）商贸有限公司",
+                                      authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
                                       sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                       phone: dealerPhoneMap[cert.dealer_id] || ""
                                     });

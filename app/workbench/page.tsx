@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/useToast";
+import { parseAuthScope } from "@/lib/utils";
 
 interface Complaint {
   id: string;
@@ -298,8 +299,8 @@ export default function WorkbenchPage() {
                 <div className="space-y-2 pb-4">
                   <AnimatePresence>
                     {pendingCerts.map((cert) => {
-                      const scopeParts = cert.auth_scope?.split(' | ') || ['', ''];
-                      const companyName = scopeParts[0];
+                      const parsed = parseAuthScope(cert.auth_scope);
+                      const companyName = parsed.companyName;
                       const isApproving = processingId === cert.id;
                       const isRejecting = rejectingId === cert.id;
                       const isBusy = isApproving || isRejecting;

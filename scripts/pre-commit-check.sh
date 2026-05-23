@@ -1,21 +1,14 @@
 #!/bin/bash
-# scripts/pre-commit-check.sh
-# 提交前检查脚本 - 确保 dealer-profile 数据一致性
-# 用法：bash scripts/pre-commit-check.sh
+set -e
 
-echo "🔍 执行 Dealer-Profile 一致性检查..."
-echo ""
+echo "🔍 运行 pre-commit 检查..."
 
-node scripts/validateDealerProfileConsistency.mjs
+# 检查 TypeScript 类型
+echo "📦 检查 TypeScript 类型..."
+npx tsc --noEmit
 
-if [ $? -ne 0 ]; then
-  echo ""
-  echo "❌ 检查失败！请修复问题后再提交"
-  echo "💡 建议运行："
-  echo "   node scripts/fixDealerProfileConsistency.mjs"
-  exit 1
-fi
+# 检查 ESLint
+echo "🧹 检查 ESLint..."
+npm run lint
 
-echo ""
-echo "✅ 所有检查通过！可以安全提交"
-exit 0
+echo "✅ Pre-commit 检查通过"

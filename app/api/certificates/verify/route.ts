@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let data: any;
+    let data: Record<string, unknown> | null = null;
 
     try {
       const result = await sql`
@@ -50,8 +50,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // 辅助函数：安全提取字符串
+    const getStr = (val: unknown): string => (val == null ? '' : String(val));
+
     // 业务规则校验
-    const rawStatus = data.status?.toUpperCase() || '';
+    const rawStatus = getStr(data.status).toUpperCase();
+    const endDateStr = getStr(data.end_date);
     
     // 检查撤销
     if (rawStatus === 'REVOKED') {
@@ -63,11 +67,11 @@ export async function POST(req: Request) {
 
     // 检查过期（双重检查：status 和 end_date）
     const isExpired = rawStatus === 'EXPIRED' || 
-                     new Date() > new Date((data.end_date || '') + 'T23:59:59');
+                     new Date() > new Date((endDateStr || '1970-01-01') + 'T23:59:59');
     if (isExpired) {
       return NextResponse.json({
         success: false,
-        error: `曾有授权，但该证书已于 ${data.end_date} 过期失效`
+        error: `曾有授权，但该证书已于 ${endDateStr} 过期失效`
       });
     }
 
@@ -80,8 +84,9 @@ export async function POST(req: Request) {
     }
 
     // 安全提取经销商信息
-    const companyName = data.dealers?.company_name || "未知经销商";
-    const phone = data.dealers?.phone || "";
+    const dealers = data.dealers as Record<string, unknown> | null;
+    const companyName = getStr(dealers?.company_name) || "未知经销商";
+    const phone = getStr(dealers?.phone);
 
     return NextResponse.json({
       success: true,

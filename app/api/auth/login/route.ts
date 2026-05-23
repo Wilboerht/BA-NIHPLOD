@@ -60,9 +60,9 @@ async function checkRateLimit(ip: string): Promise<boolean> {
     `;
     return true;
   } catch {
-    // 数据库故障时保守允许（避免完全锁死登录），但记录日志
-    console.error('[RateLimit] 数据库查询失败，跳过限速检查');
-    return true;
+    // 数据库故障时安全优先：拒绝服务，防止在数据库异常时被暴力破解
+    console.error('[RateLimit] 数据库查询失败，拒绝登录以保障安全');
+    return false;
   }
 }
 
@@ -107,7 +107,8 @@ export async function POST(req: Request) {
     }
 
     // 3. 验证密码
-    const isPasswordValid = await bcrypt.compare(password, profile.password_hash || '');
+    const passwordHash = typeof profile.password_hash === 'string' ? profile.password_hash : '';
+    const isPasswordValid = await bcrypt.compare(password, passwordHash);
     
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -118,11 +119,11 @@ export async function POST(req: Request) {
 
     // 4. 签发 JWT 并设置 Cookie
     const token = await createToken({
-      id: profile.id,
-      username: profile.username,
-      phone: profile.phone,
-      full_name: profile.full_name,
-      role: profile.role,
+      id: String(profile.id),
+      username: typeof profile.username === 'string' ? profile.username : undefined,
+      phone: typeof profile.phone === 'string' ? profile.phone : undefined,
+      full_name: typeof profile.full_name === 'string' ? profile.full_name : undefined,
+      role: String(profile.role),
     });
 
     // 5. 返回用户信息和是否需要改密码

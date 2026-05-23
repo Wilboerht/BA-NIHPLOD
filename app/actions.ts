@@ -2,6 +2,7 @@
 
 import DOMPurify from 'isomorphic-dompurify';
 import { sql, checkActionRateLimit } from '@/lib/db';
+import { parseAuthScope } from '@/lib/utils';
 import { headers } from 'next/headers';
 
 export interface CertificateVerifyResult {
@@ -54,15 +55,15 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     `;
 
     if (dbResults && dbResults.length > 0) {
-      results = dbResults.map((r: any) => ({
-        cert_number: r.cert_number,
-        start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
-        end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
-        auth_scope: r.auth_scope,
-        status: r.status,
-        final_image_url: r.final_image_url,
-        dealers: { company_name: r.company_name || '未知经销商' }
-      }));
+      results = dbResults.map((r: Record<string, unknown>) => ({
+        cert_number: String(r.cert_number),
+        start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : String(r.start_date),
+        end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : String(r.end_date),
+        auth_scope: r.auth_scope == null ? undefined : String(r.auth_scope),
+        status: r.status == null ? undefined : String(r.status),
+        final_image_url: r.final_image_url == null ? undefined : String(r.final_image_url),
+        dealers: { company_name: String(r.company_name || '未知经销商') }
+      })) as DbCertRow[];
     }
 
     // 2. 如果没有匹配，按公司名称搜索
@@ -77,15 +78,15 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       `;
 
       if (dbResults && dbResults.length > 0) {
-        results = dbResults.map((r: any) => ({
-          cert_number: r.cert_number,
-          start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : r.start_date,
-          end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : r.end_date,
-          auth_scope: r.auth_scope,
-          status: r.status,
-          final_image_url: r.final_image_url,
-          dealers: { company_name: r.company_name || '未知经销商' }
-        }));
+        results = dbResults.map((r: Record<string, unknown>) => ({
+          cert_number: String(r.cert_number),
+          start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : String(r.start_date),
+          end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : String(r.end_date),
+          auth_scope: r.auth_scope == null ? undefined : String(r.auth_scope),
+          status: r.status == null ? undefined : String(r.status),
+          final_image_url: r.final_image_url == null ? undefined : String(r.final_image_url),
+          dealers: { company_name: String(r.company_name || '未知经销商') }
+        })) as DbCertRow[];
       }
     }
     
@@ -111,7 +112,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         id: data.cert_number,
         dealerName: companyName,
         duration: `${startDate.replace(/-/g, '.')} - ${endDate.replace(/-/g, '.')}`,
-        scope: data.auth_scope || '-',
+        scope: parseAuthScope(data.auth_scope).scopeText || data.auth_scope || '-',
         status: data.status?.toUpperCase() || '',
         final_image_url: data.final_image_url || undefined
       });

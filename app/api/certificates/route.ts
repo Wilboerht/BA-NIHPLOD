@@ -25,8 +25,12 @@ async function generateUniqueCertNumber(): Promise<string> {
     if (existing.length === 0) return certNumber;
   }
   
-  // 如果 10 次都碰撞（概率极低），使用更多位确保唯一
-  return `${base}${crypto.randomUUID().replace(/-/g, '').substring(0, 8).toUpperCase()}`;
+  // 如果 10 次都碰撞（概率极低），使用时间戳+UUID 保证唯一并再次检查
+  const fallback = `${base}${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase()}`;
+  const existing = await sql`SELECT 1 FROM certificates WHERE cert_number = ${fallback} LIMIT 1`;
+  if (existing.length === 0) return fallback;
+  
+  throw new Error('证书编号生成失败，请重试');
 }
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
@@ -51,9 +55,9 @@ async function getOrCreateDealer(phone: string, shopName: string) {
 
 // 辅助函数：获取或创建经销商账户
 // 返回 { id, tempPassword }
-async function getOrCreateDealerProfile(phone: string, shopName: string): Promise<{ id: string; tempPassword: string }> {
+async function getOrCreateDealerProfile(phone: string, shopName: string): Promise<{ id: string; tempPassword: string | null }> {
   const tempPassword = crypto.randomBytes(8).toString('hex');
-  const passwordHash = await bcrypt.hash(tempPassword, 10);
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
 
   // 检查是否已有此账户
   const existing = await sql`SELECT id, is_first_login, role FROM profiles WHERE username = ${phone} LIMIT 1`;
@@ -62,9 +66,8 @@ async function getOrCreateDealerProfile(phone: string, shopName: string): Promis
     if (existing[0].role !== 'DEALER') {
       throw new Error(`该手机号已绑定非经销商账户（角色: ${existing[0].role}），无法为其创建/重置经销商账户`);
     }
-    // 更新密码
-    await sql`UPDATE profiles SET password_hash = ${passwordHash}, is_first_login = true WHERE id = ${existing[0].id}`;
-    return { id: existing[0].id, tempPassword };
+    // 已有经销商账户：不重置密码，直接返回已有账户 ID
+    return { id: existing[0].id, tempPassword: null };
   }
   // 创建新账户
   const profileId = crypto.randomUUID();
@@ -172,7 +175,7 @@ export async function POST(req: Request) {
         throw new Error('缺少核发数据');
       }
 
-      // 创建或更新经销商账户
+      // 创建或获取经销商账户（已有账户不会重置密码）
       const { tempPassword } = await getOrCreateDealerProfile(dealerPhone, dealerShopName);
 
       // 如果是从待审核转为 ISSUED，更新状态
@@ -180,7 +183,12 @@ export async function POST(req: Request) {
         await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId}`;
       }
 
-      return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, password: tempPassword });
+      const responseData: Record<string, unknown> = { success: true, status: 'ISSUED', phone: dealerPhone };
+      if (tempPassword) {
+        responseData.tempPassword = tempPassword;
+        responseData.note = '该经销商账户为新创建，请通过安全渠道告知对方临时密码';
+      }
+      return NextResponse.json(responseData);
     }
 
     // --- 流程 3: 吊销证书 (管理员行为) ---

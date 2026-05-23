@@ -6,7 +6,7 @@ import { requireAdmin, validatePassword } from "@/lib/auth";
 export async function POST(req: Request) {
   try {
     // 权限检查：只有管理员可以创建新管理员
-    const { response } = await requireAdmin(req);
+    const { user: adminUser, response } = await requireAdmin(req);
     if (response) {
       return response;
     }
@@ -38,6 +38,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "无效的角色类型" }, { status: 400 });
     }
 
+    // 只有 SUPER_ADMIN 能创建 SUPER_ADMIN
+    if (role === 'SUPER_ADMIN' && adminUser?.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: "只有超级管理员才能创建超级管理员账户" },
+        { status: 403 }
+      );
+    }
+
     // 使用 username 作为邮箱
     const email = username.trim();
 
@@ -51,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     // 生成密码哈希
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     try {
       await sql`

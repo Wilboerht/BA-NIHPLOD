@@ -19,7 +19,11 @@ function createDbClient() {
       },
     });
   }
-  return postgres(databaseUrl);
+  return postgres(databaseUrl, {
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
 }
 
 export const sql = createDbClient();
@@ -31,7 +35,7 @@ export const sql = createDbClient();
 /**
  * 根据账号查找用户信息 (兼容 phone 或 username)
  */
-export async function findProfileForLogin(identifier: string): Promise<{ data: any; error: Error | null }> {
+export async function findProfileForLogin(identifier: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
     SELECT * FROM profiles 
     WHERE phone = ${identifier} 
@@ -45,7 +49,7 @@ export async function findProfileForLogin(identifier: string): Promise<{ data: a
 /**
  * 根据 ID 查找用户信息
  */
-export async function getProfileById(id: string): Promise<{ data: any; error: Error | null }> {
+export async function getProfileById(id: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`SELECT * FROM profiles WHERE id = ${id} LIMIT 1`;
   return { data: result[0] || null, error: null };
 }
@@ -61,7 +65,7 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
     if (error || !profile) return false;
 
     const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
-    return allowedRoles.includes(profile.role);
+    return allowedRoles.includes(String(profile.role));
   } catch (error) {
     console.error("[checkIsAdmin] Error:", error);
     return false;
@@ -75,7 +79,7 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
 /**
  * 获取用户关联的经销商信息（按 profile_id）
  */
-export async function getDealersByProfileId(profileId: string): Promise<{ data: any[]; error: Error | null }> {
+export async function getDealersByProfileId(profileId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT * FROM dealers 
     WHERE profile_id = ${profileId}
@@ -86,22 +90,60 @@ export async function getDealersByProfileId(profileId: string): Promise<{ data: 
 /**
  * 获取单个经销商详情（按 ID）
  */
-export async function getDealerById(dealerId: string): Promise<{ data: any; error: Error | null }> {
+export async function getDealerById(dealerId: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`SELECT * FROM dealers WHERE id = ${dealerId} LIMIT 1`;
   return { data: result[0] || null, error: null };
 }
 
+// ============================================================================
+// 【通用工具】
+// ============================================================================
+
+interface SqlRow {
+  [key: string]: unknown;
+}
+
+function formatDateFields(row: SqlRow): SqlRow {
+  return {
+    ...row,
+    start_date: row.start_date instanceof Date
+      ? row.start_date.toISOString().split('T')[0]
+      : row.start_date,
+    end_date: row.end_date instanceof Date
+      ? row.end_date.toISOString().split('T')[0]
+      : row.end_date,
+    created_at: row.created_at instanceof Date
+      ? row.created_at.toISOString()
+      : row.created_at,
+  };
+}
+
+function buildDealersNested(row: SqlRow): SqlRow {
+  return {
+    ...formatDateFields(row),
+    dealers: row.company_name ? {
+      company_name: row.company_name,
+      phone: row.phone,
+    } : null,
+  };
+}
+
+// ============================================================================
+// 【经销商数据类】
+// ============================================================================
+
 /**
- * 获取所有经销商列表（带证书计数和 profile_id）
+ * 获取所有经销商列表
  */
-export async function getAllDealers(): Promise<{ data: any[]; error: Error | null }> {
+export async function getAllDealers(): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
       SELECT d.* FROM dealers d ORDER BY d.created_at DESC
     `;
-    return { data: result || [], error: null };
-  } catch (err: any) {
-    return { data: [], error: new Error(err.message || '数据库查询失败') };
+    return { data: (result || []) as SqlRow[], error: null };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '数据库查询失败';
+    return { data: [], error: new Error(message) };
   }
 }
 
@@ -112,32 +154,20 @@ export async function getAllDealers(): Promise<{ data: any[]; error: Error | nul
 /**
  * 获取经销商的证书列表
  */
-export async function getCertificatesByDealerId(dealerId: string): Promise<{ data: any[]; error: Error | null }> {
+export async function getCertificatesByDealerId(dealerId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT * FROM certificates 
     WHERE dealer_id = ${dealerId}
     ORDER BY created_at DESC
   `;
-  // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串
-  const formatted = result.map((row: any) => ({
-    ...row,
-    start_date: row.start_date instanceof Date
-      ? row.start_date.toISOString().split('T')[0]
-      : row.start_date,
-    end_date: row.end_date instanceof Date
-      ? row.end_date.toISOString().split('T')[0]
-      : row.end_date,
-    created_at: row.created_at instanceof Date
-      ? row.created_at.toISOString()
-      : row.created_at,
-  }));
+  const formatted = result.map(formatDateFields);
   return { data: formatted || [], error: null };
 }
 
 /**
  * 获取待核发证书列表（用于管理面板）
  */
-export async function getPendingCertificates(limit?: number): Promise<{ data: any[]; error: Error | null }> {
+export async function getPendingCertificates(limit?: number): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
     FROM certificates c
@@ -147,30 +177,14 @@ export async function getPendingCertificates(limit?: number): Promise<{ data: an
     ORDER BY c.created_at ASC
     ${limit ? sql`LIMIT ${limit}` : sql``}
   `;
-  // 日期格式化：postgres 库返回 JS Date 对象，前端期望字符串格式
-  const formatted = result.map((row: any) => ({
-    ...row,
-    start_date: row.start_date instanceof Date
-      ? row.start_date.toISOString().split('T')[0]
-      : row.start_date,
-    end_date: row.end_date instanceof Date
-      ? row.end_date.toISOString().split('T')[0]
-      : row.end_date,
-    created_at: row.created_at instanceof Date
-      ? row.created_at.toISOString()
-      : row.created_at,
-    dealers: row.company_name ? {
-      company_name: row.company_name,
-      phone: row.phone
-    } : null
-  }));
+  const formatted = result.map(buildDealersNested);
   return { data: formatted || [], error: null };
 }
 
 /**
  * 获取所有证书列表（用于管理面板 - 不仅限待审状态）
  */
-export async function getAllCertificates(limit?: number): Promise<{ data: any[]; error: Error | null }> {
+export async function getAllCertificates(limit?: number): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
     FROM certificates c
@@ -179,21 +193,7 @@ export async function getAllCertificates(limit?: number): Promise<{ data: any[];
     ORDER BY c.created_at DESC
     ${limit ? sql`LIMIT ${limit}` : sql``}
   `;
-  // 转换为嵌套结构以兼容前端（与 Supabase 返回格式一致）
-  // postgres 库将 DATE 转为 JS Date 对象，前端期望字符串格式
-  const formatted = result.map((row: any) => ({
-    ...row,
-    start_date: row.start_date instanceof Date
-      ? row.start_date.toISOString().split('T')[0]
-      : row.start_date,
-    end_date: row.end_date instanceof Date
-      ? row.end_date.toISOString().split('T')[0]
-      : row.end_date,
-    dealers: row.company_name ? {
-      company_name: row.company_name,
-      phone: row.phone
-    } : null
-  }));
+  const formatted = result.map(buildDealersNested);
   return { data: formatted || [], error: null };
 }
 
@@ -221,7 +221,7 @@ export async function getAllComplaints(
   page?: number,
   pageSize?: number,
   status?: string
-): Promise<{ data: any[]; total: number; error: Error | null }> {
+): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
   try {
     const limit = pageSize && pageSize > 0 ? pageSize : 50;
     const offset = page && page > 0 ? (page - 1) * limit : 0;
@@ -250,16 +250,17 @@ export async function getAllComplaints(
     console.log('[getAllComplaints] 查询到', total, '条投诉, 本页', result.length, '条, status=', status);
 
     return { data: result || [], total, error: null };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '数据库查询失败';
     console.error('[getAllComplaints] 查询失败:', err);
-    return { data: [], total: 0, error: new Error(err.message || '数据库查询失败') };
+    return { data: [], total: 0, error: new Error(message) };
   }
 }
 
 /**
  * 获取待处理投诉（PENDING + INVESTIGATING）
  */
-export async function getPendingComplaints(): Promise<{ data: any[]; error: Error | null }> {
+export async function getPendingComplaints(): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT * FROM complaints
     WHERE status IN ('PENDING', 'INVESTIGATING')
@@ -287,8 +288,9 @@ export async function deleteComplaint(id: string): Promise<{ success: boolean; e
   try {
     await sql`DELETE FROM complaints WHERE id = ${id}`;
     return { success: true, error: null };
-  } catch (err: any) {
-    return { success: false, error: new Error(err.message || '删除失败') };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '删除失败';
+    return { success: false, error: new Error(message) };
   }
 }
 
@@ -299,7 +301,7 @@ export async function deleteComplaint(id: string): Promise<{ success: boolean; e
 /**
  * 获取系统仪表板统计数据
  */
-export async function getDashboardStats(): Promise<{ data: any; error: Error | null }> {
+export async function getDashboardStats(): Promise<{ data: Record<string, number>; error: Error | null }> {
   const [certCountRes, complaintCountRes, issuedCountRes] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM certificates`,
     sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING')`,
@@ -374,8 +376,8 @@ export async function checkActionRateLimit(
     `;
     return true;
   } catch (err) {
-    console.error('[RateLimit] 数据库查询失败，跳过限速检查:', err);
-    return true;
+    console.error('[RateLimit] 数据库查询失败，拒绝请求以保障安全:', err);
+    return false;
   }
 }
 
@@ -394,16 +396,17 @@ export async function createComplaintAuditLog(
       VALUES (${complaintId}, ${actorId}, ${action}, ${comment || null}, NOW())
     `;
     return { success: true, error: null };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '审计日志写入失败';
     console.error('[AuditLog] 创建投诉审计日志失败:', err);
-    return { success: false, error: new Error(err.message || '审计日志写入失败') };
+    return { success: false, error: new Error(message) };
   }
 }
 
 /**
  * 获取投诉审核日志
  */
-export async function getComplaintAuditLogs(complaintId: string): Promise<{ data: any[]; error: Error | null }> {
+export async function getComplaintAuditLogs(complaintId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
       SELECT a.*, p.full_name as actor_name, p.username as actor_username
@@ -413,7 +416,8 @@ export async function getComplaintAuditLogs(complaintId: string): Promise<{ data
       ORDER BY a.created_at DESC
     `;
     return { data: result || [], error: null };
-  } catch (err: any) {
-    return { data: [], error: new Error(err.message || '查询审计日志失败') };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '查询审计日志失败';
+    return { data: [], error: new Error(message) };
   }
 }

@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     // 哈希新密码
-    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     // 执行密码修改
     try {

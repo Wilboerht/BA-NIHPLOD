@@ -107,21 +107,7 @@ CREATE TABLE IF NOT EXISTS certificates (
 );
 
 -- ============================================================================
--- 6. 审核日志表
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
-    complaint_id UUID REFERENCES complaints(id) ON DELETE CASCADE,
-    actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    action TEXT NOT NULL,
-    comment TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- ============================================================================
--- 7. 打假举报投诉表
+-- 6. 打假举报投诉表
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS complaints (
@@ -135,6 +121,20 @@ CREATE TABLE IF NOT EXISTS complaints (
     contact_info TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 7. 审核日志表
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
+    complaint_id UUID REFERENCES complaints(id) ON DELETE CASCADE,
+    actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================================

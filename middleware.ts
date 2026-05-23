@@ -18,7 +18,7 @@ const PUBLIC_PATHS = [
   '/api/auth/logout',
 ];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 检查是否为公开路径
