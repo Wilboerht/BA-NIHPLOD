@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from './db';
 import crypto from 'crypto';
 
-const TOKEN_COOKIE = '__Host-auth-token';
+const TOKEN_COOKIE = 'auth-token';
 const AUTH_SECRET = process.env.AUTH_SECRET;
 
 function getSecret(): Uint8Array {
