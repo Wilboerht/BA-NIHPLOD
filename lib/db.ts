@@ -5,7 +5,7 @@ import postgres from 'postgres';
  * 请在 .env.local 中配置 DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
  */
 function createDbClient() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
   if (!databaseUrl) {
     console.error('[db] FATAL: DATABASE_URL environment variable is not set.');
     // 返回一个代理对象，在调用时抛出明确的错误，避免 null 导致的隐晦崩溃

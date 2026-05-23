@@ -2,7 +2,7 @@ import { PrismaClient } from './generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
 let shutdownRegistered = false;
 
 function createPrismaClient(): PrismaClient {
