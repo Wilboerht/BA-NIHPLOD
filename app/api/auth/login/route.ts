@@ -7,9 +7,15 @@ const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
 
 function getClientIP(req: Request): string {
+  // x-real-ip 由可信反向代理设置，比 x-forwarded-for 更难伪造
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    // 取最后一个 IP（最靠近服务器），防止客户端在头部前置伪造 IP
+    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
+    return ips[ips.length - 1] || 'unknown';
   }
   return 'unknown';
 }
@@ -19,6 +25,12 @@ async function checkRateLimit(ip: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - WINDOW_MS);
 
   try {
+    // 定期清理过期的限速记录，防止表无限增长
+    await sql`
+      DELETE FROM login_rate_limits
+      WHERE window_start < ${windowStart}
+    `;
+
     // 查询当前 IP 的限速记录
     const records = await sql`
       SELECT attempts, window_start FROM login_rate_limits

@@ -58,11 +58,15 @@ export async function PUT(req: Request) {
         );
       }
 
-      await sql`
+      const updateResult = await sql`
         UPDATE profiles 
         SET role = ${newRole}, updated_at = NOW()
         WHERE id = ${userId}
+        RETURNING id
       `;
+      if (!updateResult || updateResult.length === 0) {
+        return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+      }
       console.log('[update-user-role] 用户角色已更新');
       return NextResponse.json({ success: true });
     } catch (err: unknown) {

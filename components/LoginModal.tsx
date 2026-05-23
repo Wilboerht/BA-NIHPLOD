@@ -27,6 +27,17 @@ export default function LoginModal({
     return () => clearTimeout(timer);
   }, [error]);
 
+  // 模态框打开时重置状态，防止 isLoading 残留
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoading(false);
+      setError(null);
+      setPhone("");
+      setPassword("");
+      setShowPassword(false);
+    }
+  }, [isOpen]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);

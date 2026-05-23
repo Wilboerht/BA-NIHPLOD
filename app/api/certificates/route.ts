@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import crypto from 'crypto';
+import type { TransactionSql } from 'postgres';
 
 /**
  * 证书管理 API - 已移除图片上传功能
@@ -11,43 +12,33 @@ import crypto from 'crypto';
  */
 
 // 辅助函数：生成唯一的证书编号
-async function generateUniqueCertNumber(): Promise<string> {
+// 依赖数据库 cert_number UNIQUE 约束做最终保护，冲突时外层事务会回滚并重试
+function generateUniqueCertNumber(): string {
   const year = new Date().getFullYear();
   const base = `BAVP-${year}-`;
-  
-  for (let attempt = 0; attempt < 10; attempt++) {
-    // 使用 crypto.randomUUID 生成 4 位随机字符
-    const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
-    const certNumber = `${base}${randomPart}`;
-    
-    // 检查是否已存在
-    const existing = await sql`SELECT 1 FROM certificates WHERE cert_number = ${certNumber} LIMIT 1`;
-    if (existing.length === 0) return certNumber;
+  const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
+  return `${base}${randomPart}`;
+}
+
+// 安全解析 duration 字符串 "YYYY.MM.DD - YYYY.MM.DD"
+function parseDuration(duration: string | undefined): { start: string; end: string } {
+  if (!duration || typeof duration !== 'string') {
+    return { start: '', end: '' };
   }
-  
-  // 如果 10 次都碰撞（概率极低），使用时间戳+UUID 保证唯一并再次检查
-  const fallback = `${base}${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase()}`;
-  const existing = await sql`SELECT 1 FROM certificates WHERE cert_number = ${fallback} LIMIT 1`;
-  if (existing.length === 0) return fallback;
-  
-  throw new Error('证书编号生成失败，请重试');
+  const parts = duration.split(' - ');
+  return {
+    start: (parts[0] || '').replace(/\./g, '-').trim(),
+    end: (parts[1] || '').replace(/\./g, '-').trim(),
+  };
 }
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
-async function getOrCreateDealer(phone: string, shopName: string) {
-  // 先检查是否已有 (phone, company_name) 的组合记录
-  const existing = await sql`
-    SELECT id FROM dealers 
-    WHERE phone = ${phone} AND company_name = ${shopName} 
-    LIMIT 1
-  `;
-  if (existing.length > 0) {
-    return existing[0].id;
-  }
-  // 创建新的主体记录
-  const result = await sql`
+// 使用 ON CONFLICT 避免并发竞态
+async function getOrCreateDealer(phone: string, shopName: string, tx: TransactionSql | typeof sql) {
+  const result = await tx`
     INSERT INTO dealers (company_name, phone) 
     VALUES (${shopName}, ${phone}) 
+    ON CONFLICT (phone, company_name) DO UPDATE SET company_name = EXCLUDED.company_name
     RETURNING id
   `;
   return result[0].id;
@@ -55,27 +46,33 @@ async function getOrCreateDealer(phone: string, shopName: string) {
 
 // 辅助函数：获取或创建经销商账户
 // 返回 { id, tempPassword }
-async function getOrCreateDealerProfile(phone: string, shopName: string): Promise<{ id: string; tempPassword: string | null }> {
-  const tempPassword = crypto.randomBytes(8).toString('hex');
-  const passwordHash = await bcrypt.hash(tempPassword, 12);
-
-  // 检查是否已有此账户
-  const existing = await sql`SELECT id, is_first_login, role FROM profiles WHERE username = ${phone} LIMIT 1`;
+async function getOrCreateDealerProfile(phone: string, shopName: string, tx: TransactionSql | typeof sql): Promise<{ id: string; tempPassword: string | null }> {
+  // 先查询已有账户（在事务内保持一致性）
+  const existing = await tx`SELECT id, role FROM profiles WHERE username = ${phone} LIMIT 1`;
   if (existing.length > 0) {
-    // 安全校验：已有账户必须是经销商角色，防止重置管理员密码
     if (existing[0].role !== 'DEALER') {
       throw new Error(`该手机号已绑定非经销商账户（角色: ${existing[0].role}），无法为其创建/重置经销商账户`);
     }
-    // 已有经销商账户：不重置密码，直接返回已有账户 ID
     return { id: existing[0].id, tempPassword: null };
   }
-  // 创建新账户
+
+  // 创建新账户，ON CONFLICT DO NOTHING 防止并发重复插入
+  const tempPassword = crypto.randomBytes(8).toString('hex');
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
   const profileId = crypto.randomUUID();
-  await sql`
+
+  await tx`
     INSERT INTO profiles (id, username, full_name, phone, password_hash, role, is_first_login)
     VALUES (${profileId}, ${phone}, ${shopName}, ${phone}, ${passwordHash}, 'DEALER', true)
+    ON CONFLICT (username) DO NOTHING
   `;
-  return { id: profileId, tempPassword };
+
+  // 重新查询获取实际 ID（可能由并发请求插入）
+  const created = await tx`SELECT id FROM profiles WHERE username = ${phone} LIMIT 1`;
+  if (!created || created.length === 0) {
+    throw new Error('经销商账户创建失败');
+  }
+  return { id: created[0].id, tempPassword };
 }
 
 export async function POST(req: Request) {
@@ -112,24 +109,25 @@ export async function POST(req: Request) {
 
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
-      const dealerId = await getOrCreateDealer(certData.phone, certData.shopName);
-      const certNumber = await generateUniqueCertNumber();
-
-      await sql`
-        INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id)
-        VALUES (
-          ${certNumber},
-          ${dealerId},
-          ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-          ${(certData.duration?.split(' - ')[0] || '').replace(/\./g, '-')},
-          ${(certData.duration?.split(' - ')[1] || '').replace(/\./g, '-')},
-          'PENDING',
-          null,
-          ${certData.sealImage || null},
-          ${managerId},
-          null
-        )
-      `;
+      const certNumber = generateUniqueCertNumber();
+      await sql.begin(async (tx) => {
+        const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
+        await tx`
+          INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id)
+          VALUES (
+            ${certNumber},
+            ${dealerId},
+            ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+            ${parseDuration(certData.duration).start},
+            ${parseDuration(certData.duration).end},
+            'PENDING',
+            null,
+            ${certData.sealImage || null},
+            ${managerId},
+            null
+          )
+        `;
+      });
       return NextResponse.json({ success: true, status: 'PENDING' });
     }
 
@@ -152,35 +150,40 @@ export async function POST(req: Request) {
         certNumber = certDataDb.cert_number;
       } else if (certData) {
         // B. 管理员直发
-        const dealerId = await getOrCreateDealer(certData.phone, certData.shopName);
-        certNumber = await generateUniqueCertNumber();
+        certNumber = generateUniqueCertNumber();
         dealerPhone = certData.phone;
         dealerShopName = certData.shopName;
 
-        await sql`
-          INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, manager_id)
-          VALUES (
-            ${certNumber},
-            ${dealerId},
-            ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-            ${(certData.duration?.split(' - ')[0] || '').replace(/\./g, '-')},
-            ${(certData.duration?.split(' - ')[1] || '').replace(/\./g, '-')},
-            'ISSUED',
-            null,
-            ${certData.sealImage || null},
-            ${managerId}
-          )
-        `;
+        await sql.begin(async (tx) => {
+          const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
+          await tx`
+            INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, manager_id)
+            VALUES (
+              ${certNumber},
+              ${dealerId},
+              ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+              ${parseDuration(certData.duration).start},
+              ${parseDuration(certData.duration).end},
+              'ISSUED',
+              null,
+              ${certData.sealImage || null},
+              ${managerId}
+            )
+          `;
+        });
       } else {
         throw new Error('缺少核发数据');
       }
 
-      // 创建或获取经销商账户（已有账户不会重置密码）
-      const { tempPassword } = await getOrCreateDealerProfile(dealerPhone, dealerShopName);
+      // 创建或获取经销商账户（已有账户不会重置密码）——与证书操作分离，失败不影响已核发证书
+      const { tempPassword } = await getOrCreateDealerProfile(dealerPhone, dealerShopName, sql);
 
       // 如果是从待审核转为 ISSUED，更新状态
       if (certId) {
-        await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId}`;
+        const updateResult = await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
+        if (!updateResult || updateResult.length === 0) {
+          throw new Error('该证书不是待审核状态，无法核发');
+        }
       }
 
       const responseData: Record<string, unknown> = { success: true, status: 'ISSUED', phone: dealerPhone };
@@ -193,10 +196,14 @@ export async function POST(req: Request) {
 
     // --- 流程 3: 吊销证书 (管理员行为) ---
     if (action === 'revoke_certificate') {
+      if (!certId) throw new Error('缺少证书 ID');
       const result = await sql`SELECT id, status FROM certificates WHERE id = ${certId} LIMIT 1`;
       if (!result || result.length === 0) throw new Error('未找到对应证书');
       if (result[0].status === 'REVOKED') {
         return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
+      }
+      if (result[0].status !== 'ISSUED') {
+        return NextResponse.json({ error: '只能吊销已核发的证书' }, { status: 400 });
       }
       await sql`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
       return NextResponse.json({ success: true, status: 'REVOKED' });
@@ -229,19 +236,19 @@ export async function POST(req: Request) {
       if (!result || result.length === 0) throw new Error('未找到对应证书记录');
       const dealerId = result[0].dealer_id;
 
-      // 更新经销商资料
-      await sql`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
-
-      // 更新证书
-      await sql`
-        UPDATE certificates
-        SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
-            start_date = ${(certData.duration?.split(' - ')[0] || '').replace(/\./g, '-')},
-            end_date = ${(certData.duration?.split(' - ')[1] || '').replace(/\./g, '-')},
-            seal_url = ${certData.sealImage || null},
-            manager_id = ${managerId}
-        WHERE id = ${certId}
-      `;
+      // 更新经销商资料和证书在同一事务中
+      await sql.begin(async (tx) => {
+        await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
+        await tx`
+          UPDATE certificates
+          SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+              start_date = ${parseDuration(certData.duration).start},
+              end_date = ${parseDuration(certData.duration).end},
+              seal_url = ${certData.sealImage || null},
+              manager_id = ${managerId}
+          WHERE id = ${certId}
+        `;
+      });
       return NextResponse.json({ success: true, status: 'UPDATED' });
     }
 

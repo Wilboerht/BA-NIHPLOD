@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
-import { parseAuthScope } from "@/lib/utils";
+import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 
 interface Certificate {
   id: string;

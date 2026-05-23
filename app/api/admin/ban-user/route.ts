@@ -34,7 +34,13 @@ export async function POST(req: Request) {
 
     // 查询目标用户角色
     const { data: targetProfile } = await getProfileById(profileId);
-    if (targetProfile?.role === 'SUPER_ADMIN') {
+    if (!targetProfile) {
+      return NextResponse.json(
+        { error: '用户不存在' },
+        { status: 404 }
+      );
+    }
+    if (targetProfile.role === 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: '不能封禁超级管理员账号' },
         { status: 403 }

@@ -73,7 +73,8 @@ export default function AdminsManagementPage() {
   // 弹窗打开时聚焦第一个输入框
   useEffect(() => {
     if (showCreate) {
-      setTimeout(() => fullNameRef.current?.focus(), 80);
+      const timer = setTimeout(() => fullNameRef.current?.focus(), 80);
+      return () => clearTimeout(timer);
     }
   }, [showCreate]);
 

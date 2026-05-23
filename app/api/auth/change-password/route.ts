@@ -38,8 +38,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 哈希新密码
-    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+    // 新密码不能与旧密码相同
+    if (oldPassword === newPassword) {
+      return NextResponse.json(
+        { error: '新密码不能与旧密码相同' },
+        { status: 400 }
+      );
+    }
 
     // 执行密码修改
     try {
@@ -64,7 +69,8 @@ export async function POST(req: Request) {
         );
       }
 
-      // 3. 更新数据库
+      // 3. 哈希新密码并更新数据库
+      const newPasswordHash = await bcrypt.hash(newPassword, 12);
       await sql`
         UPDATE profiles 
         SET password_hash = ${newPasswordHash},

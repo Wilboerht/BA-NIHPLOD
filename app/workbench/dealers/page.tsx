@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
-import { parseAuthScope } from "@/lib/utils";
+import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 
 interface Dealer {
   id: string;
@@ -447,7 +447,7 @@ export default function DealersPage() {
                     <tbody className="divide-y divide-slate-100 bg-white/50">
                       {dealerCerts.map(cert => {
                         const now = new Date();
-                        const endDate = new Date(cert.end_date + 'T23:59:59');
+                        const endDate = getEndOfDay(cert.end_date);
                         const isExpiredByDate = now > endDate;
                         const isVoided = cert.status === 'EXPIRED' && !isExpiredByDate;
 

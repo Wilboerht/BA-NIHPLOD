@@ -18,9 +18,17 @@ export async function POST(req: Request) {
     }
 
     // 权限检查：只有管理员可以重置他人密码
-    const { response } = await requireAdmin(req);
+    const { user: adminUser, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    // 自保护：不能重置自己的密码（应走 /api/auth/change-password）
+    if (userId === adminUser!.id) {
+      return NextResponse.json(
+        { error: '不能通过此接口重置自己的密码，请使用修改密码功能' },
+        { status: 403 }
+      );
     }
 
     // 生成新密码哈希

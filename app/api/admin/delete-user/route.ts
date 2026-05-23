@@ -48,14 +48,14 @@ export async function POST(req: Request) {
     }
     const userToDelete = userResult[0];
 
-    // 处理外键关系
-    await sql`UPDATE certificates SET auditor_id = NULL WHERE auditor_id = ${userId}`;
-    await sql`UPDATE certificates SET manager_id = NULL WHERE manager_id = ${userId}`;
-    await sql`UPDATE audit_logs SET actor_id = NULL WHERE actor_id = ${userId}`;
-    await sql`UPDATE complaints SET handler_id = NULL WHERE handler_id = ${userId}`;
-
-    // 删除用户
-    await sql`DELETE FROM profiles WHERE id = ${userId}`;
+    // 处理外键关系并删除用户（在同一事务中）
+    await sql.begin(async (tx) => {
+      await tx`UPDATE certificates SET auditor_id = NULL WHERE auditor_id = ${userId}`;
+      await tx`UPDATE certificates SET manager_id = NULL WHERE manager_id = ${userId}`;
+      await tx`UPDATE audit_logs SET actor_id = NULL WHERE actor_id = ${userId}`;
+      await tx`UPDATE complaints SET handler_id = NULL WHERE handler_id = ${userId}`;
+      await tx`DELETE FROM profiles WHERE id = ${userId}`;
+    });
 
     return NextResponse.json({
       success: true,

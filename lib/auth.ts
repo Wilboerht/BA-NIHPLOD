@@ -99,6 +99,7 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
 /**
  * 验证用户已登录，返回用户信息
  * 若未登录则返回 401 响应
+ * 同时查询数据库确认用户存在且未被禁用
  */
 export async function requireAuth(request: NextRequest | Request) {
   const payload = await verifyToken(request);
@@ -108,10 +109,44 @@ export async function requireAuth(request: NextRequest | Request) {
       response: NextResponse.json({ error: '未登录或登录已过期' }, { status: 401 }),
     };
   }
-  return {
-    user: payload,
-    response: null,
-  };
+
+  // 查询数据库确认用户存在且未被禁用
+  try {
+    const rows = await sql`
+      SELECT id, username, full_name, phone, role, is_banned
+      FROM profiles
+      WHERE id = ${payload.id}
+      LIMIT 1
+    `;
+    if (rows.length === 0) {
+      return {
+        user: null,
+        response: NextResponse.json({ error: '用户不存在' }, { status: 401 }),
+      };
+    }
+    const profile = rows[0];
+    if (profile.is_banned) {
+      return {
+        user: null,
+        response: NextResponse.json({ error: '账号已被封禁' }, { status: 403 }),
+      };
+    }
+    return {
+      user: {
+        id: String(profile.id),
+        username: profile.username ?? undefined,
+        full_name: profile.full_name ?? undefined,
+        phone: profile.phone ?? undefined,
+        role: String(profile.role),
+      } as AuthUser,
+      response: null,
+    };
+  } catch {
+    return {
+      user: null,
+      response: NextResponse.json({ error: '认证服务异常' }, { status: 500 }),
+    };
+  }
 }
 
 /**

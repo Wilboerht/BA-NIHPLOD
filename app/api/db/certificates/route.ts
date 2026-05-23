@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     const limit = request.nextUrl.searchParams.get('limit');
-    const limitNum = limit ? parseInt(limit) : undefined;
+    const limitNum = limit ? Math.min(parseInt(limit, 10), 1000) : undefined;
 
     const { data, error } = await getAllCertificates(limitNum);
 

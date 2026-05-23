@@ -6,7 +6,7 @@ import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle
 import jsPDF from "jspdf";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
-import { parseAuthScope } from "@/lib/utils";
+import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 
 interface UserInfo {
   id: string;
@@ -505,7 +505,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
                       <tbody className="text-slate-700 font-medium">
                         {certificates.filter(c => c.status === 'ISSUED').map((cert) => {
                           const now = new Date();
-                          const endDate = new Date(cert.end_date + "T23:59:59");
+                          const endDate = getEndOfDay(cert.end_date);
                           const isExpired = now > endDate;
 
                           return (

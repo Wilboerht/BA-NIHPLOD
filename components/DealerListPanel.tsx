@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, CheckCircle, AlertCircle, File } from "lucide-react";
 import jsPDF from "jspdf";
 import { useToast } from "@/hooks/useToast";
+import { getEndOfDay } from "@/lib/utils";
 
 interface UserInfo {
   id: string;
@@ -245,11 +246,11 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
                   {(() => {
                     const now = new Date();
                     const active = certificates.filter(c => {
-                      const endDate = new Date(c.end_date + "T23:59:59");
+                      const endDate = getEndOfDay(c.end_date);
                       return now <= endDate && c.status === 'ISSUED';
                     }).length;
                     const expired = certificates.filter(c => {
-                      const endDate = new Date(c.end_date + "T23:59:59");
+                      const endDate = getEndOfDay(c.end_date);
                       return now > endDate || c.status !== 'ISSUED';
                     }).length;
 
@@ -286,7 +287,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
                 {/* Certificate List */}
                 {certificates.filter(c => c.status === 'ISSUED').map((cert, idx) => {
                   const now = new Date();
-                  const endDate = new Date(cert.end_date + "T23:59:59");
+                  const endDate = getEndOfDay(cert.end_date);
                   const isExpired = now > endDate;
                   const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 

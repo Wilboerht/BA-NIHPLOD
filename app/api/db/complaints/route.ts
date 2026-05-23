@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '50', 10), 200);
     const status = searchParams.get('status') || undefined;
     console.log('[API /complaints] 查询参数:', { page, pageSize, status });
 

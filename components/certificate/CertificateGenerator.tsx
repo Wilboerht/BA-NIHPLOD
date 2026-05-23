@@ -152,9 +152,15 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const renderCertificate = async () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      toast({ message: "无法获取画布元素", type: "error" });
+      return;
+    }
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      toast({ message: "浏览器不支持 2D 画布渲染", type: "error" });
+      return;
+    }
 
     const currentId = ++renderRequestId.current;
     setIsGenerating(true);
@@ -183,7 +189,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCanvas.width = width;
     offCanvas.height = height;
     const offCtx = offCanvas.getContext("2d");
-    if (!offCtx) return;
+    if (!offCtx) {
+      toast({ message: "无法创建离屏画布", type: "error" });
+      setIsGenerating(false);
+      return;
+    }
 
     if (bgImage) {
       offCtx.drawImage(bgImage, 0, 0, width, height);
@@ -567,7 +577,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   placeholder="请输入店铺名称"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.shopName}
-                  onChange={(e) => setData({ ...data, shopName: e.target.value })}
+                  onChange={(e) => setData(prev => ({ ...prev, shopName: e.target.value }))}
                 />
               )}
             </div>
@@ -584,7 +594,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   placeholder="请输入公司名称（如：广东省某某公司）- 选填"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.companyName}
-                  onChange={(e) => setData({ ...data, companyName: e.target.value })}
+                  onChange={(e) => setData(prev => ({ ...prev, companyName: e.target.value }))}
                 />
               )}
             </div>
@@ -604,14 +614,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                     type="date"
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
                     value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""}
-                    onChange={(e) => setData({ ...data, duration: `${e.target.value.replace(/-/g, '.')} - ${data.duration.split(' - ')[1] || ""}` })}
+                    onChange={(e) => setData(prev => ({ ...prev, duration: `${e.target.value.replace(/-/g, '.')} - ${prev.duration.split(' - ')[1] || ""}` }))}
                   />
                   <span className="text-slate-300">/</span>
                   <input
                     type="date"
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
                     value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
-                    onChange={(e) => setData({ ...data, duration: `${data.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` })}
+                    onChange={(e) => setData(prev => ({ ...prev, duration: `${prev.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` }))}
                   />
                 </div>
               )}
@@ -629,7 +639,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   type="tel"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all font-mono"
                   value={data.phone}
-                  onChange={(e) => setData({ ...data, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) })}
+                  onChange={(e) => setData(prev => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) }))}
                 />
               )}
             </div>
@@ -647,7 +657,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   placeholder="请输入授权方主体名称"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.authorizer}
-                  onChange={(e) => setData({ ...data, authorizer: e.target.value })}
+                  onChange={(e) => setData(prev => ({ ...prev, authorizer: e.target.value }))}
                 />
               )}
             </div>
@@ -709,7 +719,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                     </label>
                     {data.sealImage && (
                       <button
-                        onClick={() => setData({ ...data, sealImage: "" })}
+                        onClick={() => setData(prev => ({ ...prev, sealImage: "" }))}
                         className="text-[11px] text-slate-400 hover:text-rose-500 font-bold transition-colors"
                       >
                         恢复默认公章
@@ -773,7 +783,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                     rows={4}
                     className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28"
                     value={data.scopeText}
-                    onChange={(e) => setData({ ...data, scopeText: e.target.value })}
+                    onChange={(e) => setData(prev => ({ ...prev, scopeText: e.target.value }))}
                   />
                 </>
               )}

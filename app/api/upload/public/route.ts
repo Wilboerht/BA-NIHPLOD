@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { uploadFile, getPublicUrl } from '@/lib/storage';
 import { checkActionRateLimit } from '@/lib/db';
+import crypto from 'crypto';
 
 const ALLOWED_TYPES = [
   'image/jpeg',

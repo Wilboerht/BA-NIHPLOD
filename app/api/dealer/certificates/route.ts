@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql, getProfileById, getDealersByProfileId } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { formatDateISO } from "@/lib/utils";
 
 export async function GET(req: Request) {
   try {
@@ -58,10 +59,10 @@ export async function GET(req: Request) {
       const certs = certsResult.map((row: Record<string, unknown>) => ({
         ...row,
         start_date: row.start_date instanceof Date
-          ? row.start_date.toISOString().split('T')[0]
+          ? formatDateISO(row.start_date)
           : row.start_date,
         end_date: row.end_date instanceof Date
-          ? row.end_date.toISOString().split('T')[0]
+          ? formatDateISO(row.end_date)
           : row.end_date,
         created_at: row.created_at instanceof Date
           ? row.created_at.toISOString()

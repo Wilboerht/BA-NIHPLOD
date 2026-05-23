@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql, createComplaintAuditLog, deleteComplaint } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 // 合法的状态流转图
@@ -55,24 +55,27 @@ export async function PUT(
       );
     }
 
-    // 更新投诉状态
+    // 更新投诉状态与审计日志在同一事务中
     try {
-      await sql`
-        UPDATE complaints 
-        SET status = ${status},
-            review_note = ${review_note || null},
-            handler_id = ${user!.id},
-            updated_at = NOW()
-        WHERE id = ${id}
-      `;
+      await sql.begin(async (tx) => {
+        const updateResult = await tx`
+          UPDATE complaints 
+          SET status = ${status},
+              review_note = ${review_note || null},
+              handler_id = ${user!.id},
+              updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING id
+        `;
+        if (!updateResult || updateResult.length === 0) {
+          throw new Error('工单不存在或已被删除');
+        }
 
-      // 记录审计日志
-      await createComplaintAuditLog(
-        id,
-        user!.id,
-        `STATUS_CHANGE:${currentStatus}->${status}`,
-        review_note || undefined
-      );
+        await tx`
+          INSERT INTO audit_logs (complaint_id, actor_id, action, comment, created_at)
+          VALUES (${id}, ${user!.id}, ${`STATUS_CHANGE:${currentStatus}->${status}`}, ${review_note || null}, NOW())
+        `;
+      });
 
       console.log('[complaints-update] 投诉已更新');
       return NextResponse.json({ success: true });
@@ -116,16 +119,17 @@ export async function DELETE(
       return response;
     }
 
-    const { success, error } = await deleteComplaint(id);
-    if (!success) {
-      return NextResponse.json(
-        { error: error?.message || '删除失败' },
-        { status: 500 }
-      );
-    }
-
-    // 记录审计日志
-    await createComplaintAuditLog(id, user!.id, 'DELETED', '管理员删除工单');
+    // 删除工单和记录审计日志应在同一事务中
+    await sql.begin(async (tx) => {
+      const delResult = await tx`DELETE FROM complaints WHERE id = ${id} RETURNING id`;
+      if (!delResult || delResult.length === 0) {
+        throw new Error('工单不存在或已被删除');
+      }
+      await tx`
+        INSERT INTO audit_logs (complaint_id, actor_id, action, comment, created_at)
+        VALUES (${id}, ${user!.id}, 'DELETED', '管理员删除工单', NOW())
+      `;
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

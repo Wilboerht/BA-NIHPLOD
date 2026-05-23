@@ -104,13 +104,21 @@ interface SqlRow {
 }
 
 function formatDateFields(row: SqlRow): SqlRow {
+  // 使用本地时区格式化日期，避免 UTC 转换导致跨天时差（off-by-one）
+  const fmtDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   return {
     ...row,
     start_date: row.start_date instanceof Date
-      ? row.start_date.toISOString().split('T')[0]
+      ? fmtDate(row.start_date)
       : row.start_date,
     end_date: row.end_date instanceof Date
-      ? row.end_date.toISOString().split('T')[0]
+      ? fmtDate(row.end_date)
       : row.end_date,
     created_at: row.created_at instanceof Date
       ? row.created_at.toISOString()
@@ -135,10 +143,10 @@ function buildDealersNested(row: SqlRow): SqlRow {
 /**
  * 获取所有经销商列表
  */
-export async function getAllDealers(): Promise<{ data: SqlRow[]; error: Error | null }> {
+export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
-      SELECT d.* FROM dealers d ORDER BY d.created_at DESC
+      SELECT d.* FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
     `;
     return { data: (result || []) as SqlRow[], error: null };
   } catch (err: unknown) {
@@ -154,11 +162,12 @@ export async function getAllDealers(): Promise<{ data: SqlRow[]; error: Error | 
 /**
  * 获取经销商的证书列表
  */
-export async function getCertificatesByDealerId(dealerId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
+export async function getCertificatesByDealerId(dealerId: string, limit = 200): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT * FROM certificates 
     WHERE dealer_id = ${dealerId}
     ORDER BY created_at DESC
+    LIMIT ${limit}
   `;
   const formatted = result.map(formatDateFields);
   return { data: formatted || [], error: null };
@@ -207,7 +216,7 @@ export async function getActiveIssuedCertificatesCount(): Promise<{ data: { coun
     WHERE status = 'ISSUED' 
     AND end_date >= CURRENT_DATE
   `;
-  return { data: { count: parseInt(result[0]?.count || 0) }, error: null };
+  return { data: { count: parseInt(result[0]?.count || 0, 10) }, error: null };
 }
 
 // ============================================================================
@@ -223,7 +232,7 @@ export async function getAllComplaints(
   status?: string
 ): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
   try {
-    const limit = pageSize && pageSize > 0 ? pageSize : 50;
+    const limit = Math.min(pageSize && pageSize > 0 ? pageSize : 50, 200);
     const offset = page && page > 0 ? (page - 1) * limit : 0;
 
     let result;
@@ -246,7 +255,7 @@ export async function getAllComplaints(
       countRes = await sql`SELECT COUNT(*) as count FROM complaints`;
     }
 
-    const total = parseInt(countRes[0]?.count || 0);
+    const total = parseInt(countRes[0]?.count || 0, 10);
     console.log('[getAllComplaints] 查询到', total, '条投诉, 本页', result.length, '条, status=', status);
 
     return { data: result || [], total, error: null };
@@ -260,11 +269,12 @@ export async function getAllComplaints(
 /**
  * 获取待处理投诉（PENDING + INVESTIGATING）
  */
-export async function getPendingComplaints(): Promise<{ data: SqlRow[]; error: Error | null }> {
+export async function getPendingComplaints(limit = 500): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT * FROM complaints
     WHERE status IN ('PENDING', 'INVESTIGATING')
     ORDER BY created_at DESC
+    LIMIT ${limit}
   `;
   return { data: result || [], error: null };
 }
@@ -278,7 +288,7 @@ export async function getPendingComplaintsCount(): Promise<{ data: { count: numb
     FROM complaints
     WHERE status IN ('PENDING', 'INVESTIGATING')
   `;
-  return { data: { count: parseInt(result[0]?.count || 0) }, error: null };
+  return { data: { count: parseInt(result[0]?.count || 0, 10) }, error: null };
 }
 
 /**
@@ -310,9 +320,9 @@ export async function getDashboardStats(): Promise<{ data: Record<string, number
   
   return {
     data: {
-      totalCertificates: parseInt(certCountRes[0]?.count || 0),
-      pendingComplaints: parseInt(complaintCountRes[0]?.count || 0),
-      issuedValid: parseInt(issuedCountRes[0]?.count || 0)
+      totalCertificates: parseInt(certCountRes[0]?.count || 0, 10),
+      pendingComplaints: parseInt(complaintCountRes[0]?.count || 0, 10),
+      issuedValid: parseInt(issuedCountRes[0]?.count || 0, 10)
     },
     error: null
   };
@@ -339,6 +349,12 @@ export async function checkActionRateLimit(
   const windowStart = new Date(Date.now() - windowMs);
 
   try {
+    // 定期清理过期记录，防止表无限增长
+    await sql`
+      DELETE FROM action_rate_limits
+      WHERE window_start < ${windowStart}
+    `;
+
     const records = await sql`
       SELECT attempts, window_start FROM action_rate_limits
       WHERE key = ${key}

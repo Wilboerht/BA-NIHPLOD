@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { uploadFile, getPublicUrl } from '@/lib/storage';
 import { requireAuth } from '@/lib/auth';
 

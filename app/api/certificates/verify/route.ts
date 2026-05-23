@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { getEndOfDay } from '@/lib/utils';
 
 /**
  * POST /api/certificates/verify
@@ -66,8 +67,8 @@ export async function POST(req: Request) {
     }
 
     // 检查过期（双重检查：status 和 end_date）
-    const isExpired = rawStatus === 'EXPIRED' || 
-                     new Date() > new Date((endDateStr || '1970-01-01') + 'T23:59:59');
+    const endDate = getEndOfDay(endDateStr || '1970-01-01');
+    const isExpired = rawStatus === 'EXPIRED' || new Date() > endDate;
     if (isExpired) {
       return NextResponse.json({
         success: false,
