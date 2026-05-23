@@ -1,0 +1,224 @@
+// 品牌授权及验证平台 (BAVP) - Prisma Schema
+// 注意：RLS 策略、触发器、自定义函数需在 prisma db push 后手动执行 db/schema.sql 中的对应部分
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// 枚举类型
+// ============================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  AUDITOR
+  MANAGER
+  PROJECT_MANAGER
+  DEALER
+}
+
+enum CertificateStatus {
+  PENDING
+  ISSUED
+  REJECTED
+  EXPIRED
+  REVOKED
+}
+
+enum ComplaintStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  REJECTED
+}
+
+// ============================================================================
+// 用户档案表
+// ============================================================================
+
+model Profile {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username      String?  @unique
+  full_name     String?
+  phone         String?  @unique
+  password_hash String?
+  role          UserRole @default(DEALER)
+  is_first_login Boolean @default(true)
+  is_banned     Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // 关系
+  dealers       Dealer[]
+  audit_logs    AuditLog[]
+  complaints    Complaint[]
+  audited_certs Certificate[] @relation("audited")
+  managed_certs Certificate[] @relation("managed")
+
+  @@map("profiles")
+}
+
+// ============================================================================
+// 经销商表
+// ============================================================================
+
+model Dealer {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profile_id     String?  @db.Uuid
+  company_name   String
+  phone          String
+  contact_person String?
+  email          String?
+  address        String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  // 关系
+  profile     Profile?     @relation(fields: [profile_id], references: [id])
+  certificates Certificate[]
+
+  @@map("dealers")
+  @@unique([phone, company_name])
+  @@index([phone])
+  @@index([profile_id])
+}
+
+// ============================================================================
+// 证书模板表
+// ============================================================================
+
+model Template {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  background_url String
+  stamp_url      String?
+  config         Json?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  // 关系
+  certificates Certificate[]
+
+  @@map("templates")
+}
+
+// ============================================================================
+// 证书表
+// ============================================================================
+
+model Certificate {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cert_number     String            @unique
+  dealer_id       String            @db.Uuid
+  template_id     String?           @db.Uuid
+  auth_scope      String?
+  start_date      DateTime          @db.Date
+  end_date        DateTime          @db.Date
+  status          CertificateStatus @default(PENDING)
+  final_image_url String?
+  seal_url        String?
+  auditor_id      String?           @db.Uuid
+  manager_id      String?           @db.Uuid
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // 关系
+  dealer    Dealer     @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  template  Template?  @relation(fields: [template_id], references: [id])
+  auditor   Profile?   @relation("audited", fields: [auditor_id], references: [id])
+  manager   Profile?   @relation("managed", fields: [manager_id], references: [id])
+  audit_logs AuditLog[]
+
+  @@map("certificates")
+  @@index([status])
+  @@index([dealer_id])
+  @@index([end_date])
+}
+
+// ============================================================================
+// 打假举报投诉表
+// ============================================================================
+
+model Complaint {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  description        String
+  channel            String?
+  evidence_image_url String?
+  status             ComplaintStatus @default(PENDING)
+  handler_id         String?         @db.Uuid
+  review_note        String?
+  contact_info       String?
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // 关系
+  handler    Profile?   @relation(fields: [handler_id], references: [id])
+  audit_logs AuditLog[]
+
+  @@map("complaints")
+  @@index([status])
+}
+
+// ============================================================================
+// 审核日志表
+// ============================================================================
+
+model AuditLog {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificate_id String?     @db.Uuid
+  complaint_id   String?     @db.Uuid
+  actor_id       String?     @db.Uuid
+  action         String
+  comment        String?
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+
+  // 关系
+  certificate Certificate? @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+  complaint   Complaint?   @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  actor       Profile?     @relation(fields: [actor_id], references: [id])
+
+  @@map("audit_logs")
+  @@index([certificate_id])
+  @@index([actor_id])
+  @@index([complaint_id])
+}
+
+// ============================================================================
+// Token 黑名单表
+// ============================================================================
+
+model TokenBlacklist {
+  jti    String   @id
+  exp_at DateTime @db.Timestamptz(6)
+
+  @@map("token_blacklist")
+  @@index([exp_at])
+}
+
+// ============================================================================
+// 登录限速表
+// ============================================================================
+
+model LoginRateLimit {
+  ip           String   @id
+  attempts     Int      @default(1)
+  window_start DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("login_rate_limits")
+}
+
+// ============================================================================
+// 通用行为限流表
+// ============================================================================
+
+model ActionRateLimit {
+  key          String   @id
+  attempts     Int      @default(1)
+  window_start DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("action_rate_limits")
+  @@index([window_start])
+}

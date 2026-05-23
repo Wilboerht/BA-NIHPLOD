@@ -1,7 +1,7 @@
 import postgres from 'postgres';
 
 /**
- * 原生 Postgres 连接池
+ * 原生 Postgres 连接池（保留用于复杂 SQL 查询）
  * 请在 .env.local 中配置 DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
  */
 function createDbClient() {
@@ -27,6 +27,9 @@ function createDbClient() {
 }
 
 export const sql = createDbClient();
+
+// 如需使用 Prisma ORM（类型安全查询），请从 @/lib/prisma 导入
+// import { prisma } from '@/lib/prisma';
 
 // ============================================================================
 // 【认证类】

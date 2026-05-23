@@ -8,12 +8,18 @@
     "start": "next start",
     "lint": "eslint",
     "list:admins": "node scripts/listAdmins.mjs",
-    "init:admins": "node scripts/initDefaultAdmins.mjs"
+    "init:admins": "node scripts/initDefaultAdmins.mjs",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev"
   },
   "overrides": {
     "postcss": ">=8.5.10"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "@types/qrcode": "^1.5.6",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -26,6 +32,7 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^1.7.0",
     "next": "^16.2.6",
+    "pg": "^8.21.0",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
@@ -39,6 +46,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
