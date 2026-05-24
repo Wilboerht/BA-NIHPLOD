@@ -470,7 +470,7 @@ export default function DealersPage() {
                                         scopeText: parsed.scopeText || "品牌官方经销授权",
                                         duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                         authorizer: parsed.authorizer || COMPANY_FULL_NAME,
-                                        sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
+                                        sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                         phone: dealerPhoneMap[cert.dealer_id] || ""
                                       });
                                       setIsViewVoided(false);
@@ -495,7 +495,7 @@ export default function DealersPage() {
                                       scopeText: parsed.scopeText || "品牌官方经销授权",
                                       duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
                                       authorizer: parsed.authorizer || COMPANY_FULL_NAME,
-                                      sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
+                                      sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
                                       phone: dealerPhoneMap[cert.dealer_id] || ""
                                     });
                                     setIsViewVoided(isVoided || cert.status === 'EXPIRED');
