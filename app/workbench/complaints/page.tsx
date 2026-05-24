@@ -388,7 +388,7 @@ export default function ComplaintsPage() {
                       <Megaphone className="w-5 h-5 text-rose-500" />
                       工单审核处理
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">工单 ID: {activeReviewId.split('-')[0]}...</p>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">工单 ID: <span className="font-mono">{activeReviewId}</span></p>
                   </div>
                   <button 
                     onClick={() => setActiveReviewId(null)} 
@@ -412,9 +412,12 @@ export default function ComplaintsPage() {
                      </div>
                    )}
                    {activeComplaint.contact_info && (
-                     <div className="flex items-center gap-2">
-                       <User className="w-3.5 h-3.5 text-slate-400" />
-                       <span className="text-[12px] text-slate-600 font-medium">{activeComplaint.contact_info}</span>
+                     <div>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">联系方式</span>
+                       <div className="flex items-center gap-2 mt-1">
+                         <User className="w-3.5 h-3.5 text-slate-400" />
+                         <span className="text-[12px] text-slate-600 font-medium">{activeComplaint.contact_info}</span>
+                       </div>
                      </div>
                    )}
                    {(() => {
@@ -461,8 +464,18 @@ export default function ComplaintsPage() {
                    </div>
                  )}
 
+                 {/* 已有审核备注（只读展示） */}
+                 {activeComplaint.review_note && (
+                   <div className="space-y-2">
+                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">当前备注</span>
+                     <div className="bg-amber-50/60 border border-amber-100 rounded-2xl p-4 text-[13px] text-slate-700 font-medium leading-relaxed">
+                       {activeComplaint.review_note}
+                     </div>
+                   </div>
+                 )}
+
                  <div className="space-y-3">
-                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">内部审核备注</label>
+                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">{activeComplaint.review_note ? '更新审核备注' : '内部审核备注'}</label>
                    <textarea 
                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all font-medium h-28 resize-none placeholder:text-slate-300" 
                      placeholder="请填写详细的调查结果及处理记录，以便后续复盘..."
