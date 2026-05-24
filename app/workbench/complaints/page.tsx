@@ -333,7 +333,7 @@ export default function ComplaintsPage() {
 
       {/* 图片预览模态框 */}
       {selectedImageUrls.length > 0 && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSelectedImageUrls([])}>
+         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSelectedImageUrls([])}>
             <div className="relative max-w-4xl w-full bg-white p-2 rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
                <button onClick={() => setSelectedImageUrls([])} className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
                  <X className="w-8 h-8" />
