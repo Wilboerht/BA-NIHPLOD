@@ -176,11 +176,16 @@ function isInternalUploadUrl(url?: string): boolean {
   return url.startsWith('/uploads/');
 }
 
+function isInternalUploadUrls(urls?: string[]): boolean {
+  if (!urls || urls.length === 0) return true;
+  return urls.every((url) => url.startsWith('/uploads/'));
+}
+
 export async function submitComplaintAction(formData: {
   description: string;
   channel?: string;
   contact_info?: string;
-  evidence_image_url?: string;
+  evidence_image_urls?: string[];
 }): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     // 限流检查：每个 IP 5 分钟内最多提交 3 次投诉
@@ -203,7 +208,7 @@ export async function submitComplaintAction(formData: {
     }
 
     // 证据图片 URL 安全校验
-    if (!isInternalUploadUrl(formData.evidence_image_url)) {
+    if (!isInternalUploadUrls(formData.evidence_image_urls)) {
       return { success: false, error: "证据图片来源不合法" };
     }
 
@@ -215,8 +220,8 @@ export async function submitComplaintAction(formData: {
     // 提交投诉
     try {
       const insertResult = await sql`
-        INSERT INTO complaints (description, channel, contact_info, evidence_image_url, status, created_at)
-        VALUES (${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_url || null}, 'PENDING', NOW())
+        INSERT INTO complaints (description, channel, contact_info, evidence_image_urls, status, created_at)
+        VALUES (${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_urls || []}, 'PENDING', NOW())
         RETURNING id
       `;
       const insertedId = insertResult[0]?.id;

@@ -11,9 +11,22 @@ interface Complaint {
   description: string;
   status: string;
   created_at: string;
-  evidence_image_url?: string;
+  evidence_image_url?: string;   // 兼容旧数据
+  evidence_image_urls?: string[];
   review_note?: string;
   contact_info?: string;
+}
+
+// 兼容新旧字段获取图片列表
+function getComplaintImages(c: Complaint): string[] {
+  const urls: string[] = [];
+  if (c.evidence_image_urls && c.evidence_image_urls.length > 0) {
+    urls.push(...c.evidence_image_urls);
+  }
+  if (c.evidence_image_url && !urls.includes(c.evidence_image_url)) {
+    urls.push(c.evidence_image_url);
+  }
+  return urls;
 }
 
 interface AuditLog {
@@ -29,7 +42,8 @@ export default function ComplaintsPage() {
   const { toast, confirm } = useToast();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("ALL"); // ALL, PENDING, INVESTIGATING
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
@@ -231,13 +245,22 @@ export default function ComplaintsPage() {
                     <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={complaint.description}>{complaint.description}</td>
                     <td className="px-6 py-4 text-slate-500 max-w-[120px] truncate" title={complaint.contact_info || ''}>{complaint.contact_info || "-"}</td>
                     <td className="px-6 py-4">
-                      {complaint.evidence_image_url ? (
-                        <button onClick={() => setSelectedImage(complaint.evidence_image_url || null)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors">
-                           <ImageIcon className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <span className="text-slate-300 text-xs">-</span>
-                      )}
+                      {(() => {
+                        const imgs = getComplaintImages(complaint);
+                        return imgs.length > 0 ? (
+                          <button 
+                            onClick={() => { setSelectedImageUrls(imgs); setSelectedImageIndex(0); }} 
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors relative"
+                          >
+                             <ImageIcon className="w-4 h-4" />
+                             {imgs.length > 1 && (
+                               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-slate-800 text-white text-[8px] rounded-full flex items-center justify-center font-bold">{imgs.length}</span>
+                             )}
+                          </button>
+                        ) : (
+                          <span className="text-slate-300 text-xs">-</span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-xs tabular-nums text-slate-500">
                       {complaint.created_at ? new Date(complaint.created_at).toLocaleString() : '-'}
@@ -309,13 +332,34 @@ export default function ComplaintsPage() {
       </div>
 
       {/* 图片预览模态框 */}
-      {selectedImage && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSelectedImage(null)}>
+      {selectedImageUrls.length > 0 && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSelectedImageUrls([])}>
             <div className="relative max-w-4xl w-full bg-white p-2 rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
-               <button onClick={() => setSelectedImage(null)} className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
+               <button onClick={() => setSelectedImageUrls([])} className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
                  <X className="w-8 h-8" />
                </button>
-               <img src={selectedImage} alt="证据截图" className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
+               <div className="relative">
+                 <img src={selectedImageUrls[selectedImageIndex]} alt={`证据 ${selectedImageIndex + 1}/${selectedImageUrls.length}`} className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
+                 {selectedImageUrls.length > 1 && (
+                   <>
+                     <button 
+                       onClick={() => setSelectedImageIndex(i => i > 0 ? i - 1 : selectedImageUrls.length - 1)}
+                       className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                     >
+                       <ChevronLeft className="w-5 h-5 text-slate-700" />
+                     </button>
+                     <button 
+                       onClick={() => setSelectedImageIndex(i => i < selectedImageUrls.length - 1 ? i + 1 : 0)}
+                       className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                     >
+                       <ChevronRight className="w-5 h-5 text-slate-700" />
+                     </button>
+                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full">
+                       {selectedImageIndex + 1} / {selectedImageUrls.length}
+                     </div>
+                   </>
+                 )}
+               </div>
             </div>
          </div>
       )}
@@ -373,17 +417,25 @@ export default function ComplaintsPage() {
                        <span className="text-[12px] text-slate-600 font-medium">{activeComplaint.contact_info}</span>
                      </div>
                    )}
-                   {activeComplaint.evidence_image_url && (
-                     <div>
-                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">证据图片</span>
-                       <button 
-                         onClick={() => setSelectedImage(activeComplaint.evidence_image_url || null)}
-                         className="mt-2 block w-full max-w-[200px] aspect-video bg-slate-100 rounded-xl overflow-hidden hover:ring-2 hover:ring-slate-300 transition-all"
-                       >
-                         <img src={activeComplaint.evidence_image_url} alt="证据" className="w-full h-full object-cover" />
-                       </button>
-                     </div>
-                   )}
+                   {(() => {
+                     const imgs = getComplaintImages(activeComplaint);
+                     return imgs.length > 0 ? (
+                       <div>
+                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">证据图片 <span className="text-slate-300 normal-case">({imgs.length} 张)</span></span>
+                         <div className="flex flex-wrap gap-2 mt-2">
+                           {imgs.map((url, idx) => (
+                             <button 
+                               key={idx}
+                               onClick={() => { setSelectedImageUrls(imgs); setSelectedImageIndex(idx); }}
+                               className="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden hover:ring-2 hover:ring-slate-300 transition-all flex-shrink-0"
+                             >
+                               <img src={url} alt={`证据 ${idx + 1}`} className="w-full h-full object-cover" />
+                             </button>
+                           ))}
+                         </div>
+                       </div>
+                     ) : null;
+                   })()}
                    <div className="flex items-center gap-4 pt-1">
                      <span className="text-[11px] text-slate-400">提交时间: {new Date(activeComplaint.created_at).toLocaleString()}</span>
                      <span className="text-[11px]">{getStatusBadge(activeComplaint.status)}</span>

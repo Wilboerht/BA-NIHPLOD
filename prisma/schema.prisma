@@ -146,7 +146,8 @@ model Complaint {
   id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   description        String
   channel            String?
-  evidence_image_url String?
+  evidence_image_url  String? // 兼容旧数据，已废弃
+  evidence_image_urls String[]
   status             ComplaintStatus @default(PENDING)
   handler_id         String?         @db.Uuid
   review_note        String?

@@ -114,7 +114,8 @@ CREATE TABLE IF NOT EXISTS complaints (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     description TEXT NOT NULL,
     channel TEXT,
-    evidence_image_url TEXT,
+    evidence_image_url TEXT,          -- 兼容旧数据，已废弃
+    evidence_image_urls TEXT[] DEFAULT '{}',
     status complaint_status DEFAULT 'PENDING',
     handler_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     review_note TEXT,
