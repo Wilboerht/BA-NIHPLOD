@@ -150,6 +150,24 @@ export default function ComplaintsPage() {
     }
   };
 
+  const STATUS_LABELS: Record<string, string> = {
+    PENDING: '待处理',
+    INVESTIGATING: '调查中',
+    RESOLVED: '已解决',
+    REJECTED: '无效驳回',
+  };
+
+  const formatAuditAction = (action: string): string => {
+    // STATUS_CHANGE:PENDING->INVESTIGATING
+    const match = action.match(/^STATUS_CHANGE:(.+)->(.+)$/);
+    if (match) {
+      const from = STATUS_LABELS[match[1]] || match[1];
+      const to = STATUS_LABELS[match[2]] || match[2];
+      return `状态变更：${from} → ${to}`;
+    }
+    return action;
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -453,7 +471,7 @@ export default function ComplaintsPage() {
                        {auditLogs.map((log) => (
                          <div key={log.id} className="bg-slate-50/50 rounded-xl px-4 py-2.5 text-[12px]">
                            <div className="flex items-center justify-between mb-0.5">
-                             <span className="font-bold text-slate-700">{log.action}</span>
+                             <span className="font-bold text-slate-700">{formatAuditAction(log.action)}</span>
                              <span className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</span>
                            </div>
                            {log.comment && <p className="text-slate-500">{log.comment}</p>}
