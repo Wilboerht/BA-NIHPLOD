@@ -576,7 +576,7 @@ export default function VerificationPage() {
                 授权资质官方核查
               </h1>
               <p className="text-[#8B7355] text-[13px] md:text-base max-w-lg mx-auto leading-relaxed opacity-80 tracking-[0.05em] font-medium">
-                输入授权证书编号 (SN) 或经销主体名称，<br className="hidden md:inline" /> 核实官方资质及合法经营区域。
+                输入授权证书编号 (SN)、店铺名称或公司名称，<br className="hidden md:inline" /> 核实官方资质及合法经营区域。
               </p>
             </div>
           </motion.div>
@@ -595,7 +595,7 @@ export default function VerificationPage() {
                 <Search className="w-4 h-4 md:w-[22px] md:h-[22px] flex-shrink-0 text-slate-400 group-focus-within:text-[#8B7355] transition-colors" />
                 <input 
                   type="text" 
-                  placeholder="输入证书编号或名称" 
+                  placeholder="输入证书编号、店铺或公司名称" 
                   className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
