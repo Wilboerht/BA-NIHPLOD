@@ -66,18 +66,33 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       })) as DbCertRow[];
     }
 
-    // 2. 如果没有匹配，按店铺名称或公司名称（嵌入在 auth_scope 中）模糊搜索
+    // 2. 如果没有匹配，按店铺名称或公司名称（嵌入在 auth_scope 中）搜索
+    // 策略：先用前缀匹配（ILIKE '关键词%'），避免过于宽泛；如果无结果且关键词长度≥3，再尝试包含匹配
     if (!results) {
-      const likePattern = '%' + cleanQuery + '%';
+      const prefixPattern = cleanQuery + '%';
       dbResults = await sql`
         SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
                d.company_name
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
-        WHERE d.company_name ILIKE ${likePattern}
-           OR split_part(c.auth_scope, ' | ', 1) ILIKE ${likePattern}
+        WHERE d.company_name ILIKE ${prefixPattern}
+           OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern}
         ORDER BY c.end_date DESC
       `;
+
+      // 2b. 前缀匹配无结果且关键词长度≥3时，回退到包含匹配（ILIKE '%关键词%'）
+      if ((!dbResults || dbResults.length === 0) && cleanQuery.length >= 3) {
+        const containPattern = '%' + cleanQuery + '%';
+        dbResults = await sql`
+          SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
+                 d.company_name
+          FROM certificates c
+          LEFT JOIN dealers d ON c.dealer_id = d.id
+          WHERE d.company_name ILIKE ${containPattern}
+             OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern}
+          ORDER BY c.end_date DESC
+        `;
+      }
 
       if (dbResults && dbResults.length > 0) {
         results = dbResults.map((r: Record<string, unknown>) => ({
