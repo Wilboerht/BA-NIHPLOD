@@ -31,6 +31,7 @@ export default function CertificatesPage() {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewVoided, setIsViewVoided] = useState(false);
+  const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserRole();
@@ -118,6 +119,12 @@ export default function CertificatesPage() {
       }
 
       toast({ message: `审核通过！授权书已核发。经销商账户已开通。`, type: "success" });
+      setShowIssueModal(false);
+      setPendingApproveId(null);
+      setSelectedCertData(undefined);
+      setIsViewOnly(false);
+      setIsEditMode(false);
+      setIsViewVoided(false);
       fetchCertificates();
     } catch (err: unknown) {
       console.error("❌ 异常:", err);
@@ -244,7 +251,27 @@ export default function CertificatesPage() {
                       <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                         {cert.status === 'PENDING' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
                           <button 
-                            onClick={() => approveCertificate(cert.id)}
+                            onClick={() => {
+                              const parsed = parseAuthScope(cert.auth_scope);
+                              setSelectedCertData({
+                                id: cert.id,
+                                cert_number: cert.cert_number,
+                                companyName: parsed.companyName,
+                                companyLabel: "公司名称",
+                                shopName: cert.dealers?.company_name || "",
+                                shopLabel: "授权主体",
+                                scopeText: parsed.scopeText || "品牌官方经销授权",
+                                duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+                                authorizer: parsed.authorizer || COMPANY_FULL_NAME,
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
+                                phone: cert.dealers?.phone || ""
+                              });
+                              setPendingApproveId(cert.id);
+                              setIsViewVoided(false);
+                              setIsViewOnly(true);
+                              setIsEditMode(false);
+                              setShowIssueModal(true);
+                            }}
                             className="bg-slate-900 text-white h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all hover:bg-black active:scale-95 tracking-wide leading-none"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
@@ -377,6 +404,7 @@ export default function CertificatesPage() {
                 setIsViewOnly(false);
                 setIsEditMode(false);
                 setIsViewVoided(false);
+                setPendingApproveId(null);
               }}
               className="absolute inset-0 bg-black/20 backdrop-blur-sm"
             />
@@ -392,13 +420,15 @@ export default function CertificatesPage() {
               <div className="px-8 md:px-12 pt-8 pb-5 flex justify-between items-center bg-white shrink-0 border-b border-slate-100">
                   <div className="space-y-1">
                     <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
-                      {isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
+                      {pendingApproveId ? "审核准入核查" : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
                     </h3>
                       <p className="text-[12px] text-slate-400 font-medium tracking-wide">
-                        {isEditMode 
+                        {pendingApproveId
+                          ? "核对经销商资质信息与授权证书预览，确认无误后核发"
+                          : isEditMode
                           ? "正在修正现有授权证书中的录入误差，提交后将同步刷新查验图"
-                          : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') 
-                            ? "核实经销商主体资质，签发受防伪协议保护的电子证书" 
+                          : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '')
+                            ? "核实经销商主体资质，签发受防伪协议保护的电子证书"
                             : "录入经销商主体资质，提交品牌授权审核申请")}
                       </p>
                   </div>
@@ -418,9 +448,9 @@ export default function CertificatesPage() {
               </div>
               <div className="flex-1 overflow-y-auto px-8 md:px-12 py-6 custom-scrollbar bg-slate-50/10">
                 <div className="max-w-5xl mx-auto">
-                  <CertificateGenerator 
-                    initialData={selectedCertData} 
-                    mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'} 
+                  <CertificateGenerator
+                    initialData={selectedCertData}
+                    mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'}
                     isVoided={isViewVoided}
                     onSuccess={() => {
                       setShowIssueModal(false);
@@ -428,9 +458,36 @@ export default function CertificatesPage() {
                       setIsViewOnly(false);
                       setIsEditMode(false);
                       setIsViewVoided(false);
+                      setPendingApproveId(null);
                       fetchCertificates(); // 重新加载证书列表
                     }}
                   />
+
+                  {/* 待审核证书底部审核操作栏 */}
+                  {pendingApproveId && (
+                    <div className="mt-8 flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          setShowIssueModal(false);
+                          setPendingApproveId(null);
+                          setSelectedCertData(undefined);
+                          setIsViewOnly(false);
+                          setIsEditMode(false);
+                          setIsViewVoided(false);
+                        }}
+                        className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={() => approveCertificate(pendingApproveId)}
+                        className="px-5 py-2.5 rounded-xl text-[13px] font-bold bg-slate-900 text-white hover:bg-black transition-all inline-flex items-center gap-2 active:scale-95"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        审核通过并核发
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
