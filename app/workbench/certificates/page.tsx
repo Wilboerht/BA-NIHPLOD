@@ -402,20 +402,19 @@ export default function CertificatesPage() {
                             : "录入经销商主体资质，提交品牌授权审核申请")}
                       </p>
                   </div>
-                  {!isViewOnly && !isViewVoided && (
-                    <button 
-                      onClick={() => {
-                        setShowIssueModal(false);
-                        setSelectedCertData(undefined);
-                        setIsViewOnly(false);
-                        setIsEditMode(false);
-                        setIsViewVoided(false);
-                      }} 
-                      className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
-                    >
-                      <X size={18} strokeWidth={2.5} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setShowIssueModal(false);
+                      setSelectedCertData(undefined);
+                      setIsViewOnly(false);
+                      setIsEditMode(false);
+                      setIsViewVoided(false);
+                    }}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
+                    aria-label="关闭"
+                  >
+                    <X size={18} strokeWidth={2.5} />
+                  </button>
               </div>
               <div className="flex-1 overflow-y-auto px-8 md:px-12 py-6 custom-scrollbar bg-slate-50/10">
                 <div className="max-w-5xl mx-auto">

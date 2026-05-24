@@ -557,7 +557,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   };
 
   return (
-    <div className="grid lg:grid-cols-[400px_1fr] gap-12 items-start h-full pb-2">
+    <div className="grid lg:grid-cols-[400px_1fr] gap-12 items-center h-full pb-2">
       <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col h-full">
         <div className="space-y-8 mb-4 pt-1">
           {mode === 'view' && data.cert_number && (
