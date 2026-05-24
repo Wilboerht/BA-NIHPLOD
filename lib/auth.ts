@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from './db';
+import { ADMIN_ROLES } from '@/types';
 import crypto from 'crypto';
 
 const TOKEN_COOKIE = 'auth-token';
@@ -22,6 +23,7 @@ export interface AuthUser {
   phone?: string;
   full_name?: string;
   role: string;
+  is_banned?: boolean;
 }
 
 export interface TokenPayload extends JWTPayload {
@@ -45,11 +47,14 @@ export async function createToken(user: AuthUser): Promise<string> {
     phone: user.phone,
     full_name: user.full_name,
     role: user.role,
+    is_banned: user.is_banned ?? false,
     jti,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('24h')
+    .setIssuer('nihplod-bavp')
+    .setAudience('nihplod-bavp')
+    .setExpirationTime('8h')
     .sign(secret);
 }
 
@@ -73,6 +78,8 @@ export async function verifyTokenBasic(request: NextRequest | Request): Promise<
     const secret = getSecret();
     const { payload } = await jwtVerify(token, secret, {
       clockTolerance: 60,
+      issuer: 'nihplod-bavp',
+      audience: 'nihplod-bavp',
     });
 
     return payload as TokenPayload;
@@ -93,15 +100,18 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
   // 检查 Token 黑名单
   if (payload.jti) {
     try {
-      // 顺带清理过期黑名单记录（低频率触发，利用请求分摊）
-      await sql`SELECT cleanup_expired_blacklist()`;
+      // 顺带清理过期黑名单记录（1% 概率触发，避免每次请求都执行）
+      if (Math.random() < 0.01) {
+        await sql`SELECT cleanup_expired_blacklist()`;
+      }
       const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
       if (blacklisted.length > 0) {
         console.log('[verifyToken] Token 在黑名单中');
         return null;
       }
     } catch (err) {
-      console.error('[verifyToken] 黑名单查询失败（已放行）:', err instanceof Error ? err.message : String(err));
+      console.error('[verifyToken] 黑名单查询失败，拒绝放行:', err instanceof Error ? err.message : String(err));
+      return null;
     }
   }
 
@@ -175,8 +185,7 @@ export async function requireAdmin(request: NextRequest | Request) {
     return { user: null, response };
   }
 
-  const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
-  if (!user?.role || !allowedRoles.includes(user.role)) {
+  if (!user?.role || !ADMIN_ROLES.includes(user.role as typeof ADMIN_ROLES[number])) {
     return {
       user: null,
       response: NextResponse.json({ error: '无权限执行此操作' }, { status: 403 }),
@@ -191,7 +200,7 @@ export async function requireAdmin(request: NextRequest | Request) {
  */
 export function setAuthCookie(token: string): string {
   const isSecure = process.env.NODE_ENV === 'production';
-  return `${TOKEN_COOKIE}=${token}; HttpOnly; ${isSecure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=86400`;
+  return `${TOKEN_COOKIE}=${token}; HttpOnly; ${isSecure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=28800`;
 }
 
 /**

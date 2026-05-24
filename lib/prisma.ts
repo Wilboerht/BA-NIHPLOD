@@ -3,7 +3,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
 const connectionString = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
-let shutdownRegistered = false;
 
 function createPrismaClient(): PrismaClient {
   if (!connectionString) {
@@ -21,16 +20,18 @@ function createPrismaClient(): PrismaClient {
   const pool = new Pool({ connectionString });
   const client = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-  // 应用退出时优雅关闭（只注册一次）
-  if (!shutdownRegistered) {
-    shutdownRegistered = true;
-    process.on('beforeExit', async () => {
-      await client.$disconnect();
-      await pool.end();
-    });
-  }
+  // 应用退出时优雅关闭
+  const shutdownHandler = async () => {
+    await client.$disconnect();
+    await pool.end();
+  };
+  process.on('beforeExit', shutdownHandler);
+  process.on('SIGINT', shutdownHandler);
+  process.on('SIGTERM', shutdownHandler);
 
   return client;
 }
 
-export const prisma = createPrismaClient();
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

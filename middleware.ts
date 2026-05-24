@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyTokenBasic } from './lib/auth';
+import { ADMIN_ROLES } from './types';
 
 // 受保护的路径模式
 const PROTECTED_PATHS = [
@@ -47,11 +48,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // 检查 token 是否来自被封禁账号（新 token 会包含此字段，旧 token 在 API 层被拦截）
+  if (payload.is_banned === true) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: '账号已被封禁' }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   // 对于 /workbench 路由，检查是否为管理员（DEALER 不允许访问）
   if (pathname.startsWith('/workbench')) {
-    const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
-    if (!allowedRoles.includes(payload.role)) {
+    if (!ADMIN_ROLES.includes(payload.role as typeof ADMIN_ROLES[number])) {
       return NextResponse.redirect(new URL('/dealer', request.url));
+    }
+  }
+
+  // 对于 /api/admin 路由，强制要求管理员角色（兜底防线）
+  if (pathname.startsWith('/api/admin')) {
+    if (!ADMIN_ROLES.includes(payload.role as typeof ADMIN_ROLES[number])) {
+      return NextResponse.json({ error: '无权限执行此操作' }, { status: 403 });
     }
   }
 

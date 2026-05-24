@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ADMIN_ROLES } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
@@ -59,7 +60,7 @@ export default function WorkbenchPage() {
         const data = await res.json();
         const user = data.user;
         // workbench 只接受管理员用户
-        if (user?.role === 'SUPER_ADMIN' || user?.role === 'AUDITOR' || user?.role === 'MANAGER' || user?.role === 'PROJECT_MANAGER') {
+        if (ADMIN_ROLES.includes(user?.role)) {
           return { role: user.role, uid: user.id };
         }
       }
@@ -71,7 +72,7 @@ export default function WorkbenchPage() {
 
   const loadDashboard = useCallback(async (role?: string) => {
     // 跳过非管理员的数据加载
-    if (!role || (role !== 'SUPER_ADMIN' && role !== 'AUDITOR' && role !== 'MANAGER' && role !== 'PROJECT_MANAGER')) {
+    if (!role || !ADMIN_ROLES.includes(role as typeof ADMIN_ROLES[number])) {
       setIsLoading(false);
       return;
     }

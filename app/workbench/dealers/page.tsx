@@ -9,6 +9,7 @@ import {
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { COMPANY_FULL_NAME } from "@/lib/config";
 
 interface Dealer {
   id: string;
@@ -484,7 +485,7 @@ export default function DealersPage() {
                                         shopLabel: "授权主体",
                                         scopeText: parsed.scopeText || "品牌官方经销授权",
                                         duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                        authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
+                                        authorizer: parsed.authorizer || COMPANY_FULL_NAME,
                                         sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                         phone: dealerPhoneMap[cert.dealer_id] || ""
                                       });
@@ -509,7 +510,7 @@ export default function DealersPage() {
                                       shopLabel: "授权主体",
                                       scopeText: parsed.scopeText || "品牌官方经销授权",
                                       duration: `${cert.start_date.replace(/-/g, '.')} - ${cert.end_date.replace(/-/g, '.')}`,
-                                      authorizer: parsed.authorizer || "旎柏（上海）商贸有限公司",
+                                      authorizer: parsed.authorizer || COMPANY_FULL_NAME,
                                       sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.svg",
                                       phone: dealerPhoneMap[cert.dealer_id] || ""
                                     });

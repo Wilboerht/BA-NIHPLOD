@@ -28,6 +28,9 @@ export default function ConfirmDialog({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           onClick={onCancel}
         >
           {/* Backdrop */}
@@ -44,6 +47,7 @@ export default function ConfirmDialog({
           >
             <button
               onClick={onCancel}
+              aria-label="关闭"
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <X className="w-5 h-5" />

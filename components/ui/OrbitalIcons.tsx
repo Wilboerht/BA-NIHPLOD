@@ -1,10 +1,8 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-// Unique suffix for SVG gradient IDs to avoid conflicts when multiple icons are rendered
-const idSuffix = "orbital-icons";
-
-export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+function createCategoryIcons(idSuffix: string): Record<string, React.ReactNode> {
+  return {
   "洁面": (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="17.9922" y="5" width="11.9999" height="37.9997" rx="1.99992" fill={`url(#paint0_linear_2088_4549_${idSuffix})`} />
@@ -182,6 +180,12 @@ export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
       </svg>
   ),
 };
+}
+
+function useOrbitalIcons() {
+  const idSuffix = React.useId().replace(/:/g, '');
+  return React.useMemo(() => createCategoryIcons(idSuffix), [idSuffix]);
+}
 
 interface OrbitalRingProps {
   radius: number;
@@ -246,6 +250,7 @@ interface OrbitalIconsProps {
 }
 
 export function OrbitalIcons({ className, children }: OrbitalIconsProps) {
+  const CATEGORY_ICONS = useOrbitalIcons();
   const rings: OrbitalRingProps[] = [
     {
       radius: 260,

@@ -34,7 +34,7 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
     if (!isOpen) return;
     
     // 从服务端获取当前用户信息
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', { cache: 'no-store' })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data?.user) {
@@ -182,8 +182,8 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-6">
-          <motion.div 
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-6" role="dialog" aria-modal="true" aria-label="设置密码">
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -201,6 +201,7 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
             <div className="absolute top-6 right-6 z-10">
               <button
                 onClick={handleClose}
+                aria-label="关闭"
                 className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-700 transition-all"
               >
                 <X className="w-5 h-5" />

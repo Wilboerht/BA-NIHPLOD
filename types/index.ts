@@ -1,3 +1,8 @@
+export const ADMIN_ROLES = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'] as const;
+export type AdminRole = typeof ADMIN_ROLES[number];
+export const ALL_ROLES = [...ADMIN_ROLES, 'DEALER'] as const;
+export type UserRole = typeof ALL_ROLES[number];
+
 // 认证相关类型
 export interface AuthUser {
   id: string;

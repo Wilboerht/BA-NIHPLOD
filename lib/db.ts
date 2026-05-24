@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { ADMIN_ROLES } from '@/types';
 
 /**
  * 原生 Postgres 连接池（保留用于复杂 SQL 查询）
@@ -40,10 +41,11 @@ export const sql = createDbClient();
  */
 export async function findProfileForLogin(identifier: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
-    SELECT * FROM profiles 
-    WHERE phone = ${identifier} 
-       OR username = ${identifier} 
-       OR username = ${identifier.toLowerCase()} 
+    SELECT id, username, full_name, phone, password_hash, role, is_banned, is_first_login
+    FROM profiles
+    WHERE phone = ${identifier}
+       OR username = ${identifier}
+       OR username = ${identifier.toLowerCase()}
     LIMIT 1
   `;
   return { data: result[0] || null, error: null };
@@ -67,8 +69,7 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
     const { data: profile, error } = await getProfileById(adminId);
     if (error || !profile) return false;
 
-    const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
-    return allowedRoles.includes(String(profile.role));
+    return ADMIN_ROLES.includes(String(profile.role) as typeof ADMIN_ROLES[number]);
   } catch (error) {
     console.error("[checkIsAdmin] Error:", error);
     return false;
@@ -352,48 +353,40 @@ export async function checkActionRateLimit(
   const windowStart = new Date(Date.now() - windowMs);
 
   try {
-    // 定期清理过期记录，防止表无限增长
-    await sql`
-      DELETE FROM action_rate_limits
-      WHERE window_start < ${windowStart}
-    `;
-
-    const records = await sql`
-      SELECT attempts, window_start FROM action_rate_limits
-      WHERE key = ${key}
-      LIMIT 1
-    `;
-
-    if (records.length === 0) {
+    // 低概率清理过期记录（避免每次请求都执行）
+    if (Math.random() < 0.01) {
       await sql`
-        INSERT INTO action_rate_limits (key, attempts, window_start)
-        VALUES (${key}, 1, ${now})
+        DELETE FROM action_rate_limits
+        WHERE window_start < ${windowStart}
       `;
-      return true;
     }
 
-    const record = records[0];
+    // 原子性 UPSERT：插入或更新，并返回最新值
+    const result = await sql`
+      INSERT INTO action_rate_limits (key, attempts, window_start)
+      VALUES (${key}, 1, ${now})
+      ON CONFLICT (key) DO UPDATE SET
+        attempts = CASE
+          WHEN action_rate_limits.window_start < ${windowStart} THEN 1
+          WHEN action_rate_limits.attempts >= ${maxAttempts} THEN action_rate_limits.attempts
+          ELSE action_rate_limits.attempts + 1
+        END,
+        window_start = CASE
+          WHEN action_rate_limits.window_start < ${windowStart} THEN ${now}
+          ELSE action_rate_limits.window_start
+        END
+      RETURNING attempts, window_start
+    `;
+
+    const record = result[0];
     const recordWindowStart = new Date(record.window_start);
 
+    // 窗口已过期（理论上已被重置，双重保险）
     if (recordWindowStart < windowStart) {
-      await sql`
-        UPDATE action_rate_limits
-        SET attempts = 1, window_start = ${now}
-        WHERE key = ${key}
-      `;
       return true;
     }
 
-    if (record.attempts >= maxAttempts) {
-      return false;
-    }
-
-    await sql`
-      UPDATE action_rate_limits
-      SET attempts = attempts + 1
-      WHERE key = ${key}
-    `;
-    return true;
+    return record.attempts < maxAttempts;
   } catch (err) {
     console.error('[RateLimit] 数据库查询失败，拒绝请求以保障安全:', err);
     return false;

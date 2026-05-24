@@ -18,7 +18,7 @@ export function useAuth() {
   const refresh = useCallback(async (): Promise<UserSession | null> => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { cache: 'no-store' });
       if (!res.ok) {
         setUser(null);
         return null;
@@ -58,7 +58,7 @@ export function useAuth() {
  */
 export async function fetchCurrentUser(): Promise<UserSession | null> {
   try {
-    const res = await fetch('/api/auth/me');
+    const res = await fetch('/api/auth/me', { cache: 'no-store' });
     if (!res.ok) return null;
     const data = await res.json();
     return data.user || null;

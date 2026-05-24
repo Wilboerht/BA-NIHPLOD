@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { COMPANY_FULL_NAME } from '@/lib/config';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 
@@ -117,7 +118,7 @@ export async function POST(req: Request) {
           VALUES (
             ${certNumber},
             ${dealerId},
-            ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+            ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
             ${parseDuration(certData.duration).start},
             ${parseDuration(certData.duration).end},
             'PENDING',
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
             VALUES (
               ${certNumber},
               ${dealerId},
-              ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+              ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
               ${parseDuration(certData.duration).start},
               ${parseDuration(certData.duration).end},
               'ISSUED',
@@ -241,7 +242,7 @@ export async function POST(req: Request) {
         await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
         await tx`
           UPDATE certificates
-          SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || '旎柏（上海）商贸有限公司')},
+          SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
               start_date = ${parseDuration(certData.duration).start},
               end_date = ${parseDuration(certData.duration).end},
               seal_url = ${certData.sealImage || null},

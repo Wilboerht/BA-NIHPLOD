@@ -25,52 +25,40 @@ async function checkRateLimit(ip: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - WINDOW_MS);
 
   try {
-    // 定期清理过期的限速记录，防止表无限增长
-    await sql`
-      DELETE FROM login_rate_limits
-      WHERE window_start < ${windowStart}
-    `;
-
-    // 查询当前 IP 的限速记录
-    const records = await sql`
-      SELECT attempts, window_start FROM login_rate_limits
-      WHERE ip = ${ip}
-      LIMIT 1
-    `;
-
-    if (records.length === 0) {
-      // 新记录
+    // 低概率清理过期记录（避免每次请求都执行）
+    if (Math.random() < 0.01) {
       await sql`
-        INSERT INTO login_rate_limits (ip, attempts, window_start)
-        VALUES (${ip}, 1, ${now})
+        DELETE FROM login_rate_limits
+        WHERE window_start < ${windowStart}
       `;
-      return true;
     }
 
-    const record = records[0];
+    // 原子性 UPSERT：插入或更新，并返回最新值
+    const result = await sql`
+      INSERT INTO login_rate_limits (ip, attempts, window_start)
+      VALUES (${ip}, 1, ${now})
+      ON CONFLICT (ip) DO UPDATE SET
+        attempts = CASE
+          WHEN login_rate_limits.window_start < ${windowStart} THEN 1
+          WHEN login_rate_limits.attempts >= ${MAX_ATTEMPTS} THEN login_rate_limits.attempts
+          ELSE login_rate_limits.attempts + 1
+        END,
+        window_start = CASE
+          WHEN login_rate_limits.window_start < ${windowStart} THEN ${now}
+          ELSE login_rate_limits.window_start
+        END
+      RETURNING attempts, window_start
+    `;
+
+    const record = result[0];
     const recordWindowStart = new Date(record.window_start);
 
+    // 窗口已过期（理论上已被重置，双重保险）
     if (recordWindowStart < windowStart) {
-      // 窗口已过期，重置
-      await sql`
-        UPDATE login_rate_limits
-        SET attempts = 1, window_start = ${now}
-        WHERE ip = ${ip}
-      `;
       return true;
     }
 
-    if (record.attempts >= MAX_ATTEMPTS) {
-      return false;
-    }
-
-    // 增加尝试次数
-    await sql`
-      UPDATE login_rate_limits
-      SET attempts = attempts + 1
-      WHERE ip = ${ip}
-    `;
-    return true;
+    return record.attempts < MAX_ATTEMPTS;
   } catch {
     // 数据库故障时安全优先：拒绝服务，防止在数据库异常时被暴力破解
     console.error('[RateLimit] 数据库查询失败，拒绝登录以保障安全');
@@ -136,6 +124,7 @@ export async function POST(req: Request) {
       phone: typeof profile.phone === 'string' ? profile.phone : undefined,
       full_name: typeof profile.full_name === 'string' ? profile.full_name : undefined,
       role: String(profile.role),
+      is_banned: Boolean(profile.is_banned),
     });
 
     // 5. 返回用户信息和是否需要改密码

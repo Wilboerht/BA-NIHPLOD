@@ -9,6 +9,7 @@ interface ToastProps {
   id: string;
   message: string;
   type: ToastType;
+  duration?: number;
   onClose: (id: string) => void;
 }
 
@@ -33,13 +34,13 @@ const iconColors = {
   info: "text-sky-500",
 };
 
-export default function Toast({ id, message, type, onClose }: ToastProps) {
+export default function Toast({ id, message, type, duration = 3000, onClose }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose(id);
-    }, 3000);
+    }, duration);
     return () => clearTimeout(timer);
-  }, [id, onClose]);
+  }, [id, duration, onClose]);
 
   const Icon = icons[type];
 

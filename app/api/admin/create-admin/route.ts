@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { sql } from "@/lib/db";
 import { requireAdmin, validatePassword } from "@/lib/auth";
+import { ADMIN_ROLES } from "@/types";
 
 export async function POST(req: Request) {
   try {
@@ -32,9 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
 
-    // 允许的角色
-    const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
-    if (!validRoles.includes(role)) {
+    if (!ADMIN_ROLES.includes(role as typeof ADMIN_ROLES[number])) {
       return NextResponse.json({ error: "无效的角色类型" }, { status: 400 });
     }
 

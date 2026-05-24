@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDealersByProfileId } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
+import { ADMIN_ROLES } from '@/types';
 
 export async function GET(
   req: Request,
@@ -23,8 +24,7 @@ export async function GET(
     }
 
     // 权限控制：普通用户只能查自己的经销商，管理员可以查任意
-    const allowedRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'];
-    if (user!.id !== profileId && !allowedRoles.includes(user!.role)) {
+    if (user!.id !== profileId && !ADMIN_ROLES.includes(user!.role as typeof ADMIN_ROLES[number])) {
       return NextResponse.json(
         { error: '无权查看该用户的经销商信息' },
         { status: 403 }

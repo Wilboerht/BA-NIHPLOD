@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShieldCheck, Scale } from "lucide-react";
+import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -17,15 +18,15 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 md:p-6">
-          <motion.div 
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 md:p-6" role="dialog" aria-modal="true" aria-label={title}>
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-slate-900/20 backdrop-blur-md"
           />
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.98, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 20 }}
@@ -39,8 +40,9 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
                   </div>
                   <h3 className="text-xl font-black text-slate-900 tracking-[0.12em] leading-none">{title}</h3>
                </div>
-               <button 
+               <button
                  onClick={onClose}
+                 aria-label="关闭"
                  className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
                >
                  <X size={18} />
@@ -54,7 +56,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
                   <>
                     <section className="space-y-2">
                       <h4 className="text-slate-900 font-extrabold text-[15px] tracking-wide">一、协议声明</h4>
-                      <p>欢迎使用 NIHPLOD (旎柏) 品牌授权核验系统。本协议是您与旎柏（上海）商贸有限公司之间关于系统使用的法律协议。通过访问或使用本系统，即表示您已阅读、理解并同意受本协议条款的约束。</p>
+                      <p>欢迎使用 {BRAND_NAME} ({BRAND_NAME_CN}) 品牌授权核验系统。本协议是您与{COMPANY_FULL_NAME}之间关于系统使用的法律协议。通过访问或使用本系统，即表示您已阅读、理解并同意受本协议条款的约束。</p>
                     </section>
                     <section className="space-y-2">
                       <h4 className="text-slate-900 font-extrabold text-[15px] tracking-wide">二、授权核验服务</h4>
@@ -62,7 +64,7 @@ export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
                     </section>
                     <section className="space-y-2">
                       <h4 className="text-slate-900 font-extrabold text-[15px] tracking-wide">三、知识产权</h4>
-                      <p>本系统内的所有内容，包括但不限于 LOGO、软件代码、设计布局、证书样式及防伪技术，均受知识产权法律保护。未经书面许可，严禁以任何形式进行复制或二次分发。</p>
+                      <p>本系统内的所有内容，包括但不限于 LOGO、软件代码、设计布局、证书样式及防伪技术，均受知识产权法律保护。未经{COMPANY_FULL_NAME}书面许可，严禁以任何形式进行复制或二次分发。</p>
                     </section>
                     <section className="space-y-2">
                       <h4 className="text-slate-900 font-extrabold text-[15px] tracking-wide">四、责任限制</h4>

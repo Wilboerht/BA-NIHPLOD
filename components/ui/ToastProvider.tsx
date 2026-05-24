@@ -11,6 +11,7 @@ interface ToastItem {
   id: string;
   message: string;
   type: NonNullable<ToastOptions["type"]>;
+  duration?: number;
 }
 
 interface ConfirmState extends ConfirmOptions {
@@ -25,7 +26,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
   const toast = useCallback((options: ToastOptions) => {
     const id = `toast-${++toastIdRef.current}`;
     const type = options.type || "info";
-    setToasts((prev) => [...prev, { id, message: options.message, type }]);
+    setToasts((prev) => [...prev, { id, message: options.message, type, duration: options.duration }]);
   }, []);
 
   const removeToast = useCallback((id: string) => {
@@ -57,7 +58,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
         <AnimatePresence mode="popLayout">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto">
-              <Toast id={t.id} message={t.message} type={t.type} onClose={removeToast} />
+              <Toast id={t.id} message={t.message} type={t.type} duration={t.duration} onClose={removeToast} />
             </div>
           ))}
         </AnimatePresence>

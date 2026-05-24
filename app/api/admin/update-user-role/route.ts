@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql, getProfileById } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { ALL_ROLES } from '@/types';
 
 export async function PUT(req: Request) {
   try {
@@ -49,9 +50,7 @@ export async function PUT(req: Request) {
 
     // 更新用户角色
     try {
-      // 验证新角色值
-      const validRoles = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER', 'DEALER'];
-      if (!validRoles.includes(newRole)) {
+      if (!ALL_ROLES.includes(newRole as typeof ALL_ROLES[number])) {
         return NextResponse.json(
           { error: '无效的角色值' },
           { status: 400 }

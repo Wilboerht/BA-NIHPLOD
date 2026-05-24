@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone } from "lucide-react";
 import Link from "next/link";
 import { parseAuthScope } from "@/lib/utils";
+import { BRAND_NAME, BRAND_NAME_CN } from "@/lib/config";
 
 interface Certificate {
   cert_number: string;
@@ -121,7 +122,7 @@ export default function VerifyPageContent() {
             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-8 text-white text-center">
               <CheckCircle2 className="w-20 h-20 mx-auto mb-4 opacity-90" />
               <h1 className="text-3xl font-bold mb-2">✓ 证书真实有效</h1>
-              <p className="text-emerald-50 text-lg">NIHPLOD(旎柏) 官方认证</p>
+              <p className="text-emerald-50 text-lg">{BRAND_NAME}({BRAND_NAME_CN}) 官方认证</p>
             </div>
 
             {/* 证书信息 */}
@@ -205,7 +206,7 @@ export default function VerifyPageContent() {
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
           <p className="font-semibold mb-2">💡 验证说明</p>
           <ul className="list-disc list-inside space-y-1 text-blue-800">
-            <li>此证书由 NIHPLOD(旎柏) 官方签发</li>
+            <li>此证书由 {BRAND_NAME}({BRAND_NAME_CN}) 官方签发</li>
             <li>如发现侵权冒充，请立即
               <Link href="/complaints" className="text-blue-600 hover:underline ml-1">
                 提交举报

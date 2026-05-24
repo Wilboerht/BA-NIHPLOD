@@ -10,6 +10,8 @@ import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { useToast } from "@/hooks/useToast";
+import { ADMIN_ROLES } from "@/types";
+import { BRAND_NAME_CN } from "@/lib/config";
 import { Html5Qrcode } from "html5-qrcode";
 
 interface UserSession {
@@ -164,7 +166,7 @@ export default function VerificationPage() {
           const user = data.user as UserSession;
 
           // 如果是管理员，重定向到 workbench
-          if (user?.role === "SUPER_ADMIN" || user?.role === "AUDITOR" || user?.role === "MANAGER" || user?.role === "PROJECT_MANAGER") {
+          if (user?.role && ADMIN_ROLES.includes(user.role as typeof ADMIN_ROLES[number])) {
             window.location.href = "/workbench";
             return;
           }
@@ -556,8 +558,8 @@ export default function VerificationPage() {
             className="group flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs md:text-[13px] font-semibold tracking-[0.05em] text-[#8B7355] hover:text-[#6B5346] transition-all"
          >
             <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
-            <span className="hidden sm:inline">旎柏中国官网</span>
-            <span className="sm:hidden">旎柏中国官网</span>
+            <span className="hidden sm:inline">{BRAND_NAME_CN}中国官网</span>
+            <span className="sm:hidden">{BRAND_NAME_CN}中国官网</span>
             <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
          </Link>
       </nav>
@@ -650,7 +652,7 @@ export default function VerificationPage() {
                 className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355]/70 hover:text-[#8B7355] transition-all"
               >
                 <Building2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                旎柏中国官网
+                {BRAND_NAME_CN}中国官网
                 <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
               </Link>
             </motion.div>

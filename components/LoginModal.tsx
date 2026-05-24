@@ -76,8 +76,8 @@ export default function LoginModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
-          <motion.div 
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label="管理员登录">
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -107,8 +107,9 @@ export default function LoginModal({
             className="relative w-full max-w-[420px] bg-white rounded-[28px] shadow-[0_45px_80px_-16px_rgba(0,0,0,0.15)] overflow-hidden"
           >
             <div className="absolute top-6 right-6">
-              <button 
+              <button
                 onClick={onClose}
+                aria-label="关闭"
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 <X size={16} strokeWidth={2.5} />
@@ -123,9 +124,9 @@ export default function LoginModal({
             
             <form onSubmit={handleLogin} className="px-10 pb-10 pt-2 flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <input 
-                  type="text" 
-                  required 
+                <input
+                  type="tel"
+                  required
                   placeholder={loginType === 'dealer' ? "请输入手机号" : "请输入电子邮箱"}
                   className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
                   value={phone}

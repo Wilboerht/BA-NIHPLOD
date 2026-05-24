@@ -269,11 +269,19 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
                                 {cert.auth_scope}
                               </div>
                               <div className="flex gap-2 pt-3 border-t border-emerald-200">
-                                <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white text-emerald-600 border border-emerald-200 text-xs font-semibold hover:bg-emerald-50 transition-all">
+                                <button
+                                  disabled
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white text-emerald-600/50 border border-emerald-200 text-xs font-semibold transition-all cursor-not-allowed"
+                                  title="证书下载功能开发中"
+                                >
                                   <Download size={14} />
                                   PNG
                                 </button>
-                                <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white text-emerald-600 border border-emerald-200 text-xs font-semibold hover:bg-emerald-50 transition-all">
+                                <button
+                                  disabled
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white text-emerald-600/50 border border-emerald-200 text-xs font-semibold transition-all cursor-not-allowed"
+                                  title="证书下载功能开发中"
+                                >
                                   <Download size={14} />
                                   PDF
                                 </button>

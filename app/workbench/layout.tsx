@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import Sidebar from "@/components/Sidebar/Sidebar";
 import styles from "./layout.module.css";
+import { ADMIN_ROLES } from "@/types";
 
 interface UserSession {
   id: string;
@@ -20,7 +20,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<UserSession | null>(null);
   const [userType, setUserType] = useState<'admin' | 'dealer' | null>(null);
-  const router = useRouter();
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // 移动端自动收起侧边栏
   useEffect(() => {
@@ -36,36 +36,41 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const loadUser = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data.user) {
-            // 经销商用户不允许进入 workbench
-            if (data.user.role === 'DEALER') {
-              router.replace("/dealer");
-              return;
-            }
-            // 管理员用户允许进入
-            if (['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'].includes(data.user.role)) {
-              setUser(data.user);
-              setUserType('admin');
-              setIsAuthorized(true);
-              return;
-            }
+          if (data.user && ADMIN_ROLES.includes(data.user.role)) {
+            setUser(data.user);
+            setUserType('admin');
+            setIsAuthorized(true);
+            return;
           }
         }
-        // 未登录或非管理员，重定向到管理员登录页
-        router.replace("/admin/login");
+        // 如果走到这里，说明中间件放行但 /api/auth/me 拒绝了（极少见）
+        setAuthError('身份验证失败，请重新登录');
       } catch (e) {
         console.error('Auth verification error:', e);
-        router.replace("/admin/login");
+        setAuthError('网络异常，请刷新页面重试');
       }
     };
 
-    checkAuth();
-  }, [router]);
+    loadUser();
+  }, []);
+
+  if (authError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{authError}</p>
+          <a href="/admin/login" className="text-sm text-blue-600 hover:underline">
+            返回登录页
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthorized) {
     return (
