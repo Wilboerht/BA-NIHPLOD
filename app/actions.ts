@@ -66,14 +66,16 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       })) as DbCertRow[];
     }
 
-    // 2. 如果没有匹配，按公司名称搜索
+    // 2. 如果没有匹配，按店铺名称或公司名称（嵌入在 auth_scope 中）模糊搜索
     if (!results) {
+      const likePattern = '%' + cleanQuery + '%';
       dbResults = await sql`
         SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
                d.company_name
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
-        WHERE d.company_name = ${cleanQuery}
+        WHERE d.company_name ILIKE ${likePattern}
+           OR split_part(c.auth_scope, ' | ', 1) ILIKE ${likePattern}
         ORDER BY c.end_date DESC
       `;
 
