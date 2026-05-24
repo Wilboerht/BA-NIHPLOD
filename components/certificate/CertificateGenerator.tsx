@@ -26,10 +26,11 @@ interface CertificateGeneratorProps {
   initialData?: CertData;
   mode?: 'create' | 'view' | 'edit';
   isVoided?: boolean;
+  isPending?: boolean;
   onSuccess?: () => void;
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, onSuccess }: CertificateGeneratorProps) {
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, onSuccess }: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -86,11 +87,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (initialData) {
       setData(initialData);
       if (mode === 'view') {
-        setIsIssued(true);
+        setIsIssued(!isPending);
         setIsVoided(initialVoided);
       }
     }
-  }, [initialData, mode, initialVoided]);
+  }, [initialData, mode, initialVoided, isPending]);
 
   // 预设渠道列表
   const CHANNELS = ['淘宝', '天猫', '京东', '小红书', '抖音', '微信', '线下门店', '其他'];
@@ -436,7 +437,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       console.warn("QR code generation failed:", err);
     }
 
-    if (!isIssued || isVoided) {
+    if (!isIssued || isVoided || isPending) {
       offCtx.save();
       if (isVoided) {
         offCtx.translate(width / 2, height / 2);
@@ -449,6 +450,18 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         offCtx.lineWidth = 4 * scale;
         offCtx.strokeRect(-240 * scale, -70 * scale, 480 * scale, 140 * scale);
         offCtx.strokeRect(-230 * scale, -60 * scale, 460 * scale, 120 * scale);
+      } else if (isPending) {
+        offCtx.rotate(-Math.PI / 6);
+        offCtx.textAlign = "center";
+        offCtx.font = `bold ${28 * scale}px "Noto Serif SC", serif`;
+        offCtx.fillStyle = "rgba(217, 119, 6, 0.18)";
+        const stepX = 260 * scale;
+        const stepY = 180 * scale;
+        for (let x = -width; x < width * 2; x += stepX) {
+          for (let y = -height; y < height * 2; y += stepY) {
+            offCtx.fillText("审核中 · 未核发", x, y);
+          }
+        }
       } else {
         offCtx.rotate(-Math.PI / 4);
         offCtx.textAlign = "center";
@@ -793,7 +806,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         </div>
 
         <div className="pt-12 pb-2 flex items-center gap-6 flex-wrap">
-          {!isVoided && !isIssued && (
+          {!isVoided && !isIssued && !isPending && (
             <>
               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>

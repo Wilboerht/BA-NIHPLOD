@@ -452,6 +452,7 @@ export default function CertificatesPage() {
                     initialData={selectedCertData}
                     mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'}
                     isVoided={isViewVoided}
+                    isPending={!!pendingApproveId}
                     onSuccess={() => {
                       setShowIssueModal(false);
                       setSelectedCertData(undefined);
