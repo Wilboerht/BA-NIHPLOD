@@ -296,7 +296,6 @@ export default function DealersPage() {
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">手机号</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">持有证书</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">注册时间</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">账户状态</th>
                 <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
@@ -336,21 +335,6 @@ export default function DealersPage() {
                   </td>
                   <td className="px-6 py-4 text-xs text-slate-500">
                     {new Date(dealerGroup.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    {!dealerGroup.profile ? (
-                      <span className="inline-flex items-center gap-1 text-slate-300 text-[11px] font-bold uppercase tracking-wider">
-                        待开启
-                      </span>
-                    ) : dealerGroup.isBanned ? (
-                      <span className="inline-flex items-center gap-1.5 text-rose-500 text-[11px] font-bold uppercase tracking-wider">
-                        <Ban className="w-3 h-3" /> 已封禁
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-emerald-600 text-[11px] font-bold uppercase tracking-wider">
-                        <ShieldCheck className="w-3 h-3" /> 已激活
-                      </span>
-                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end">
