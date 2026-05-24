@@ -165,12 +165,6 @@ export default function VerificationPage() {
           const data = await res.json();
           const user = data.user as UserSession;
 
-          // 如果是管理员，重定向到 workbench
-          if (user?.role && ADMIN_ROLES.includes(user.role as typeof ADMIN_ROLES[number])) {
-            window.location.href = "/workbench";
-            return;
-          }
-
           // 如果是经销商，设置状态但不自动打开面板
           if (user?.role === "DEALER") {
             setLoggedInUser(user);
