@@ -86,7 +86,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEffect(() => {
     if (initialData) {
       setData(initialData);
-      if (mode === 'view') {
+      if (mode === 'view' || mode === 'edit') {
         setIsIssued(!isPending);
         setIsVoided(initialVoided);
       }
@@ -547,19 +547,46 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const user = meData.user;
       const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(user?.role);
 
-      const response = await fetch("/api/certificates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),
-          certId: initialData?.id,
-          certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
-          managerId: user?.id
-        })
-      });
+      // 编辑模式且是待审核证书：先更新再核发
+      if (mode === 'edit' && isPending) {
+        const updateRes = await fetch("/api/certificates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "update_certificate",
+            certId: initialData?.id,
+            certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
+            managerId: user?.id
+          })
+        });
+        if (!updateRes.ok) throw new Error("更新失败");
 
-      if (!response.ok) throw new Error("操作失败");
-      toast({ message: mode === 'edit' ? "授权信息已更新" : "证书已处理", type: "success" });
+        const approveRes = await fetch("/api/certificates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "approve_issue",
+            certId: initialData?.id,
+            managerId: user?.id
+          })
+        });
+        if (!approveRes.ok) throw new Error("核发失败");
+        toast({ message: "授权信息已更新并核发成功，经销商账户已开通", type: "success" });
+      } else {
+        const response = await fetch("/api/certificates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),
+            certId: initialData?.id,
+            certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
+            managerId: user?.id
+          })
+        });
+
+        if (!response.ok) throw new Error("操作失败");
+        toast({ message: mode === 'edit' ? "授权信息已更新" : "证书已处理", type: "success" });
+      }
       setIsIssued(true);
       if (onSuccess) setTimeout(onSuccess, 800);
     } catch (err: unknown) {
@@ -829,7 +856,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               ) : (
                 <>
                   <CheckCircle2 size={15} />
-                  {mode === 'edit' ? "确认修改" : "签发授权"}
+                  {isPending ? "确认修改并核发" : mode === 'edit' ? "确认修改" : "签发授权"}
                 </>
               )}
             </button>

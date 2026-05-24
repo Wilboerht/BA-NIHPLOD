@@ -268,8 +268,8 @@ export default function CertificatesPage() {
                               });
                               setPendingApproveId(cert.id);
                               setIsViewVoided(false);
-                              setIsViewOnly(true);
-                              setIsEditMode(false);
+                              setIsViewOnly(false);
+                              setIsEditMode(true);
                               setShowIssueModal(true);
                             }}
                             className="bg-slate-900 text-white h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all hover:bg-black active:scale-95 tracking-wide leading-none"
@@ -464,31 +464,7 @@ export default function CertificatesPage() {
                     }}
                   />
 
-                  {/* 待审核证书底部审核操作栏 */}
-                  {pendingApproveId && (
-                    <div className="mt-8 flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-                      <button
-                        onClick={() => {
-                          setShowIssueModal(false);
-                          setPendingApproveId(null);
-                          setSelectedCertData(undefined);
-                          setIsViewOnly(false);
-                          setIsEditMode(false);
-                          setIsViewVoided(false);
-                        }}
-                        className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
-                      >
-                        取消
-                      </button>
-                      <button
-                        onClick={() => approveCertificate(pendingApproveId)}
-                        className="px-5 py-2.5 rounded-xl text-[13px] font-bold bg-slate-900 text-white hover:bg-black transition-all inline-flex items-center gap-2 active:scale-95"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        审核通过并核发
-                      </button>
-                    </div>
-                  )}
+
                 </div>
               </div>
             </motion.div>
