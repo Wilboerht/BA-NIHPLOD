@@ -19,7 +19,7 @@ const PUBLIC_PATHS = [
   '/api/auth/logout',
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 检查是否为公开路径
@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 验证 JWT（Edge Runtime 安全，不查数据库）
+  // 验证 JWT（不查数据库）
   const payload = await verifyTokenBasic(request);
 
   if (!payload) {
