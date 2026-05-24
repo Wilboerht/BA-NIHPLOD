@@ -213,6 +213,7 @@ CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 -- dealers 表索引
 CREATE INDEX IF NOT EXISTS idx_dealers_phone ON dealers(phone);
 CREATE INDEX IF NOT EXISTS idx_dealers_profile_id ON dealers(profile_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dealers_phone_company ON dealers(phone, company_name);
 
 -- audit_logs 表索引
 CREATE INDEX IF NOT EXISTS idx_audit_logs_certificate_id ON audit_logs(certificate_id);
