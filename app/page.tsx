@@ -69,6 +69,15 @@ export default function VerificationPage() {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const prevShowLoginModalRef = useRef(false);
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const evidencePreviewUrls = useRef<Map<string, string>>(new Map());
+
+  // 清理 blob URL 防止内存泄漏
+  useEffect(() => {
+    return () => {
+      evidencePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      evidencePreviewUrls.current.clear();
+    };
+  }, []);
   
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
@@ -898,24 +907,38 @@ export default function VerificationPage() {
                     {/* 多图预览列表 */}
                     {evidenceFiles.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {evidenceFiles.map((file, idx) => (
-                          <div key={idx} className="relative group">
-                            <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
-                              <img 
-                                src={URL.createObjectURL(file)} 
-                                alt={file.name}
-                                className="w-full h-full object-cover"
-                              />
+                        {evidenceFiles.map((file, idx) => {
+                          let url = evidencePreviewUrls.current.get(file.name);
+                          if (!url) {
+                            url = URL.createObjectURL(file);
+                            evidencePreviewUrls.current.set(file.name, url);
+                          }
+                          return (
+                            <div key={idx} className="relative group">
+                              <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
+                                <img 
+                                  src={url} 
+                                  alt={file.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const revokeUrl = evidencePreviewUrls.current.get(file.name);
+                                  if (revokeUrl) {
+                                    URL.revokeObjectURL(revokeUrl);
+                                    evidencePreviewUrls.current.delete(file.name);
+                                  }
+                                  setEvidenceFiles(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                                type="button"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             </div>
-                            <button
-                              onClick={() => setEvidenceFiles(prev => prev.filter((_, i) => i !== idx))}
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
-                              type="button"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                  </div>

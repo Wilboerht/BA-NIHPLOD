@@ -57,7 +57,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [zoomScale, setZoomScale] = useState(1);
 
   const renderRequestId = useRef(0);
-  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase()}`);
+  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, '').substring(0, 4).toUpperCase()}`);
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -535,8 +535,16 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   };
 
   const handleIssueSubmit = async () => {
-    if (!data.shopName) {
+    if (!data.shopName.trim()) {
       toast({ message: "请填写必填字段：店铺名称", type: "warning" });
+      return;
+    }
+    if (!data.phone.trim()) {
+      toast({ message: "请填写必填字段：联系电话", type: "warning" });
+      return;
+    }
+    if (!data.duration || !data.duration.includes(' - ')) {
+      toast({ message: "请填写完整的有效期", type: "warning" });
       return;
     }
     setIsSubmitting(true);
@@ -654,15 +662,21 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   <input
                     type="date"
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
-                    value={data.duration ? data.duration.substring(0, 10).replace(/\./g, '-') : ""}
-                    onChange={(e) => setData(prev => ({ ...prev, duration: `${e.target.value.replace(/-/g, '.')} - ${prev.duration.split(' - ')[1] || ""}` }))}
+                    value={data.duration && data.duration.includes(' - ') ? data.duration.split(' - ')[0].replace(/\./g, '-') : ""}
+                    onChange={(e) => setData(prev => {
+                      const end = prev.duration && prev.duration.includes(' - ') ? prev.duration.split(' - ')[1] : '';
+                      return { ...prev, duration: `${e.target.value.replace(/-/g, '.')} - ${end}` };
+                    })}
                   />
                   <span className="text-slate-300">/</span>
                   <input
                     type="date"
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
-                    value={data.duration ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
-                    onChange={(e) => setData(prev => ({ ...prev, duration: `${prev.duration.split(' - ')[0] || ""} - ${e.target.value.replace(/-/g, '.')}` }))}
+                    value={data.duration && data.duration.includes(' - ') ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
+                    onChange={(e) => setData(prev => {
+                      const start = prev.duration && prev.duration.includes(' - ') ? prev.duration.split(' - ')[0] : '';
+                      return { ...prev, duration: `${start} - ${e.target.value.replace(/-/g, '.')}` };
+                    })}
                   />
                 </div>
               )}

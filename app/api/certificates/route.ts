@@ -27,10 +27,15 @@ function parseDuration(duration: string | undefined): { start: string; end: stri
     return { start: '', end: '' };
   }
   const parts = duration.split(' - ');
-  return {
-    start: (parts[0] || '').replace(/\./g, '-').trim(),
-    end: (parts[1] || '').replace(/\./g, '-').trim(),
-  };
+  if (parts.length !== 2) {
+    throw new Error(`有效期格式无效："${duration}"，应为 "YYYY.MM.DD - YYYY.MM.DD"`);
+  }
+  const start = parts[0].replace(/\./g, '-').trim();
+  const end = parts[1].replace(/\./g, '-').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    throw new Error(`有效期格式无效："${duration}"，日期应为 YYYY.MM.DD 格式`);
+  }
+  return { start, end };
 }
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）

@@ -2,13 +2,52 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getEndOfDay } from '@/lib/utils';
 
+// 内存 rate limit（PM2 单实例下有效）
+const verifyAttempts = new Map<string, { count: number; resetAt: number }>();
+const VERIFY_LIMIT = 30;
+const VERIFY_WINDOW_MS = 60 * 1000; // 1 分钟
+
+function checkVerifyRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = verifyAttempts.get(ip);
+  if (!record || now > record.resetAt) {
+    verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS });
+    return true;
+  }
+  record.count++;
+  return record.count <= VERIFY_LIMIT;
+}
+
+function getClientIP(req: Request): string {
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
+    return ips[ips.length - 1] || 'unknown';
+  }
+  return 'unknown';
+}
+
+function maskPhone(phone: string): string {
+  if (!phone || phone.length < 8) return phone;
+  return phone.slice(0, 3) + '****' + phone.slice(-4);
+}
+
 /**
  * POST /api/certificates/verify
  * 统一的证书验证端点，用于 /verify 页面和二维码扫描
- * 使用 service-role 权限以获取过期/撤销证书的详细信息
  */
 export async function POST(req: Request) {
   try {
+    const clientIP = getClientIP(req);
+    if (!checkVerifyRateLimit(clientIP)) {
+      return NextResponse.json(
+        { success: false, error: "查询过于频繁，请稍后再试" },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { certNumber } = body;
 
@@ -87,7 +126,7 @@ export async function POST(req: Request) {
     // 安全提取经销商信息
     const dealers = data.dealers as Record<string, unknown> | null;
     const companyName = getStr(dealers?.company_name) || "未知经销商";
-    const phone = getStr(dealers?.phone);
+    const rawPhone = getStr(dealers?.phone);
 
     return NextResponse.json({
       success: true,
@@ -95,7 +134,7 @@ export async function POST(req: Request) {
         id: data.id,
         cert_number: data.cert_number,
         company_name: companyName,
-        phone: phone,
+        phone: maskPhone(rawPhone),
         status: data.status,
         start_date: data.start_date,
         end_date: data.end_date,

@@ -55,7 +55,10 @@ export async function findProfileForLogin(identifier: string): Promise<{ data: S
  * 根据 ID 查找用户信息
  */
 export async function getProfileById(id: string): Promise<{ data: SqlRow | null; error: Error | null }> {
-  const result = await sql`SELECT * FROM profiles WHERE id = ${id} LIMIT 1`;
+  const result = await sql`
+    SELECT id, username, full_name, phone, role, is_banned, is_first_login, created_at, updated_at
+    FROM profiles WHERE id = ${id} LIMIT 1
+  `;
   return { data: result[0] || null, error: null };
 }
 
@@ -85,7 +88,8 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
  */
 export async function getDealersByProfileId(profileId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
-    SELECT * FROM dealers 
+    SELECT id, company_name, phone, profile_id, created_at
+    FROM dealers
     WHERE profile_id = ${profileId}
   `;
   return { data: result || [], error: null };
@@ -95,7 +99,10 @@ export async function getDealersByProfileId(profileId: string): Promise<{ data: 
  * 获取单个经销商详情（按 ID）
  */
 export async function getDealerById(dealerId: string): Promise<{ data: SqlRow | null; error: Error | null }> {
-  const result = await sql`SELECT * FROM dealers WHERE id = ${dealerId} LIMIT 1`;
+  const result = await sql`
+    SELECT id, company_name, phone, profile_id, created_at
+    FROM dealers WHERE id = ${dealerId} LIMIT 1
+  `;
   return { data: result[0] || null, error: null };
 }
 
@@ -150,7 +157,8 @@ function buildDealersNested(row: SqlRow): SqlRow {
 export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
-      SELECT d.* FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
+      SELECT d.id, d.company_name, d.phone, d.profile_id, d.created_at
+      FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
     `;
     return { data: (result || []) as SqlRow[], error: null };
   } catch (err: unknown) {
@@ -168,7 +176,8 @@ export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; err
  */
 export async function getCertificatesByDealerId(dealerId: string, limit = 200): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
-    SELECT * FROM certificates 
+    SELECT id, cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id, created_at
+    FROM certificates
     WHERE dealer_id = ${dealerId}
     ORDER BY created_at DESC
     LIMIT ${limit}

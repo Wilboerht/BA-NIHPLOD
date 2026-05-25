@@ -13,18 +13,21 @@ const ALLOWED_TYPES = [
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB（匿名上传限制更严格）
 
 function getClientIP(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
   const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp;
+  if (realIp) return realIp.trim();
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
+    return ips[ips.length - 1] || 'unknown';
+  }
   return 'unknown';
 }
 
 export async function POST(req: Request) {
   try {
-    // 限流：每个 IP 5 分钟内最多上传 10 次
+    // 限流：每个 IP 5 分钟内最多上传 20 次（支持最多 4 次 5 图投诉）
     const clientIP = getClientIP(req);
-    const allowed = await checkActionRateLimit(`upload:${clientIP}`, 10, 5 * 60 * 1000);
+    const allowed = await checkActionRateLimit(`upload:${clientIP}`, 20, 5 * 60 * 1000);
     if (!allowed) {
       return NextResponse.json({ error: '上传过于频繁，请 5 分钟后再试' }, { status: 429 });
     }

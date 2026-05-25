@@ -49,7 +49,8 @@ export async function GET(req: Request) {
     try {
       const dealerIds = dealers.map((d) => String(d.id));
       const certsResult = await sql`
-        SELECT * FROM certificates
+        SELECT id, cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, created_at
+        FROM certificates
         WHERE dealer_id = ANY(${dealerIds}::uuid[])
           AND status = 'ISSUED'
         ORDER BY created_at DESC

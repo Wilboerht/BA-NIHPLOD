@@ -18,7 +18,8 @@ interface Complaint {
   description: string;
   status: string;
   created_at: string;
-  evidence_image_url?: string;
+  evidence_image_url?: string;   // 兼容旧数据
+  evidence_image_urls?: string[];
   review_note?: string;
 }
 

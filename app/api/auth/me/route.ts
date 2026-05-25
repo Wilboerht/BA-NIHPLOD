@@ -27,6 +27,7 @@ export async function GET(request: Request) {
         full_name: profile.full_name,
         role: profile.role,
         is_first_login: profile.is_first_login,
+        is_banned: profile.is_banned,
       }
     });
   } catch (err: unknown) {
