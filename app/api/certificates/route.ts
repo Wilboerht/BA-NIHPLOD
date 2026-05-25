@@ -13,12 +13,25 @@ import type { TransactionSql } from 'postgres';
  */
 
 // 辅助函数：生成唯一的证书编号
-// 依赖数据库 cert_number UNIQUE 约束做最终保护，冲突时外层事务会回滚并重试
+// 依赖数据库 cert_number UNIQUE 约束做最终保护，冲突时自动重试
 function generateUniqueCertNumber(): string {
   const year = new Date().getFullYear();
   const base = `BAVP-${year}-`;
   const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
   return `${base}${randomPart}`;
+}
+
+// 辅助函数：带重试的唯一证书编号生成
+async function generateCertNumberWithRetry(tx: TransactionSql | typeof sql, maxRetries = 5): Promise<string> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const certNumber = generateUniqueCertNumber();
+    const existing = await tx`SELECT id FROM certificates WHERE cert_number = ${certNumber} LIMIT 1`;
+    if (!existing || existing.length === 0) {
+      return certNumber;
+    }
+    console.warn(`[certificates] 证书编号冲突，第 ${attempt} 次重试...`);
+  }
+  throw new Error(`无法生成唯一证书编号，已重试 ${maxRetries} 次`);
 }
 
 // 安全解析 duration 字符串 "YYYY.MM.DD - YYYY.MM.DD"
@@ -115,8 +128,9 @@ export async function POST(req: Request) {
 
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
-      const certNumber = generateUniqueCertNumber();
+      let certNumber: string;
       await sql.begin(async (tx) => {
+        certNumber = await generateCertNumberWithRetry(tx);
         const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
         await tx`
           INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id)
@@ -140,7 +154,7 @@ export async function POST(req: Request) {
     // --- 流程 2: 项目负责人审核通过并核发 (创建账户 + 状态转为 ISSUED) ---
     if (action === 'approve_issue') {
       let certDataDb, dealerPhone, dealerShopName;
-      let certNumber: string;
+      let certNumber = '';
 
       if (certId) {
         // A. 系统流程：处理已有的待审核记录
@@ -156,11 +170,11 @@ export async function POST(req: Request) {
         certNumber = certDataDb.cert_number;
       } else if (certData) {
         // B. 管理员直发
-        certNumber = generateUniqueCertNumber();
         dealerPhone = certData.phone;
         dealerShopName = certData.shopName;
 
         await sql.begin(async (tx) => {
+          certNumber = await generateCertNumberWithRetry(tx);
           const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
           await tx`
             INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, manager_id)
@@ -192,6 +206,18 @@ export async function POST(req: Request) {
         }
       }
 
+      // 记录审计日志
+      await sql`
+        INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
+        VALUES (
+          ${certId || null},
+          ${managerId},
+          'ISSUE_CERTIFICATE',
+          ${`核发证书 ${certNumber}，经销商：${dealerPhone}`},
+          NOW()
+        )
+      `;
+
       const responseData: Record<string, unknown> = { success: true, status: 'ISSUED', phone: dealerPhone };
       if (tempPassword) {
         responseData.tempPassword = tempPassword;
@@ -203,7 +229,7 @@ export async function POST(req: Request) {
     // --- 流程 3: 吊销证书 (管理员行为) ---
     if (action === 'revoke_certificate') {
       if (!certId) throw new Error('缺少证书 ID');
-      const result = await sql`SELECT id, status FROM certificates WHERE id = ${certId} LIMIT 1`;
+      const result = await sql`SELECT id, status, cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
       if (!result || result.length === 0) throw new Error('未找到对应证书');
       if (result[0].status === 'REVOKED') {
         return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
@@ -212,6 +238,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: '只能吊销已核发的证书' }, { status: 400 });
       }
       await sql`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
+      // 记录审计日志
+      await sql`
+        INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
+        VALUES (
+          ${certId},
+          ${managerId},
+          'REVOKE_CERTIFICATE',
+          ${`吊销证书 ${result[0].cert_number}`},
+          NOW()
+        )
+      `;
       return NextResponse.json({ success: true, status: 'REVOKED' });
     }
 
@@ -219,11 +256,23 @@ export async function POST(req: Request) {
     if (action === 'reject_pending') {
       if (!certId) throw new Error('缺少证书 ID');
 
-      const updateResult = await sql`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING'`;
+      const certInfo = await sql`SELECT cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
+      const updateResult = await sql`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
       // postgres 库返回更新后的行数组，若为空表示没有匹配到 PENDING 状态的记录
       if (!updateResult || updateResult.length === 0) {
         return NextResponse.json({ error: '该证书不是待审核状态，无法拒绝' }, { status: 400 });
       }
+      // 记录审计日志
+      await sql`
+        INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
+        VALUES (
+          ${certId},
+          ${managerId},
+          'REJECT_CERTIFICATE',
+          ${`退回证书申请 ${certInfo[0]?.cert_number || ''}`},
+          NOW()
+        )
+      `;
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
@@ -238,13 +287,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
       }
 
-      const result = await sql`SELECT dealer_id FROM certificates WHERE id = ${certId} LIMIT 1`;
+      const result = await sql`SELECT dealer_id, cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
       if (!result || result.length === 0) throw new Error('未找到对应证书记录');
       const dealerId = result[0].dealer_id;
+      const certNumber = result[0].cert_number;
 
-      // 更新经销商资料和证书在同一事务中
+      // 更新经销商资料、经销商账户名和证书在同一事务中
       await sql.begin(async (tx) => {
         await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
+        // 同步更新经销商登录账户的 full_name（如果存在关联账户）
+        await tx`
+          UPDATE profiles
+          SET full_name = ${certData.shopName}, updated_at = NOW()
+          WHERE username = ${certData.phone}
+            AND role = 'DEALER'
+        `;
         await tx`
           UPDATE certificates
           SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
@@ -255,6 +312,19 @@ export async function POST(req: Request) {
           WHERE id = ${certId}
         `;
       });
+
+      // 记录审计日志
+      await sql`
+        INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
+        VALUES (
+          ${certId},
+          ${managerId},
+          'UPDATE_CERTIFICATE',
+          ${`更新证书信息 ${certNumber}`},
+          NOW()
+        )
+      `;
+
       return NextResponse.json({ success: true, status: 'UPDATED' });
     }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
@@ -32,11 +32,20 @@ export default function CertificatesPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
+  // 分页
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.ceil(total / pageSize);
 
   useEffect(() => {
     fetchUserRole();
     fetchCertificates();
   }, [showIssueModal]); // refetch when modal closes
+
+  useEffect(() => {
+    fetchCertificates(page);
+  }, [page]);
 
   const fetchUserRole = async () => {
     try {
@@ -50,18 +59,20 @@ export default function CertificatesPage() {
     }
   };
 
-  const fetchCertificates = async () => {
+  const fetchCertificates = async (targetPage = page) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/db/certificates?limit=100');
+      const response = await fetch(`/api/db/certificates?page=${targetPage}&pageSize=${pageSize}`);
       const result = await response.json();
       
       if (!response.ok) throw new Error(result.error || '获取证书失败');
       
       setCertificates(result.data || []);
+      setTotal(result.total || 0);
     } catch (err: unknown) {
       console.error('Failed to fetch certificates:', err);
       setCertificates([]);
+      setTotal(0);
     } finally {
       setIsLoading(false);
     }
@@ -387,6 +398,31 @@ export default function CertificatesPage() {
             </div>
           )}
         </div>
+
+        {/* 分页 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-2 py-4 border-t border-slate-100">
+            <span className="text-xs text-slate-400 font-medium">
+              共 {total} 条，第 {page} / {totalPages} 页
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 签发/调阅模态框 ── */}

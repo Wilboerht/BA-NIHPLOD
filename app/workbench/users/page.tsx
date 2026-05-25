@@ -11,15 +11,29 @@ import { useToast } from "@/hooks/useToast";
 const ROLE_OPTIONS = [
   {
     value: "SUPER_ADMIN",
-    label: "管理员",
+    label: "超级管理员",
     desc: "最高权限，可核发证书与管理用户",
     color: "text-slate-900",
     dot: "bg-slate-900",
   },
   {
+    value: "MANAGER",
+    label: "运营经理",
+    desc: "可核发证书、编辑与吊销授权",
+    color: "text-indigo-600",
+    dot: "bg-indigo-500",
+  },
+  {
+    value: "PROJECT_MANAGER",
+    label: "项目经理",
+    desc: "可核发证书、编辑与吊销授权",
+    color: "text-blue-600",
+    dot: "bg-blue-500",
+  },
+  {
     value: "AUDITOR",
     label: "审核员",
-    desc: "可受理初审，无法最终签发",
+    desc: "可受理初审与提报，无法最终签发",
     color: "text-slate-400",
     dot: "bg-slate-300",
   },
@@ -64,7 +78,16 @@ export default function AdminsManagementPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
 
+  // 重置密码弹窗状态
+  const [showResetPwd, setShowResetPwd] = useState(false);
+  const [resetPwdTarget, setResetPwdTarget] = useState<AdminUser | null>(null);
+  const [resetPwdValue, setResetPwdValue] = useState("");
+  const [showResetPwdVisible, setShowResetPwdVisible] = useState(false);
+  const [resetPwdError, setResetPwdError] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+
   const fullNameRef = useRef<HTMLInputElement>(null);
+  const resetPwdRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -207,24 +230,58 @@ export default function AdminsManagementPage() {
     }
   };
 
-  const resetPassword = async (user: AdminUser) => {
-    const newPass = prompt(`重置「${user.full_name}」的登录密码\n请输入新密码（至少 8 位，包含大小写字母和数字）：`);
-    if (!newPass) return;
-    if (newPass.length < 8) { toast({ message: "密码过短，至少需要 8 个字符。", type: "warning" }); return; }
-    const ok = await confirm({ message: `确认将该账户密码强制改为 "${newPass}" 吗？` });
-    if (!ok) return;
+  const openResetPassword = (user: AdminUser) => {
+    setResetPwdTarget(user);
+    setResetPwdValue("");
+    setResetPwdError(null);
+    setShowResetPwdVisible(false);
+    setShowResetPwd(true);
+  };
 
+  const closeResetPassword = () => {
+    if (isResetting) return;
+    setShowResetPwd(false);
+    setResetPwdTarget(null);
+  };
+
+  const submitResetPassword = async () => {
+    if (!resetPwdTarget) return;
+    if (!resetPwdValue) {
+      setResetPwdError("请输入新密码");
+      return;
+    }
+    if (resetPwdValue.length < 8) {
+      setResetPwdError("密码过短，至少需要 8 个字符");
+      return;
+    }
+    const hasUpper = /[A-Z]/.test(resetPwdValue);
+    const hasLower = /[a-z]/.test(resetPwdValue);
+    const hasDigit = /\d/.test(resetPwdValue);
+    if (!hasUpper || !hasLower || !hasDigit) {
+      setResetPwdError("密码需包含大写字母、小写字母和数字");
+      return;
+    }
+
+    setIsResetting(true);
+    setResetPwdError(null);
     try {
       const res = await fetch("/api/admin/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, newPassword: newPass }),
+        body: JSON.stringify({ userId: resetPwdTarget.id, newPassword: resetPwdValue }),
       });
       const result = await res.json();
-      if (result.success) toast({ message: "密码重置成功！", type: "success" });
-      else toast({ message: "重置失败：" + result.error, type: "error" });
+      if (result.success) {
+        toast({ message: "密码重置成功！", type: "success" });
+        setShowResetPwd(false);
+        setResetPwdTarget(null);
+      } else {
+        setResetPwdError(result.error || "重置失败");
+      }
     } catch (err: unknown) {
-      toast({ message: "错误：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+      setResetPwdError(err instanceof Error ? err.message : "未知错误");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -333,7 +390,7 @@ export default function AdminsManagementPage() {
                       <span className={`text-[12px] font-extrabold transition-all tracking-tight ${
                         user.role === "SUPER_ADMIN" ? "text-slate-900" : "text-slate-400"
                       } ${user.id !== currentUser?.id ? "group-hover/select:underline group-hover/select:underline-offset-4 decoration-slate-300" : ""}`}>
-                        {user.role === "SUPER_ADMIN" ? "管理员" : "审核员"}
+                        {ROLE_OPTIONS.find(r => r.value === user.role)?.label || user.role}
                       </span>
                       <select
                         disabled={user.id === currentUser?.id}
@@ -342,8 +399,9 @@ export default function AdminsManagementPage() {
                         className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser?.id ? "cursor-not-allowed hidden" : ""} z-20`}
                         title={user.id === currentUser?.id ? "无法修改当前登录账号的角色" : "点击修改权限等级"}
                       >
-                        <option value="SUPER_ADMIN">管理员</option>
-                        <option value="AUDITOR">审核员</option>
+                        {ROLE_OPTIONS.map(r => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
                       </select>
                       {user.id !== currentUser?.id && (
                         <ChevronDown className="w-3 h-3 text-slate-300 ml-2 transition-transform group-hover/select:translate-y-0.5" />
@@ -365,7 +423,7 @@ export default function AdminsManagementPage() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => resetPassword(user)}
+                        onClick={() => openResetPassword(user)}
                         className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-300 hover:text-slate-600 rounded-lg transition-all"
                         title="重置登录密码"
                       >
@@ -555,6 +613,104 @@ export default function AdminsManagementPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 重置密码弹窗 ── */}
+      <AnimatePresence>
+        {showResetPwd && resetPwdTarget && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 md:p-12">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeResetPassword}
+              className="absolute inset-0 bg-white/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 15 }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100/80"
+            >
+              <div className="px-10 pt-12 pb-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-black text-slate-900 tracking-[0.05em]">重置登录密码</h2>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">
+                      为 <span className="text-slate-700 font-bold">{resetPwdTarget.full_name}</span> 强制设置新密码
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeResetPassword}
+                    disabled={isResetting}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
+                  >
+                    <X size={18} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-10 pb-12 space-y-7">
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">新密码</label>
+                    <div className="relative">
+                      <input
+                        ref={resetPwdRef}
+                        type={showResetPwdVisible ? "text" : "password"}
+                        placeholder="至少 8 位，含大小写字母和数字"
+                        value={resetPwdValue}
+                        onChange={e => { setResetPwdValue(e.target.value); setResetPwdError(null); }}
+                        onKeyDown={e => { if (e.key === 'Enter') submitResetPassword(); }}
+                        disabled={isResetting}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 font-mono placeholder:text-slate-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPwdVisible(v => !v)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
+                      >
+                        {showResetPwdVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {resetPwdError && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-center">
+                      <p className="text-rose-500 text-[12px] font-bold bg-rose-50 py-3 rounded-xl border border-rose-100">{resetPwdError}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex gap-4 pt-3">
+                  <button
+                    type="button"
+                    onClick={closeResetPassword}
+                    disabled={isResetting}
+                    className="flex-1 h-12 text-slate-400 font-bold text-[13px] hover:bg-slate-50 rounded-2xl transition-all tracking-[0.1em]"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitResetPassword}
+                    disabled={isResetting || !resetPwdValue}
+                    className="flex-[2.5] h-12 bg-[#2C2A29] text-white font-bold text-[13px] rounded-2xl hover:bg-black shadow-xl shadow-slate-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none active:scale-95 tracking-[0.1em]"
+                  >
+                    {isResetting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> 处理中</>
+                    ) : (
+                      "确认重置密码"
+                    )}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

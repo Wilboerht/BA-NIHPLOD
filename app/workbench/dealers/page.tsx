@@ -337,7 +337,46 @@ export default function DealersPage() {
                     {new Date(dealerGroup.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-2">
+                      {dealerGroup.profile?.id && (
+                        <>
+                          {confirmBanId === dealerGroup.phone ? (
+                            <button
+                              onClick={() => executeBan(dealerGroup)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-[0.1em] border transition-all active:scale-95 ${
+                                dealerGroup.isBanned
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                              }`}
+                            >
+                              {banningId === dealerGroup.phone ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : dealerGroup.isBanned ? (
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              ) : (
+                                <Ban className="w-3.5 h-3.5" />
+                              )}
+                              {dealerGroup.isBanned ? '确认解封' : '确认封禁'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => triggerBanConfirm(dealerGroup)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-[0.1em] border transition-all active:scale-95 ${
+                                dealerGroup.isBanned
+                                  ? 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'
+                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
+                              }`}
+                              title={dealerGroup.isBanned ? '解封账号' : '封禁账号'}
+                            >
+                              {dealerGroup.isBanned ? (
+                                <><ShieldOff className="w-3.5 h-3.5" /> 已封禁</>
+                              ) : (
+                                <><Ban className="w-3.5 h-3.5" /> 封禁</>
+                              )}
+                            </button>
+                          )}
+                        </>
+                      )}
                       <button
                         onClick={() => fetchDealerCerts(dealerGroup)}
                         title="查看名下证书"

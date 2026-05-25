@@ -63,9 +63,10 @@ export async function POST(req: Request) {
     try {
       const result = await sql`
         SELECT c.id, c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
-               d.company_name, d.phone
+               d.company_name, d.phone, p.is_banned
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
+        LEFT JOIN profiles p ON d.profile_id = p.id
         WHERE c.cert_number = ${certNumber.toUpperCase()}
         LIMIT 1
       `;
@@ -96,7 +97,16 @@ export async function POST(req: Request) {
     // 业务规则校验
     const rawStatus = getStr(data.status).toUpperCase();
     const endDateStr = getStr(data.end_date);
+    const isDealerBanned = data.is_banned === true;
     
+    // 检查经销商是否被封禁
+    if (isDealerBanned) {
+      return NextResponse.json({
+        success: false,
+        error: "该授权主体已被品牌官方冻结，授权暂时失效"
+      });
+    }
+
     // 检查撤销
     if (rawStatus === 'REVOKED') {
       return NextResponse.json({

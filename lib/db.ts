@@ -206,7 +206,13 @@ export async function getPendingCertificates(limit?: number): Promise<{ data: Sq
 /**
  * 获取所有证书列表（用于管理面板 - 不仅限待审状态）
  */
-export async function getAllCertificates(limit?: number): Promise<{ data: SqlRow[]; error: Error | null }> {
+export async function getAllCertificates(
+  limit?: number,
+  offset?: number
+): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
+  const countRes = await sql`SELECT COUNT(*) as count FROM certificates`;
+  const total = parseInt(countRes[0]?.count || 0, 10);
+
   const result = await sql`
     SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
     FROM certificates c
@@ -214,9 +220,10 @@ export async function getAllCertificates(limit?: number): Promise<{ data: SqlRow
     LEFT JOIN profiles p ON c.auditor_id = p.id
     ORDER BY c.created_at DESC
     ${limit ? sql`LIMIT ${limit}` : sql``}
+    ${offset ? sql`OFFSET ${offset}` : sql``}
   `;
   const formatted = result.map(buildDealersNested);
-  return { data: formatted || [], error: null };
+  return { data: formatted || [], total, error: null };
 }
 
 /**
