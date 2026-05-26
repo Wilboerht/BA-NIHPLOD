@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -39,6 +39,7 @@ export default function CertificatesPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | 'PENDING' | 'ISSUED' | 'invalid' | 'REVOKED' | 'REJECTED'>('active');
 
   const closeIssueModal = () => {
     setShowIssueModal(false);
@@ -59,7 +60,7 @@ export default function CertificatesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, statusFilter]);
 
   const fetchUserRole = async () => {
     try {
@@ -122,10 +123,32 @@ export default function CertificatesPage() {
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
+  // 计算证书的实际展示状态（处理 ISSUED 但已过期的情况）
+  const getCertDisplayStatus = (cert: Certificate): string => {
+    if (cert.status === 'REVOKED') return 'REVOKED';
+    if (cert.status === 'REJECTED') return 'REJECTED';
+    if (cert.status === 'EXPIRED') return 'EXPIRED';
+    if (cert.status === 'ISSUED' && cert.end_date && new Date() > new Date(cert.end_date + 'T23:59:59')) return 'EXPIRED';
+    if (cert.status === 'ISSUED') return 'ISSUED';
+    return 'PENDING';
+  };
+
   const filteredCerts = certificates.filter(c => {
     const query = debouncedSearch.toLowerCase();
-    if (!query) return true;
-    return c.cert_number.toLowerCase().includes(query) || (c.dealers?.company_name || "").toLowerCase().includes(query);
+    const matchesSearch = !query || c.cert_number.toLowerCase().includes(query) || (c.dealers?.company_name || "").toLowerCase().includes(query);
+    if (!matchesSearch) return false;
+
+    const displayStatus = getCertDisplayStatus(c);
+    switch (statusFilter) {
+      case 'active':
+        return displayStatus === 'PENDING' || displayStatus === 'ISSUED';
+      case 'all':
+        return true;
+      case 'invalid':
+        return displayStatus === 'EXPIRED' || displayStatus === 'REVOKED' || displayStatus === 'REJECTED';
+      default:
+        return displayStatus === statusFilter;
+    }
   });
 
   const totalPages = Math.ceil(filteredCerts.length / pageSize);
@@ -162,7 +185,7 @@ export default function CertificatesPage() {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
-        <div className="px-0 py-6 flex justify-between items-center bg-transparent border-b border-slate-100/50">
+        <div className="px-0 py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-transparent border-b border-slate-100/50">
           <div className="relative w-full max-w-sm ml-2">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
@@ -172,6 +195,31 @@ export default function CertificatesPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
             />
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Filter className="w-3.5 h-3.5 text-slate-400 mr-1" />
+            {([
+              { key: 'active', label: '活跃', desc: '待审核和生效中' },
+              { key: 'all', label: '全部', desc: '所有证书' },
+              { key: 'PENDING', label: '待审核', desc: '待审核' },
+              { key: 'ISSUED', label: '生效中', desc: '生效中' },
+              { key: 'invalid', label: '已失效', desc: '过期、吊销、拒绝' },
+              { key: 'REVOKED', label: '已吊销', desc: '已吊销' },
+              { key: 'REJECTED', label: '已拒绝', desc: '已拒绝' },
+            ] as const).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setStatusFilter(item.key)}
+                title={item.desc}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide transition-all ${
+                  statusFilter === item.key
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
 

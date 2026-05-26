@@ -62,7 +62,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, '').substring(0, 4).toUpperCase()}`);
 
-  const [, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -722,12 +722,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           <div className="flex items-start gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">签字盖章</div>
             <div className="flex-1 pl-3">
-              {mode === 'view' ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                  <div className="text-[12px] text-slate-900 font-medium">
-                    {data.sealImage ? "自定义签章文件" : "使用系统默认公章"}
+              {mode === 'view' || userRole !== 'SUPER_ADMIN' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    <div className="text-[12px] text-slate-900 font-medium">
+                      {data.sealImage ? "自定义签章文件" : "使用系统默认公章"}
+                    </div>
                   </div>
+                  {data.sealImage && (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={data.sealImage} alt="预览签章" className="w-12 h-12 object-contain rounded border border-slate-100 bg-white" />
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
