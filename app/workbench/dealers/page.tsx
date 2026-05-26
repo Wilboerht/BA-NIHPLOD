@@ -301,7 +301,7 @@ export default function DealersPage() {
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <Building2 className="w-6 h-6" />
               </div>
-              <span className="text-[13px] font-medium tracking-tight">暂无匹配的经销商账户记录</span>
+              <span className="text-[13px] font-medium tracking-tight">暂无匹配的经销商记录</span>
             </div>
           )}
         </div>

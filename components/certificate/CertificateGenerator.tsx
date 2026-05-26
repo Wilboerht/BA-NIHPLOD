@@ -47,7 +47,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     phone: "",
   });
 
-  const [, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isFontLoaded, setIsFontLoaded] = useState(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
@@ -579,7 +579,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           })
         });
         if (!approveRes.ok) throw new Error("核发失败");
-        toast({ message: "授权信息已更新并核发成功，经销商账户已开通", type: "success" });
+        toast({ message: "授权信息已更新并核发成功", type: "success" });
       } else {
         const response = await fetch("/api/certificates", {
           method: "POST",
@@ -837,12 +837,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                       />
                     )}
                   </div>
-                  <textarea
-                    rows={4}
-                    className="w-full bg-slate-50/50 px-3 py-2 rounded-xl text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none h-28"
-                    value={data.scopeText}
-                    onChange={(e) => setData(prev => ({ ...prev, scopeText: e.target.value }))}
-                  />
+
                 </>
               )}
             </div>
@@ -888,9 +883,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       </motion.div>
 
       <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center h-fit">
-        <div onClick={handleImagePreview} className="w-full max-w-[460px] shadow-2xl rounded-sm bg-white overflow-hidden ring-1 ring-slate-900/5 cursor-zoom-in relative group">
-          <canvas ref={canvasRef} className="w-full h-auto block" style={{ imageRendering: 'crisp-edges' }} />
-          <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><ZoomIn className="w-6 h-6" /></div>
+        <div onClick={handleImagePreview} className="w-full max-w-[460px] shadow-2xl rounded-sm bg-white overflow-hidden ring-1 ring-slate-900/5 cursor-zoom-in relative group min-h-[240px] md:min-h-[320px]">
+          <canvas ref={canvasRef} className={`w-full h-auto block ${isGenerating ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`} style={{ imageRendering: 'crisp-edges' }} />
+          {isGenerating && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white z-10">
+              <div className="relative w-10 h-10">
+                <svg className="animate-spin w-10 h-10 text-slate-200" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              </div>
+              <p className="text-[12px] font-medium text-slate-400 tracking-widest uppercase">正在生成证书预览...</p>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white z-20"><ZoomIn className="w-6 h-6" /></div>
         </div>
       </motion.div>
 

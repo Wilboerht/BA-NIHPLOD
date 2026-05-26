@@ -128,7 +128,7 @@ export default function WorkbenchPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      toast({ message: `核发成功！授权书已签发，经销商账户已开通。`, type: "success" });
+      toast({ message: `核发成功！授权书已签发。`, type: "success" });
       await loadDashboard(userRole ?? undefined);
     } catch (err: unknown) {
       toast({ message: "核发失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
