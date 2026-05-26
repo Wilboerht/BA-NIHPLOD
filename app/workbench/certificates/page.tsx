@@ -6,6 +6,7 @@ import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useDebounce } from "@/hooks/useDebounce";
 import { parseAuthScope } from "@/lib/utils";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
@@ -33,11 +34,11 @@ export default function CertificatesPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
-  // 分页
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  // 前端分页
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const pageSize = 20;
   const [total, setTotal] = useState(0);
-  const totalPages = Math.ceil(total / pageSize);
 
   const closeIssueModal = () => {
     setShowIssueModal(false);
@@ -54,12 +55,11 @@ export default function CertificatesPage() {
     fetchUserRole();
     fetchCertificates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showIssueModal]); // refetch when modal closes
+  }, []);
 
   useEffect(() => {
-    fetchCertificates(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    setPage(1);
+  }, [searchQuery]);
 
   const fetchUserRole = async () => {
     try {
@@ -73,10 +73,10 @@ export default function CertificatesPage() {
     }
   };
 
-  const fetchCertificates = async (targetPage = page) => {
+  const fetchCertificates = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/db/certificates?page=${targetPage}&pageSize=${pageSize}`);
+      const response = await fetch(`/api/db/certificates?limit=10000`);
       const result = await response.json();
       
       if (!response.ok) throw new Error(result.error || '获取证书失败');
@@ -100,7 +100,7 @@ export default function CertificatesPage() {
     const ok = await confirm({ message: "确定要吊销此证书吗？一旦吊销：\n该证书图像在防伪系统中将显示为已失效。如果您需要修正信息，请在吊销后重新签发。" });
     if (!ok) return;
     
-    setIsLoading(true);
+    setRevokingId(id);
     try {
       const response = await fetch('/api/certificates', {
         method: 'POST',
@@ -116,14 +116,20 @@ export default function CertificatesPage() {
     } catch (err: unknown) {
       toast({ message: "吊销操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
-      setIsLoading(false);
+      setRevokingId(null);
     }
   };
 
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const filteredCerts = certificates.filter(c => {
-    const query = searchQuery.toLowerCase();
+    const query = debouncedSearch.toLowerCase();
+    if (!query) return true;
     return c.cert_number.toLowerCase().includes(query) || (c.dealers?.company_name || "").toLowerCase().includes(query);
   });
+
+  const totalPages = Math.ceil(filteredCerts.length / pageSize);
+  const paginatedCerts = filteredCerts.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
@@ -192,7 +198,7 @@ export default function CertificatesPage() {
               </tr>
             </thead>
             <tbody className="text-slate-700 font-medium">
-              {!isLoading && filteredCerts.map((cert) => (
+              {!isLoading && paginatedCerts.map((cert) => (
                   <tr key={cert.id} className="hover:bg-slate-50/60 transition-all group duration-200">
                     <td className="px-6 py-6 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
                     <td className="px-6 py-6">
@@ -348,12 +354,17 @@ export default function CertificatesPage() {
                           </button>
                         )}
                         {cert.status === 'ISSUED' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
-                          <button 
+                          <button
                             onClick={() => revokeCertificate(cert.id, cert.status)}
-                            className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
+                            disabled={revokingId === cert.id}
+                            className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none disabled:opacity-50"
                             title="吊销授权"
                           >
-                            <ShieldOff className="w-4 h-4" />
+                            {revokingId === cert.id ? (
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <ShieldOff className="w-4 h-4" />
+                            )}
                           </button>
                         )}
                       </div>

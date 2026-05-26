@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User } from "lucide-react";
+import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Complaint {
   id: string;
@@ -49,15 +50,17 @@ export default function ComplaintsPage() {
   const [activeTab, setActiveTab] = useState("ALL"); // ALL, PENDING, INVESTIGATING
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   useEscapeKey(() => setSelectedImageUrls([]), selectedImageUrls.length > 0);
   useEscapeKey(() => setActiveReviewId(null), !!activeReviewId);
 
-  // 分页
+  // 前端分页
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const pageSize = 20;
   const [total, setTotal] = useState(0);
-  const totalPages = Math.ceil(total / pageSize);
 
   // 审计日志
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -66,7 +69,11 @@ export default function ComplaintsPage() {
   useEffect(() => {
     fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, activeTab]);
+  }, [activeTab]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     if (activeReviewId) {
@@ -78,7 +85,7 @@ export default function ComplaintsPage() {
   const fetchComplaints = async (status?: string) => {
     setIsLoading(true);
     try {
-      let url = `/api/db/complaints?page=${page}&pageSize=${pageSize}`;
+      let url = `/api/db/complaints?page=1&pageSize=10000`;
       if (status) url += `&status=${status}`;
       const response = await fetch(url);
       if (response.ok) {
@@ -140,6 +147,7 @@ export default function ComplaintsPage() {
   const handleDelete = async (complaint: Complaint) => {
     const ok = await confirm({ message: `确定删除工单「${complaint.id.split('-')[0]}」吗？\n此操作不可恢复。` });
     if (!ok) return;
+    setDeletingId(complaint.id);
     try {
       const response = await fetch(`/api/db/complaints/${complaint.id}`, {
         method: 'DELETE'
@@ -153,6 +161,8 @@ export default function ComplaintsPage() {
       }
     } catch (err: unknown) {
       toast({ message: "删除失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -192,17 +202,18 @@ export default function ComplaintsPage() {
   const activeComplaint = complaints.find(c => c.id === activeReviewId);
 
   const filteredComplaints = complaints.filter(c => {
-    const q = searchQuery.toLowerCase();
-    if (q) {
-      return (
-        c.id.toLowerCase().includes(q) ||
-        (c.channel || "").toLowerCase().includes(q) ||
-        (c.description || "").toLowerCase().includes(q) ||
-        (c.contact_info || "").toLowerCase().includes(q)
-      );
-    }
-    return true;
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return true;
+    return (
+      c.id.toLowerCase().includes(q) ||
+      (c.channel || "").toLowerCase().includes(q) ||
+      (c.description || "").toLowerCase().includes(q) ||
+      (c.contact_info || "").toLowerCase().includes(q)
+    );
   });
+
+  const totalPages = Math.ceil(filteredComplaints.length / pageSize);
+  const paginatedComplaints = filteredComplaints.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
@@ -262,7 +273,7 @@ export default function ComplaintsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {!isLoading && filteredComplaints.map((complaint) => (
+              {!isLoading && paginatedComplaints.map((complaint) => (
                   <tr key={complaint.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-[10px] text-slate-400" title={complaint.id}>{complaint.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{complaint.channel || "-"}</td>
@@ -306,10 +317,15 @@ export default function ComplaintsPage() {
                           </button>
                           <button
                             onClick={() => handleDelete(complaint)}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200 active:scale-95 border border-slate-100/50"
+                            disabled={deletingId === complaint.id}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200 active:scale-95 border border-slate-100/50 disabled:opacity-50"
                             title="删除工单"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {deletingId === complaint.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         </div>
                      </td>

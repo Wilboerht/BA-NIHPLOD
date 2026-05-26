@@ -85,7 +85,7 @@ export default function WorkbenchPage() {
         .slice(0, 4);
       
       // 获取待审证书
-      const pendingRes = await fetch('/api/db/certificates/pending?limit=6');
+      const pendingRes = await fetch('/api/db/certificates/pending?limit=10000');
       const pendingData = await pendingRes.json();
       const pendingCerts = pendingData.data || [];
 
@@ -93,7 +93,7 @@ export default function WorkbenchPage() {
         certs: statsData.data?.totalCertificates || 0,
         validCerts: statsData.data?.issuedValid || 0,
         pendingComplaints: statsData.data?.pendingComplaints || 0,
-        pendingCerts: pendingCerts.length,
+        pendingCerts: pendingData.total || pendingCerts.length,
       });
       
       setRecentComplaints(recentComplaints);
@@ -149,6 +149,7 @@ export default function WorkbenchPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
+      toast({ message: "申请已退回", type: "success" });
       await loadDashboard(userRole ?? undefined);
     } catch (err: unknown) {
       toast({ message: "退回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });

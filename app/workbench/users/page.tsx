@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const ROLE_OPTIONS = [
   {
@@ -290,9 +291,11 @@ export default function AdminsManagementPage() {
     }
   };
 
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const filteredUsers = users.filter(u =>
-    u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.username?.toLowerCase().includes(searchQuery.toLowerCase())
+    u.full_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    u.username?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   return (
@@ -530,7 +533,7 @@ export default function AdminsManagementPage() {
                       <input
                         type={showPwd ? "text" : "password"}
                         required
-                        minLength={6}
+                        minLength={8}
                         placeholder="设置初始安全密码"
                         value={form.password}
                         onChange={e => setForm(f => ({ ...f, password: e.target.value }))}

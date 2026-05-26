@@ -9,6 +9,7 @@ import {
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useDebounce } from "@/hooks/useDebounce";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
@@ -73,12 +74,14 @@ export default function DealersPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [banningId, setBanningId] = useState<string | null>(null); // 正在执行 API 的 dealer.id
   const [confirmBanId, setConfirmBanId] = useState<string | null>(null); // 待二次确认的 dealer.id
+  const [prevDealers, setPrevDealers] = useState<Dealer[]>([]); // 用于乐观更新回滚
 
   const closeDealerModal = () => {
     setSelectedDealer(null);
     setDealerCerts([]);
     setDealerNameMap({});
     setDealerPhoneMap({});
+    setConfirmBanId(null);
   };
 
   const closeViewCert = () => {
@@ -141,9 +144,15 @@ export default function DealersPage() {
     fetchData();
   }, [fetchUserRole, fetchData]);
 
+  useEffect(() => {
+    setConfirmBanId(null);
+  }, [debouncedSearch]);
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const filteredDealers = dealers.filter(d =>
-    d.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.phone || "").toLowerCase().includes(searchQuery.toLowerCase())
+    d.company_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    (d.phone || "").toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // 按 phone 分组，合并同 phone 的 dealers
@@ -222,7 +231,7 @@ export default function DealersPage() {
   // 第一次点击：进入待确认状态
   const triggerBanConfirm = (dealerGroup: DealerGroup) => {
     if (!dealerGroup.profile?.id) return;
-    setConfirmBanId(dealerGroup.phone);
+    setConfirmBanId(prev => prev === dealerGroup.phone ? null : dealerGroup.phone);
   };
 
   // 第二次点击：执行封禁/解封 (应用于该 phone 的所有 dealer)
@@ -231,16 +240,17 @@ export default function DealersPage() {
     const action = dealerGroup.isBanned ? "unban" : "ban";
     setConfirmBanId(null);
     setBanningId(dealerGroup.phone);
+    setPrevDealers(dealers); // 保存旧状态用于回滚
     try {
       const res = await fetch('/api/admin/ban-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          profileId: dealerGroup.profile.id, 
-          action 
+        body: JSON.stringify({
+          profileId: dealerGroup.profile.id,
+          action
         }),
       });
-      
+
       if (!res.ok) {
         const result = await res.json();
         throw new Error(result.error || '操作失败');
@@ -250,8 +260,10 @@ export default function DealersPage() {
       setDealers(prev => prev.map(d =>
         dealerGroup.allDealerIds.includes(d.id) ? { ...d, isBanned: action === 'ban' } : d
       ));
+      toast({ message: action === 'ban' ? '账号已封禁' : '账号已解封', type: 'success' });
     } catch (err: unknown) {
       toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+      setDealers(prevDealers); // 回滚到旧状态
     } finally {
       setBanningId(null);
     }
