@@ -40,7 +40,7 @@ export default function CertificatesPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [total, setTotal] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | 'PENDING' | 'ISSUED' | 'invalid' | 'REVOKED' | 'REJECTED'>('active');
+  const [statusFilter, setStatusFilter] = useState<'ISSUED' | 'PENDING' | 'invalid'>('ISSUED');
 
   const closeIssueModal = () => {
     setShowIssueModal(false);
@@ -146,14 +146,14 @@ export default function CertificatesPage() {
 
     const displayStatus = getCertDisplayStatus(c);
     switch (statusFilter) {
-      case 'active':
-        return displayStatus === 'PENDING' || displayStatus === 'ISSUED';
-      case 'all':
-        return true;
+      case 'ISSUED':
+        return displayStatus === 'ISSUED';
+      case 'PENDING':
+        return displayStatus === 'PENDING';
       case 'invalid':
         return displayStatus === 'EXPIRED' || displayStatus === 'REVOKED' || displayStatus === 'REJECTED';
       default:
-        return displayStatus === statusFilter;
+        return true;
     }
   });
 
@@ -205,13 +205,9 @@ export default function CertificatesPage() {
           <div className="flex items-center gap-1.5 flex-wrap">
             <Filter className="w-3.5 h-3.5 text-slate-400 mr-1" />
             {([
-              { key: 'active', label: '活跃', desc: '待审核和生效中' },
-              { key: 'all', label: '全部', desc: '所有证书' },
-              { key: 'PENDING', label: '待审核', desc: '待审核' },
               { key: 'ISSUED', label: '生效中', desc: '生效中' },
-              { key: 'invalid', label: '已失效', desc: '过期、吊销、拒绝' },
-              { key: 'REVOKED', label: '已吊销', desc: '已吊销' },
-              { key: 'REJECTED', label: '已拒绝', desc: '已拒绝' },
+              { key: 'PENDING', label: '待审核', desc: '待审核' },
+              { key: 'invalid', label: '无效', desc: '已失效、已吊销、已拒绝' },
             ] as const).map((item) => (
               <button
                 key={item.key}
