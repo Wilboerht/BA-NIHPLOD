@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { fetchWithTimeout } from '@/lib/fetch';
 import type { UserSession } from '@/types';
 
 export { type UserSession };
@@ -12,7 +13,7 @@ export function useAuth() {
   const refresh = useCallback(async (): Promise<UserSession | null> => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/me', { cache: 'no-store' });
+      const res = await fetchWithTimeout('/api/auth/me', { cache: 'no-store' });
       if (!res.ok) {
         setUser(null);
         return null;
@@ -31,7 +32,7 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetchWithTimeout('/api/auth/logout', { method: 'POST' });
     } catch (e) {
       console.error('Logout error:', e);
     }
@@ -52,7 +53,7 @@ export function useAuth() {
  */
 export async function fetchCurrentUser(): Promise<UserSession | null> {
   try {
-    const res = await fetch('/api/auth/me', { cache: 'no-store' });
+    const res = await fetchWithTimeout('/api/auth/me', { cache: 'no-store' });
     if (!res.ok) return null;
     const data = await res.json();
     return data.user || null;

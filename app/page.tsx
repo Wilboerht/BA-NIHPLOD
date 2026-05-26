@@ -11,6 +11,7 @@ import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyR
 import { useToast } from "@/hooks/useToast";
 import { type UserSession } from "@/types";
 import { BRAND_NAME_CN } from "@/lib/config";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { Html5Qrcode } from "html5-qrcode";
 
 const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
@@ -111,7 +112,7 @@ export default function VerificationPage() {
             const formData = new FormData();
             formData.append('file', file);
             
-            const uploadResponse = await fetch('/api/upload/public', {
+            const uploadResponse = await fetchWithTimeout('/api/upload/public', {
               method: 'POST',
               body: formData
             });

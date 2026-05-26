@@ -7,6 +7,7 @@ import jsPDF from 'jspdf';
 import QRCode from "qrcode";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 
 export interface CertData {
@@ -74,7 +75,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetchWithTimeout('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
           setUserRole(data.user?.role || 'AUDITOR');
@@ -560,7 +561,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
     setIsSubmitting(true);
     try {
-      const meRes = await fetch('/api/auth/me');
+      const meRes = await fetchWithTimeout('/api/auth/me');
       if (!meRes.ok) throw new Error("未找到登录信息");
       const meData = await meRes.json();
       const user = meData.user;
@@ -568,7 +569,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
       // 编辑模式且是待审核证书：先更新再核发
       if (mode === 'edit' && isPending) {
-        const updateRes = await fetch("/api/certificates", {
+        const updateRes = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -580,7 +581,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         });
         if (!updateRes.ok) throw new Error("更新失败");
 
-        const approveRes = await fetch("/api/certificates", {
+        const approveRes = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -592,7 +593,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         if (!approveRes.ok) throw new Error("核发失败");
         toast({ message: "授权信息已更新并核发成功", type: "success" });
       } else {
-        const response = await fetch("/api/certificates", {
+        const response = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -764,7 +765,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                           try {
                             const formData = new FormData();
                             formData.append('file', file);
-                            const res = await fetch('/api/upload', {
+                            const res = await fetchWithTimeout('/api/upload', {
                               method: 'POST',
                               body: formData
                             });

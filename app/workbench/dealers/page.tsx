@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
 interface Dealer {
@@ -86,7 +87,7 @@ export default function DealersPage() {
 
   const fetchUserRole = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetchWithTimeout('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         setUserRole(data.user?.role ?? null);
@@ -100,7 +101,7 @@ export default function DealersPage() {
     setIsLoading(true);
     try {
       // 获取经销商列表
-      const response = await fetch('/api/db/dealers');
+      const response = await fetchWithTimeout('/api/db/dealers');
       if (!response.ok) throw new Error('获取经销商列表失败');
       
       const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string; cert_count?: number }> };

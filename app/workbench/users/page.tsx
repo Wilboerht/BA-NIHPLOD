@@ -9,6 +9,7 @@ import {
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
+import { fetchWithTimeout } from "@/lib/fetch";
 
 const ROLE_OPTIONS = [
   {
@@ -98,7 +99,7 @@ export default function AdminsManagementPage() {
     
     // 从服务端获取当前用户信息
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetchWithTimeout('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         const user = data.user;
@@ -118,7 +119,7 @@ export default function AdminsManagementPage() {
 
     // 获取所有管理员列表
     try {
-      const res = await fetch('/api/admin/list');
+      const res = await fetchWithTimeout('/api/admin/list');
       const result = await res.json();
       
       if (res.ok && result.data) {
@@ -152,7 +153,7 @@ export default function AdminsManagementPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/admin/create-admin", {
+      const res = await fetchWithTimeout("/api/admin/create-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form }),
@@ -176,7 +177,7 @@ export default function AdminsManagementPage() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const res = await fetch('/api/admin/update-user-role', {
+      const res = await fetchWithTimeout('/api/admin/update-user-role', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, newRole })
@@ -197,7 +198,7 @@ export default function AdminsManagementPage() {
     const ok = await confirm({ message: `确定要彻底移除管理员 "${name}" 吗？此操作不可逆。` });
     if (ok) {
       try {
-        const res = await fetch("/api/admin/delete-user", {
+        const res = await fetchWithTimeout("/api/admin/delete-user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: id }),
@@ -252,7 +253,7 @@ export default function AdminsManagementPage() {
     setIsResetting(true);
     setResetPwdError(null);
     try {
-      const res = await fetch("/api/admin/reset-password", {
+      const res = await fetchWithTimeout("/api/admin/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: resetPwdTarget.id, newPassword: resetPwdValue }),

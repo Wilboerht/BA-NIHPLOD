@@ -14,11 +14,13 @@ function createDbClient() {
     // 返回一个代理对象，在调用时抛出明确的错误，避免 null 导致的隐晦崩溃
     return new Proxy({} as ReturnType<typeof postgres>, {
       get(_target, prop) {
-        throw new Error(
+        const err = new Error(
           `[db] Database connection failed: DATABASE_URL is not configured. ` +
           `Attempted to access "sql.${String(prop)}". ` +
           `Please set DATABASE_URL in your .env.local file.`
         );
+        (err as Error & { statusCode?: number }).statusCode = 503;
+        throw err;
       },
     });
   }

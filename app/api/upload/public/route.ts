@@ -27,9 +27,14 @@ export async function POST(req: Request) {
   try {
     // 限流：每个 IP 5 分钟内最多上传 20 次（支持最多 4 次 5 图投诉）
     const clientIP = getClientIP(req);
-    const allowed = await checkActionRateLimit(`upload:${clientIP}`, 20, 5 * 60 * 1000);
-    if (!allowed) {
+    const allowedShort = await checkActionRateLimit(`upload:${clientIP}`, 20, 5 * 60 * 1000);
+    if (!allowedShort) {
       return NextResponse.json({ error: '上传过于频繁，请 5 分钟后再试' }, { status: 429 });
+    }
+    // 额外限流：每个 IP 每天最多上传 50 次
+    const allowedDaily = await checkActionRateLimit(`upload:daily:${clientIP}`, 50, 24 * 60 * 60 * 1000);
+    if (!allowedDaily) {
+      return NextResponse.json({ error: '今日上传次数已达上限，请明天再试' }, { status: 429 });
     }
 
     const formData = await req.formData();
@@ -79,6 +84,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, url: publicUrl, path });
   } catch (err: unknown) {
     console.error('[Public Upload API] Error:', err);
+    const statusCode = (err as Error & { statusCode?: number }).statusCode;
+    if (statusCode === 503) {
+      return NextResponse.json({ error: '服务暂时不可用，请稍后重试' }, { status: 503 });
+    }
     return NextResponse.json({ error: '上传失败，请稍后重试' }, { status: 500 });
   }
 }

@@ -7,7 +7,8 @@ import CertificateGenerator, { CertData } from "@/components/certificate/Certifi
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
-import { parseAuthScope } from "@/lib/utils";
+import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
 interface Certificate {
@@ -64,7 +65,7 @@ export default function CertificatesPage() {
 
   const fetchUserRole = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetchWithTimeout('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         setUserRole(data.user?.role ?? null);
@@ -77,7 +78,7 @@ export default function CertificatesPage() {
   const fetchCertificates = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/db/certificates?limit=10000`);
+      const response = await fetchWithTimeout(`/api/db/certificates?limit=10000`);
       const result = await response.json();
       
       if (!response.ok) throw new Error(result.error || '获取证书失败');
@@ -103,7 +104,7 @@ export default function CertificatesPage() {
     
     setRevokingId(id);
     try {
-      const response = await fetch('/api/certificates', {
+      const response = await fetchWithTimeout('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'revoke_certificate', certId: id })

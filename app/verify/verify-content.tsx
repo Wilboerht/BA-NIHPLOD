@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, Loader2, Home, Calendar, User } from "lucide-rea
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { BRAND_NAME, BRAND_NAME_CN } from "@/lib/config";
 
 interface Certificate {
@@ -44,7 +45,7 @@ export default function VerifyPageContent() {
     const fetchCertificate = async () => {
       try {
         // 使用服务端 API 查询，与主页验证逻辑一致
-        const response = await fetch("/api/certificates/verify", {
+        const response = await fetchWithTimeout("/api/certificates/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ certNumber: decodeURIComponent(certId || "") })

@@ -13,6 +13,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { OrbitalIcons } from "@/components/ui/OrbitalIcons";
 
 interface FormErrors {
@@ -100,7 +101,7 @@ function AdminLoginForm() {
       setIsLoading(true);
 
       try {
-        const response = await fetch("/api/auth/login", {
+        const response = await fetchWithTimeout("/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ShieldAlert, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { fetchWithTimeout } from "@/lib/fetch";
 import Link from "next/link";
 import type { UserSession } from "@/types";
 
@@ -52,7 +53,7 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      const response = await fetch("/api/auth/change-password", {
+      const response = await fetchWithTimeout("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

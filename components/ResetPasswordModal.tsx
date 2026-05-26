@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Check, ShieldAlert, Eye, EyeOff, X, Loader2 } from "lucide-react";
+import { fetchWithTimeout } from "@/lib/fetch";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface UserSession {
@@ -68,7 +69,7 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
         return;
       }
 
-      const response = await fetch("/api/auth/change-password", {
+      const response = await fetchWithTimeout("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -131,6 +131,13 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("Certificate verification error:", err);
+    const statusCode = (err as Error & { statusCode?: number }).statusCode;
+    if (statusCode === 503) {
+      return NextResponse.json(
+        { success: false, error: "服务暂时不可用，请稍后重试" },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { success: false, error: "系统查询出错，请稍后再试" },
       { status: 500 }

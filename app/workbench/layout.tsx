@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar/Sidebar";
 import styles from "./layout.module.css";
 import { ADMIN_ROLES, type UserSession } from "@/types";
+import { fetchWithTimeout } from "@/lib/fetch";
 
 export default function WorkbenchLayout({ children }: { children: React.ReactNode }) {
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -29,7 +30,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        const res = await fetchWithTimeout('/api/auth/me', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data.user && ADMIN_ROLES.includes(data.user.role)) {

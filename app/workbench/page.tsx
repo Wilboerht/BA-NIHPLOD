@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { useToast } from "@/hooks/useToast";
 import { parseAuthScope } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/fetch";
 
 interface Complaint {
   id: string;
@@ -48,7 +49,7 @@ export default function WorkbenchPage() {
 
   const fetchUserRole = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetchWithTimeout('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         const user = data.user;
@@ -74,18 +75,18 @@ export default function WorkbenchPage() {
 
     try {
       // 获取统计数据
-      const statsRes = await fetch('/api/db/stats');
+      const statsRes = await fetchWithTimeout('/api/db/stats');
       const statsData = await statsRes.json();
       
       // 获取最近的待处理投诉（PENDING + INVESTIGATING）
-      const complaintsRes = await fetch('/api/db/complaints');
+      const complaintsRes = await fetchWithTimeout('/api/db/complaints');
       const complaintsData = await complaintsRes.json();
       const recentComplaints = (complaintsData.data || [])
         .filter((c: Complaint) => c.status === 'PENDING' || c.status === 'INVESTIGATING')
         .slice(0, 4);
       
       // 获取待审证书
-      const pendingRes = await fetch('/api/db/certificates/pending?limit=10000');
+      const pendingRes = await fetchWithTimeout('/api/db/certificates/pending?limit=10000');
       const pendingData = await pendingRes.json();
       const pendingCerts = pendingData.data || [];
 
@@ -121,7 +122,7 @@ export default function WorkbenchPage() {
     if (!ok) return;
     setProcessingId(cert.id);
     try {
-      const response = await fetch('/api/certificates', {
+      const response = await fetchWithTimeout('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve_issue', certId: cert.id }),
@@ -142,7 +143,7 @@ export default function WorkbenchPage() {
     if (!ok) return;
     setRejectingId(cert.id);
     try {
-      const response = await fetch('/api/certificates', {
+      const response = await fetchWithTimeout('/api/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reject_pending', certId: cert.id }),

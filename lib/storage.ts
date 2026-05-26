@@ -15,6 +15,12 @@ function sanitizeFilePath(input: string): string {
   return sanitized;
 }
 
+function ensurePathInside(baseDir: string, targetPath: string): boolean {
+  const resolvedBase = path.resolve(baseDir);
+  const resolvedTarget = path.resolve(targetPath);
+  return resolvedTarget.startsWith(resolvedBase + path.sep) || resolvedTarget === resolvedBase;
+}
+
 const MAGIC_NUMBERS: Record<string, string[]> = {
   'image/png': ['89504e47'],
   'image/jpeg': ['ffd8ffe0', 'ffd8ffe1', 'ffd8ffe8', 'ffd8ffdb', 'ffd8ffee'],
@@ -51,8 +57,13 @@ export async function uploadFile(
       return { path: '', error: '文件类型与声明不符，可能为伪造文件' };
     }
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', safeBucket);
-    const fullPath = path.join(uploadDir, safeFilePath);
+    const uploadDir = path.resolve(process.cwd(), 'public', 'uploads', safeBucket);
+    const fullPath = path.resolve(uploadDir, safeFilePath);
+
+    // 二次校验：确保最终路径在允许的基目录内
+    if (!ensurePathInside(uploadDir, fullPath)) {
+      return { path: '', error: '非法的文件路径' };
+    }
 
     // 确保目标文件的所有父目录都存在（包括子目录路径）
     await fs.mkdir(path.dirname(fullPath), { recursive: true });

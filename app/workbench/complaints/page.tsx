@@ -6,6 +6,7 @@ import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIc
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
+import { fetchWithTimeout } from "@/lib/fetch";
 
 interface Complaint {
   id: string;
@@ -87,7 +88,7 @@ export default function ComplaintsPage() {
     try {
       let url = `/api/db/complaints?page=1&pageSize=10000`;
       if (status) url += `&status=${status}`;
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       if (response.ok) {
         const result = await response.json();
         setComplaints(result.data || []);
@@ -107,7 +108,7 @@ export default function ComplaintsPage() {
   const fetchAuditLogs = async (complaintId: string) => {
     setIsLoadingLogs(true);
     try {
-      const res = await fetch(`/api/db/complaints/${complaintId}/logs`);
+      const res = await fetchWithTimeout(`/api/db/complaints/${complaintId}/logs`);
       if (res.ok) {
         const data = await res.json();
         setAuditLogs(data.data || []);
@@ -122,7 +123,7 @@ export default function ComplaintsPage() {
   const handleStatusUpdate = async (newStatus: string) => {
     if (!activeReviewId) return;
     try {
-      const response = await fetch(`/api/db/complaints/${activeReviewId}`, {
+      const response = await fetchWithTimeout(`/api/db/complaints/${activeReviewId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, review_note: reviewNote })
@@ -149,7 +150,7 @@ export default function ComplaintsPage() {
     if (!ok) return;
     setDeletingId(complaint.id);
     try {
-      const response = await fetch(`/api/db/complaints/${complaint.id}`, {
+      const response = await fetchWithTimeout(`/api/db/complaints/${complaint.id}`, {
         method: 'DELETE'
       });
       if (response.ok) {

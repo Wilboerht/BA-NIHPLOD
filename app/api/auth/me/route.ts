@@ -32,6 +32,13 @@ export async function GET(request: Request) {
     });
   } catch (err: unknown) {
     console.error('[auth/me] Error:', err);
+    const statusCode = (err as Error & { statusCode?: number }).statusCode;
+    if (statusCode === 503) {
+      return NextResponse.json(
+        { error: '服务暂时不可用，请稍后重试' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: '获取用户信息失败' },
       { status: 500 }

@@ -16,9 +16,10 @@ import type { TransactionSql } from 'postgres';
 // 依赖数据库 cert_number UNIQUE 约束做最终保护，冲突时自动重试
 function generateUniqueCertNumber(): string {
   const year = new Date().getFullYear();
-  const base = `BAVP-${year}-`;
-  const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
-  return `${base}${randomPart}`;
+  // 加入毫秒时间戳（36进制前3位）+ 随机串，极大降低并发冲突概率
+  const timePart = Date.now().toString(36).substring(0, 3).toUpperCase();
+  const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 3).toUpperCase();
+  return `BAVP-${year}-${timePart}${randomPart}`;
 }
 
 // 辅助函数：带重试的唯一证书编号生成

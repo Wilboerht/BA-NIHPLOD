@@ -144,6 +144,13 @@ export async function POST(req: Request) {
     return response;
   } catch (err: unknown) {
     console.error('Login error:', err);
+    const statusCode = (err as Error & { statusCode?: number }).statusCode;
+    if (statusCode === 503) {
+      return NextResponse.json(
+        { error: '服务暂时不可用，请稍后重试' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: '登录失败' },
       { status: 500 }
