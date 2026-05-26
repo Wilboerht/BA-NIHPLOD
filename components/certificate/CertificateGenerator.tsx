@@ -605,7 +605,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         });
 
         if (!response.ok) throw new Error("操作失败");
-        toast({ message: mode === 'edit' ? "授权信息已更新" : "证书已处理", type: "success" });
+        toast({ message: mode === 'edit' ? "授权信息已更新" : (userRole === 'SUPER_ADMIN' ? "证书已签发" : "提报成功，等待管理员核发"), type: "success" });
       }
       setIsIssued(true);
       if (onSuccess) setTimeout(onSuccess, 800);
@@ -878,7 +878,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               ) : (
                 <>
                   <CheckCircle2 size={15} />
-                  {isPending ? "确认修改并核发" : mode === 'edit' ? "确认修改" : "签发授权"}
+                  {isPending ? "确认修改并核发" : mode === 'edit' ? "确认修改" : userRole === 'SUPER_ADMIN' ? "签发授权" : "提报授权"}
                 </>
               )}
             </button>
