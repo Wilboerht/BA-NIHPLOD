@@ -147,7 +147,7 @@ export default function DealersPage() {
     return Array.from(nameMap.values()).map(dealerGroup => {
       const allDealer = dealerGroup[0];
       const allDealerIds = dealerGroup.map(d => d.id);
-      const totalCerts = dealerGroup.reduce((sum, d) => sum + (d.certificates?.[0]?.count || 0), 0);
+      const totalCerts = dealerGroup.reduce((sum, d) => sum + (Number(d.certificates?.[0]?.count) || 0), 0);
       const allPhones = [...new Set(dealerGroup.map(d => d.phone).filter(Boolean))];
       const scopeDealer = dealerGroup.find(d => d.auth_scope);
       const companyName = scopeDealer ? (parseAuthScope(scopeDealer.auth_scope!).companyName || '-') : '-';
