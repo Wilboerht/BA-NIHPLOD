@@ -167,7 +167,8 @@ export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; err
   try {
     const result = await sql`
       SELECT d.id, d.company_name, d.phone, d.created_at,
-             (SELECT COUNT(*) FROM certificates c WHERE c.dealer_id = d.id) as cert_count
+             (SELECT COUNT(*) FROM certificates c WHERE c.dealer_id = d.id) as cert_count,
+             (SELECT c.auth_scope FROM certificates c WHERE c.dealer_id = d.id ORDER BY c.created_at DESC LIMIT 1) as auth_scope
       FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
     `;
     return { data: (result || []) as SqlRow[], error: null };

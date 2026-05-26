@@ -196,7 +196,7 @@ export default function CertificatesPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
-              placeholder="搜索证书编号或经销商名称..." 
+              placeholder="搜索证书编号或店铺/平台名称..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
@@ -244,7 +244,8 @@ export default function CertificatesPage() {
             <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证书编号</th>
-                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商名称</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">店铺/平台名称</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">公司名称</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">联系方式</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">当前状态</th>
@@ -257,6 +258,9 @@ export default function CertificatesPage() {
                     <td className="px-6 py-6 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
                     <td className="px-6 py-6">
                        <span className="font-bold text-slate-900 text-[13px] tracking-tight">{cert.dealers?.company_name || "-"}</span>
+                    </td>
+                    <td className="px-6 py-6">
+                       <span className="text-slate-600 text-[13px] tracking-tight">{parseAuthScope(cert.auth_scope).companyName || "-"}</span>
                     </td>
                     <td className="px-6 py-6">
                       {cert.dealers?.phone ? (
@@ -504,8 +508,8 @@ export default function CertificatesPage() {
                           : isEditMode
                           ? "正在修正现有授权证书中的录入误差，提交后将同步刷新查验图"
                           : (userRole === 'SUPER_ADMIN'
-                            ? "核实经销商主体资质，签发受防伪协议保护的电子证书"
-                            : "录入经销商主体资质，提交品牌授权审核申请")}
+                            ? "核实店铺或平台资质，签发受防伪协议保护的电子证书"
+                            : "录入店铺或平台资质，提交品牌授权审核申请")}
                       </p>
                   </div>
                   <button

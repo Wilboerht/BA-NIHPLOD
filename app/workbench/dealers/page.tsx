@@ -21,7 +21,7 @@ interface Dealer {
   email: string;
   created_at: string;
   certificates: { count: number }[];
-
+  auth_scope?: string;
 }
 
 interface DealerCertificate {
@@ -50,6 +50,7 @@ interface DealerGroup extends Dealer {
   allNames: string[];
   allDealerIds: string[];
   totalCerts: number;
+  companyName: string;
 }
 
 export default function DealersPage() {
@@ -104,7 +105,7 @@ export default function DealersPage() {
       const response = await fetchWithTimeout('/api/db/dealers');
       if (!response.ok) throw new Error('获取经销商列表失败');
       
-      const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string; cert_count?: number }> };
+      const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string; cert_count?: number; auth_scope?: string }> };
       const data = result.data || [];
       
       setDealers(data.map((d) => ({
@@ -148,12 +149,16 @@ export default function DealersPage() {
       const allNames = [...new Set(dealerGroup.map(d => d.company_name))]; // 去重
       const allDealerIds = dealerGroup.map(d => d.id);
       const totalCerts = dealerGroup.reduce((sum, d) => sum + (d.certificates?.[0]?.count || 0), 0);
+      // 从该 phone 分组下的所有 dealer 中找一个有 auth_scope 的，解析出公司名称
+      const scopeDealer = dealerGroup.find(d => d.auth_scope);
+      const companyName = scopeDealer ? (parseAuthScope(scopeDealer.auth_scope!).companyName || '-') : '-';
       
       return {
         ...allDealer,
         allNames,
         allDealerIds,
-        totalCerts
+        totalCerts,
+        companyName
       };
     });
   }, [filteredDealers]);
@@ -244,7 +249,8 @@ export default function DealersPage() {
           <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
             <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">经销商主体（名称）</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">店铺或平台名称</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">公司名称</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">ID</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">手机号</th>
                 <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">持有证书</th>
@@ -263,6 +269,11 @@ export default function DealersPage() {
                         ))}
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-[12px] text-slate-600">
+                      {dealerGroup.companyName || "-"}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-[11px] text-slate-500 font-mono">
