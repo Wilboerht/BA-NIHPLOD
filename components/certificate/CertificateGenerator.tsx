@@ -39,7 +39,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     companyName: "",
     companyLabel: "公司名称",
     shopName: "",
-    shopLabel: "店铺名称",
+    shopLabel: "店铺或平台名称",
     scopeText: `予以下渠道:\n淘宝 | 天猫 | 京东 | 小红书 | 抖音 | 微信 | 线下门店\n运营我司代理的品牌 ${BRAND_NAME} (${BRAND_NAME_CN})\n全系列产品的 [合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务`,
     duration: (() => {
       const now = new Date();
@@ -548,7 +548,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const handleIssueSubmit = async () => {
     if (!data.shopName.trim()) {
-      toast({ message: "请填写必填字段：店铺名称", type: "warning" });
+      toast({ message: "请填写必填字段：店铺或平台名称", type: "warning" });
       return;
     }
     if (!data.phone.trim()) {
@@ -628,14 +628,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           )}
           {/* 店铺名称/经销商 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">店铺名称</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">店铺或平台名称</div>
             <div className="flex-1">
               {mode === 'view' ? (
                 <div className="text-[13px] text-slate-900 font-medium pl-3">{data.shopName}</div>
               ) : (
                 <input
                   type="text"
-                  placeholder="请输入店铺名称"
+                  placeholder="请输入店铺或平台名称"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.shopName}
                   onChange={(e) => setData(prev => ({ ...prev, shopName: e.target.value }))}

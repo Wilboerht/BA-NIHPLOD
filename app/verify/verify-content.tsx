@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Home, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 import { BRAND_NAME, BRAND_NAME_CN } from "@/lib/config";
@@ -144,15 +144,7 @@ export default function VerifyPageContent() {
                       <p className="text-slate-900 font-semibold">{certificate.dealers?.company_name || certificate.company_name}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="text-xs text-slate-500">联系电话</p>
-                      <p className="text-slate-900 font-semibold">
-                        {certificate.dealers?.phone || certificate.phone || "未登记"}
-                      </p>
-                    </div>
-                  </div>
+
                 </div>
               </div>
 
