@@ -706,7 +706,7 @@ export default function VerificationPage() {
       {/* 投诉举报模态框 */}
       <AnimatePresence>
         {showReportModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[60] flex md:items-center md:justify-center">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={() => { setShowReportModal(false); resetReportForm(); }}
@@ -716,7 +716,7 @@ export default function VerificationPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full max-w-xl bg-white rounded-[28px] shadow-2xl p-10 overflow-hidden"
+               className="relative w-full h-full md:h-auto md:max-w-xl bg-white rounded-none md:rounded-[28px] shadow-2xl p-6 md:p-10 overflow-y-auto"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
