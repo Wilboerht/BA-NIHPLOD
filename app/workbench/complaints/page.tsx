@@ -429,10 +429,10 @@ export default function ComplaintsPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative max-w-xl w-full bg-white rounded-[32px] shadow-2xl p-8 md:p-10 overflow-hidden max-h-[90vh] overflow-y-auto" 
+               className="relative max-w-xl w-full bg-white rounded-[32px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" 
                onClick={e => e.stopPropagation()}
             >
-               <div className="flex justify-between items-start mb-6">
+               <div className="flex justify-between items-start px-8 md:px-10 pt-8 md:pt-10 pb-6 shrink-0">
                   <div className="space-y-1">
                     <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                       <Megaphone className="w-5 h-5 text-rose-500" />
@@ -449,7 +449,7 @@ export default function ComplaintsPage() {
                </div>
 
                {/* 投诉详情展示 */}
-               <div className="space-y-4 mb-6">
+               <div className="flex-1 overflow-y-auto px-8 md:px-10 pb-8 md:pb-10 custom-scrollbar space-y-4">
                  <div className="bg-slate-50 rounded-2xl p-5 space-y-3">
                    <div>
                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">侵权描述</span>
@@ -500,7 +500,7 @@ export default function ComplaintsPage() {
                  {auditLogs.length > 0 && (
                    <div className="space-y-2">
                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">审核历史</span>
-                     <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                     <div className="space-y-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
                        {auditLogs.map((log) => (
                          <div key={log.id} className="bg-slate-50/50 rounded-xl px-4 py-2.5 text-[12px]">
                            <div className="flex items-center justify-between mb-0.5">
