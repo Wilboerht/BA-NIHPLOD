@@ -429,9 +429,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     console.log('[CERT_DEBUG] 授权文字 Y (canvas):', authorizerY, '对应显示 px:', authorizerY / scale);
     offCtx.fillText(data.authorizer || "", sealCenterX, authorizerY);
 
-    // 二维码：底部对齐（与公章同一水平线）
+    // 二维码：底部对齐（与公章同一水平线），稍微上移
     const qrX = leftMargin;
-    const qrY = bottomAlignY - qrSize;
+    const qrY = bottomAlignY - qrSize - 12 * scale;
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
       const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
