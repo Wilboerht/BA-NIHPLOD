@@ -440,33 +440,28 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     if (!isIssued || isVoided || isPending) {
       offCtx.save();
+      offCtx.rotate(-Math.PI / 4);
+      offCtx.textAlign = "center";
+      offCtx.font = `bold ${18 * scale}px "Noto Serif SC", serif`;
       if (isVoided) {
-        offCtx.translate(width / 2, height / 2);
-        offCtx.textAlign = "center";
-        offCtx.textBaseline = "middle";
-        offCtx.font = `bold ${80 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "rgba(220, 38, 38, 0.25)";
-        offCtx.fillText("已 作 废", 0, 0);
-        offCtx.strokeStyle = "rgba(220, 38, 38, 0.35)";
-        offCtx.lineWidth = 4 * scale;
-        offCtx.strokeRect(-240 * scale, -70 * scale, 480 * scale, 140 * scale);
-        offCtx.strokeRect(-230 * scale, -60 * scale, 460 * scale, 120 * scale);
+        const stepX = 220 * scale;
+        const stepY = 160 * scale;
+        for (let x = -width; x < width * 2; x += stepX) {
+          for (let y = -height; y < height * 2; y += stepY) {
+            offCtx.fillText("已作废", x, y);
+          }
+        }
       } else if (isPending) {
-        offCtx.rotate(-Math.PI / 6);
-        offCtx.textAlign = "center";
-        offCtx.font = `bold ${28 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "rgba(217, 119, 6, 0.18)";
-        const stepX = 260 * scale;
-        const stepY = 180 * scale;
+        const stepX = 220 * scale;
+        const stepY = 160 * scale;
         for (let x = -width; x < width * 2; x += stepX) {
           for (let y = -height; y < height * 2; y += stepY) {
             offCtx.fillText("审核中 · 未核发", x, y);
           }
         }
       } else {
-        offCtx.rotate(-Math.PI / 4);
-        offCtx.textAlign = "center";
-        offCtx.font = `bold ${18 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "rgba(100, 116, 139, 0.15)";
         const stepX = 220 * scale;
         const stepY = 160 * scale;
