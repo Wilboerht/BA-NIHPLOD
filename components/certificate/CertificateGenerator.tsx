@@ -420,11 +420,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.restore();
     }
 
-    // 授权方文字（压印在公章中央）
+    // 授权方文字（压印在公章下方偏下位置）
     offCtx.textAlign = "center";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
-    const authorizerY = bottomAlignY - sealDrawHeight / 2 + 8 * scale + 20 * scale;
+    const authorizerY = bottomAlignY - sealDrawHeight / 2 + 28 * scale + 20 * scale;
     console.log('[CERT_DEBUG] 印章中心 X:', sealCenterX / scale, 'px, 印章中心 Y:', (bottomAlignY - sealDrawHeight / 2 + 20 * scale) / scale, 'px');
     console.log('[CERT_DEBUG] 授权文字 Y (canvas):', authorizerY, '对应显示 px:', authorizerY / scale);
     offCtx.fillText(data.authorizer || "", sealCenterX, authorizerY);
