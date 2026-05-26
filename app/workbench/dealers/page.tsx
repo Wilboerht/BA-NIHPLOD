@@ -357,7 +357,7 @@ export default function DealersPage() {
                     <thead className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100">
                       <tr>
                         <th className="px-6 py-4">证书编号</th>
-                        <th className="px-6 py-4">主题名称</th>
+                        <th className="px-6 py-4">主体名称</th>
                         <th className="px-6 py-4">有效期</th>
                         <th className="px-6 py-4">状态</th>
                         <th className="px-6 py-4 text-right">操作</th>
