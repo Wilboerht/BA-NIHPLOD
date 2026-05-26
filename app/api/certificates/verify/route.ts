@@ -1,22 +1,6 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { sql, checkActionRateLimit } from '@/lib/db';
 import { getEndOfDay } from '@/lib/utils';
-
-// 内存 rate limit（PM2 单实例下有效）
-const verifyAttempts = new Map<string, { count: number; resetAt: number }>();
-const VERIFY_LIMIT = 30;
-const VERIFY_WINDOW_MS = 60 * 1000; // 1 分钟
-
-function checkVerifyRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = verifyAttempts.get(ip);
-  if (!record || now > record.resetAt) {
-    verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS });
-    return true;
-  }
-  record.count++;
-  return record.count <= VERIFY_LIMIT;
-}
 
 function getClientIP(req: Request): string {
   const realIp = req.headers.get('x-real-ip');
@@ -24,7 +8,7 @@ function getClientIP(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
     const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
-    return ips[ips.length - 1] || 'unknown';
+    return ips[0] || 'unknown';
   }
   return 'unknown';
 }
@@ -41,7 +25,8 @@ function maskPhone(phone: string): string {
 export async function POST(req: Request) {
   try {
     const clientIP = getClientIP(req);
-    if (!checkVerifyRateLimit(clientIP)) {
+    const allowed = await checkActionRateLimit(`verify:${clientIP}`, 30, 60 * 1000);
+    if (!allowed) {
       return NextResponse.json(
         { success: false, error: "查询过于频繁，请稍后再试" },
         { status: 429 }

@@ -2,7 +2,7 @@
 
 import DOMPurify from 'isomorphic-dompurify';
 import { sql, checkActionRateLimit } from '@/lib/db';
-import { parseAuthScope, formatDateISO } from '@/lib/utils';
+import { parseAuthScope, formatDateISO, getEndOfDay } from '@/lib/utils';
 import { headers } from 'next/headers';
 
 export interface CertificateVerifyResult {
@@ -33,7 +33,7 @@ interface DbCertRow {
 
 export async function verifyCertificateAction(query: string): Promise<VerifyActionResponse> {
   const cleanQuery = query?.trim();
-  
+
   if (!cleanQuery) {
     return { success: false, error: "请输入需要核验的证书编号或主体名称。" };
   }
@@ -42,17 +42,28 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     return { success: false, error: "输入内容过长，请检查后重试。" };
   }
 
+  // 限流检查：每个 IP 1 分钟内最多查询 30 次
+  try {
+    const clientIP = await getClientIP();
+    const rateKey = `verify:${clientIP}`;
+    const allowed = await checkActionRateLimit(rateKey, 30, 60 * 1000);
+    if (!allowed) {
+      return { success: false, error: "查询过于频繁，请稍后再试" };
+    }
+  } catch {
+    // 限流检查失败时继续执行，不阻塞查询
+  }
+
   try {
     let results: DbCertRow[] | null = null;
 
-    // 1. 尝试按证书编号精确匹配
+    // 1. 尝试按证书编号精确匹配（查询所有状态，由业务逻辑判断）
     let dbResults = await sql`
       SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
              d.company_name
       FROM certificates c
       LEFT JOIN dealers d ON c.dealer_id = d.id
       WHERE c.cert_number = ${cleanQuery.toUpperCase()}
-        AND c.status = 'ISSUED'
     `;
 
     if (dbResults && dbResults.length > 0) {
@@ -78,7 +89,6 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         LEFT JOIN dealers d ON c.dealer_id = d.id
         WHERE (d.company_name ILIKE ${prefixPattern}
            OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern})
-          AND c.status = 'ISSUED'
         ORDER BY c.end_date DESC
       `;
 
@@ -92,7 +102,6 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           LEFT JOIN dealers d ON c.dealer_id = d.id
           WHERE (d.company_name ILIKE ${containPattern}
              OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern})
-            AND c.status = 'ISSUED'
           ORDER BY c.end_date DESC
         `;
       }
@@ -109,9 +118,31 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         })) as DbCertRow[];
       }
     }
-    
+
     if (!results || results.length === 0) {
       return { success: false, error: "未检索到相关的官方授权记录" };
+    }
+
+    // 状态校验：与 API /api/certificates/verify 保持一致
+    const firstResult = results[0];
+    const rawStatus = String(firstResult.status || '').toUpperCase();
+
+    // 检查撤销
+    if (rawStatus === 'REVOKED') {
+      return { success: false, error: "该主体的商业授权已被品牌官方撤销终止" };
+    }
+
+    // 检查过期
+    const endDateStr = typeof firstResult.end_date === 'string' ? firstResult.end_date : formatDateISO(firstResult.end_date);
+    const endDate = getEndOfDay(endDateStr || '1970-01-01');
+    const isExpired = rawStatus === 'EXPIRED' || new Date() > endDate;
+    if (isExpired) {
+      return { success: false, error: `曾有授权，但该证书已于 ${endDateStr} 过期失效` };
+    }
+
+    // 检查其他异常状态
+    if (rawStatus !== 'ISSUED') {
+      return { success: false, error: "该授权状态异常，请核查资质" };
     }
 
     const finalData: CertificateVerifyResult[] = [];

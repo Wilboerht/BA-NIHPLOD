@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Loader2, Home, Calendar, User, Phone } from "lucide-react";
 import Link from "next/link";
-import { parseAuthScope } from "@/lib/utils";
+import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 import { BRAND_NAME, BRAND_NAME_CN } from "@/lib/config";
 
 interface Certificate {
@@ -27,10 +27,10 @@ export default function VerifyPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 验证证书号格式 BAVP-YYYY-XXXX
+  // 验证证书号格式 BAVP-YYYY-XXXX（支持 0-9 和 A-F）
   const isValidCertNumber = (certNum: string | null): boolean => {
     if (!certNum) return false;
-    return /^BAVP-\d{4}-\d{4}$/.test(certNum);
+    return /^BAVP-\d{4}-[0-9A-F]{4}$/i.test(certNum);
   };
 
 
@@ -60,9 +60,9 @@ export default function VerifyPageContent() {
         }
 
         const data = result.data;
-        
-        // 检查有效期
-        const endDate = new Date(data.end_date);
+
+        // 检查有效期（使用 getEndOfDay 避免时区问题）
+        const endDate = getEndOfDay(data.end_date);
         if (new Date() > endDate) {
           setIsExpired(true);
         }
@@ -208,7 +208,7 @@ export default function VerifyPageContent() {
           <ul className="list-disc list-inside space-y-1 text-blue-800">
             <li>此证书由 {BRAND_NAME}({BRAND_NAME_CN}) 官方签发</li>
             <li>如发现侵权冒充，请立即
-              <Link href="/complaints" className="text-blue-600 hover:underline ml-1">
+              <Link href="/" className="text-blue-600 hover:underline ml-1">
                 提交举报
               </Link>
             </li>
