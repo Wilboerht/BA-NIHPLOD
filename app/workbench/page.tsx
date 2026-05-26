@@ -389,8 +389,8 @@ export default function WorkbenchPage() {
                       <td className="px-4 py-3">
                         <span className="font-bold text-slate-900 text-[13px] tracking-tight">{complaint.channel}</span>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="text-slate-500 text-[12px] line-clamp-1">{complaint.description}</span>
+                      <td className="px-4 py-3 max-w-[180px]">
+                        <span className="text-slate-500 text-[12px] truncate block">{complaint.description}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link href={`/workbench/complaints?id=${complaint.id}`} className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold">
