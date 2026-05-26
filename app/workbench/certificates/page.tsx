@@ -139,6 +139,8 @@ export default function CertificatesPage() {
     return 'PENDING';
   };
 
+  const pendingCount = certificates.filter(c => getCertDisplayStatus(c) === 'PENDING').length;
+
   const filteredCerts = certificates.filter(c => {
     const query = debouncedSearch.toLowerCase();
     const matchesSearch = !query || c.cert_number.toLowerCase().includes(query) || (c.dealers?.company_name || "").toLowerCase().includes(query);
@@ -213,13 +215,18 @@ export default function CertificatesPage() {
                 key={item.key}
                 onClick={() => setStatusFilter(item.key)}
                 title={item.desc}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide transition-all ${
+                className={`relative px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide transition-all ${
                   statusFilter === item.key
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                 }`}
               >
                 {item.label}
+                {item.key === 'PENDING' && pendingCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
