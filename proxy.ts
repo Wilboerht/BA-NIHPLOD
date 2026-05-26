@@ -6,6 +6,7 @@ import { ADMIN_ROLES } from './types';
 // 受保护的路径模式
 const PROTECTED_PATHS = [
   '/workbench',
+  '/admin',
   '/demo',
   '/api/admin',
   '/api/auth/change-password',
@@ -44,7 +45,10 @@ export async function proxy(request: NextRequest) {
         { status: 401 }
       );
     }
-    // 页面路由重定向到首页
+    // 页面路由重定向到登录页或首页
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
     return NextResponse.redirect(new URL('/', request.url));
   }
 
@@ -56,10 +60,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // 对于 /workbench 路由，检查是否为管理员（DEALER 不允许访问）
-  if (pathname.startsWith('/workbench')) {
+  // 对于 /workbench 和 /admin 路由，检查是否为管理员
+  if (pathname.startsWith('/workbench') || pathname.startsWith('/admin')) {
     if (!ADMIN_ROLES.includes(payload.role as typeof ADMIN_ROLES[number])) {
-      return NextResponse.redirect(new URL('/dealer', request.url));
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: '无权限执行此操作' }, { status: 403 });
+      }
+      if (pathname.startsWith('/workbench')) {
+        return NextResponse.redirect(new URL('/dealer', request.url));
+      }
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
@@ -76,6 +86,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/workbench/:path*',
+    '/admin/:path*',
     '/demo/:path*',
     '/api/admin/:path*',
     '/api/auth/change-password',

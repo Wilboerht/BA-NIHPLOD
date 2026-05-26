@@ -37,7 +37,7 @@ export const sql = new Proxy(
         sqlInstance = createDbClient();
       }
       const value = sqlInstance[prop as keyof ReturnType<typeof postgres>];
-      return typeof value === 'function' ? value.bind(sqlInstance) : value;
+      return typeof value === 'function' ? (value as Function).bind(sqlInstance) : value;
     },
     apply(_target, _thisArg, args: unknown[]) {
       if (!sqlInstance) {

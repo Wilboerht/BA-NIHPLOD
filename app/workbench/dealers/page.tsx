@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, Key, FileText, ShieldCheck, XCircle, RefreshCw,
+  Search, FileText, ShieldCheck, XCircle, RefreshCw,
   Building2, Ban, ShieldOff, Loader2, Edit
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
@@ -95,9 +95,6 @@ export default function DealersPage() {
       const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string }> };
       const data = result.data || [];
       
-      // 获取独特的手机号集合
-      const dealerPhones = [...new Set(data.map((d) => d.phone).filter(Boolean))];
-      
       // 获取对应的 profiles（按手机号关联）
       const profilesResp = await fetch('/api/admin/list');
       const profilesResult = profilesResp.ok ? await profilesResp.json() as { data: Profile[] } : { data: [] };
@@ -175,7 +172,7 @@ export default function DealersPage() {
       const results = await Promise.allSettled(certPromises);
       const allCerts: DealerCertificate[] = [];
       
-      results.forEach((result, idx) => {
+      results.forEach((result, _idx) => {
         if (result.status === 'fulfilled' && result.value.data) {
           allCerts.push(...result.value.data);
         }
@@ -204,13 +201,6 @@ export default function DealersPage() {
     } finally {
       setIsCertsLoading(false);
     }
-  };
-
-  const resetDealerPassword = async (username: string) => {
-    if (!username) return;
-    const ok = await confirm({ message: `确定要重置经销商账号 [${username}] 的密码吗？\n重置后密码将恢复为该账号名称。` });
-    if (!ok) return;
-    toast({ message: "重置指令已发送（当前建议通过管理员 API 实现）", type: "info" });
   };
 
   // 第一次点击：进入待确认状态

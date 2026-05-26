@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
-import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { parseAuthScope } from "@/lib/utils";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
 interface Certificate {
@@ -41,10 +41,12 @@ export default function CertificatesPage() {
   useEffect(() => {
     fetchUserRole();
     fetchCertificates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showIssueModal]); // refetch when modal closes
 
   useEffect(() => {
     fetchCertificates(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const fetchUserRole = async () => {
@@ -101,45 +103,6 @@ export default function CertificatesPage() {
       fetchCertificates();
     } catch (err: unknown) {
       toast({ message: "吊销操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const approveCertificate = async (id: string) => {
-    const ok = await confirm({ message: "确定审核通过并核发此授权书吗？\n系统将自动为经销商创建登录账户。" });
-    if (!ok) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/certificates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'approve_issue', 
-          certId: id
-        })
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok) {
-        console.error("❌ 核发失败:", result);
-        toast({ message: "核发失败\n\n" + result.error, type: "error" });
-        return;
-      }
-
-      toast({ message: `审核通过！授权书已核发。经销商账户已开通。`, type: "success" });
-      setShowIssueModal(false);
-      setPendingApproveId(null);
-      setSelectedCertData(undefined);
-      setIsViewOnly(false);
-      setIsEditMode(false);
-      setIsViewVoided(false);
-      fetchCertificates();
-    } catch (err: unknown) {
-      console.error("❌ 异常:", err);
-      toast({ message: "发生错误：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
       setIsLoading(false);
     }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ShieldAlert, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import type { UserSession } from "@/types";
 
 export default function ResetPasswordPage() {
   const [user, setUser] = useState<UserSession | null>(null);

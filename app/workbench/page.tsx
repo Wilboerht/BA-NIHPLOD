@@ -5,8 +5,8 @@ import { ADMIN_ROLES } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
-  ShieldOff, XCircle, AlertCircle, ChevronRight, User, Calendar,
-  Loader2, UserCog
+  XCircle, AlertCircle, ChevronRight, User, Calendar,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/useToast";
@@ -35,14 +35,6 @@ interface PendingCert {
   auditor_profile: { full_name: string; username: string } | null;
 }
 
-interface UserSession {
-  id: string;
-  phone?: string;
-  username?: string;
-  full_name?: string;
-  role?: string;
-}
-
 export default function WorkbenchPage() {
   const { toast, confirm } = useToast();
   const [stats, setStats] = useState({ certs: 0, validCerts: 0, pendingComplaints: 0, pendingCerts: 0 });
@@ -50,7 +42,7 @@ export default function WorkbenchPage() {
   const [pendingCerts, setPendingCerts] = useState<PendingCert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [, setUserId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 

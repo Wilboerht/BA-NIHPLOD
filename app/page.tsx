@@ -225,7 +225,7 @@ export default function VerificationPage() {
                 if (urlParams.has("cert")) {
                   certNumber = urlParams.get("cert") || decodedText;
                 }
-              } catch (e) {
+              } catch (_e) {
                 // Not a URL, use raw text
               }
               
@@ -269,6 +269,7 @@ export default function VerificationPage() {
         setScannerReady(false);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showScanner, scannerTrigger]);
 
   // 处理扫描验证
@@ -325,7 +326,7 @@ export default function VerificationPage() {
         if (urlParams.has("cert")) {
           certNumber = urlParams.get("cert") || decodedText;
         }
-      } catch (e) {
+      } catch (_e) {
         // 非 URL
       }
       
@@ -337,28 +338,7 @@ export default function VerificationPage() {
       
       // 如果识别失败，重新启动摄像头（如果模态框还开着）
       if (showScanner) {
-        const restartScanner = async () => {
-          try {
-            const html5QrCode = scannerRef.current || new Html5Qrcode("qr-scanner-container");
-            scannerRef.current = html5QrCode;
-            await html5QrCode.start(
-              { facingMode: "environment" }, 
-              { fps: 10, qrbox: { width: 150, height: 150 }, aspectRatio: 1 },
-              (decodedText: string) => {
-                // ... 重复之前的成功逻辑 ...
-                // 为了避免代码重复，这里其实可以提取出 startScanner 函数，但为了保持逻辑紧凑先这样处理
-                // 实际上 useEffect 里的 startScanner 是闭包，这里无法直接调用
-                // 简单起见，提示用户手动刷新或这里由于 useEffect 依赖 [showScanner]，
-                // 我们可以通过一个 state 触发 useEffect 重新执行。
-                setScannerTrigger(prev => prev + 1);
-              },
-              () => {}
-            );
-          } catch (e) {
-            console.error("Failed to restart scanner:", e);
-          }
-        };
-        // 这里最好的做法是重新触发 useEffect
+        // 重新触发 useEffect 来启动扫描器
         setScannerTrigger(prev => prev + 1);
       }
     } finally {
@@ -402,17 +382,6 @@ export default function VerificationPage() {
     // 更新 ref 值用于下一次比较
     prevShowLoginModalRef.current = showLoginModal;
   }, [showLoginModal]);
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (e) {
-      console.error('Logout error:', e);
-    }
-    setLoggedInUser(null);
-    setShowDealerModal(false);
-    window.location.href = "/";
-  };
 
   const handleDealerLoginClick = () => {
     if (loggedInUser?.role === "DEALER") {

@@ -53,6 +53,41 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
   const [generatorDataForBackground, setGeneratorDataForBackground] = useState<CertData | undefined>(undefined);
   const [isPdfModeBackground, setIsPdfModeBackground] = useState(false);
 
+  const fetchCertificates = useCallback(async (userId: string) => {
+    try {
+      if (process.env.NODE_ENV !== 'production') console.log("Fetching certificates for userId:", userId);
+      
+      // 调用 API 路由，让服务器端使用 service role key 查询
+      const response = await fetch(`/api/dealer/certificates?userId=${userId}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("API error:", result.error);
+        setCertificates([]);
+        return;
+      }
+
+      if (process.env.NODE_ENV !== 'production') console.log("API response:", result);
+      if (process.env.NODE_ENV !== 'production') console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
+      
+      // 调试：打印每个证书的 final_image_url
+      if (result.certificates && result.certificates.length > 0) {
+        result.certificates.forEach((cert: Certificate, idx: number) => {
+          if (process.env.NODE_ENV !== 'production') console.log(`Certificate ${idx}:`, {
+            cert_number: cert.cert_number,
+            final_image_url: cert.final_image_url ? cert.final_image_url.substring(0, 100) : "NULL",
+            status: cert.status
+          });
+        });
+      }
+      
+      setCertificates(result.certificates || []);
+    } catch (error) {
+      console.error("获取证书失败:", error);
+      setCertificates([]);
+    }
+  }, []);
+
   // 模态框打开时加载用户信息和证书
   useEffect(() => {
     if (!isOpen) {
@@ -93,41 +128,6 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
 
     loadDealerData();
   }, [isOpen, onClose, fetchCertificates]);
-
-  const fetchCertificates = useCallback(async (userId: string) => {
-    try {
-      if (process.env.NODE_ENV !== 'production') console.log("Fetching certificates for userId:", userId);
-      
-      // 调用 API 路由，让服务器端使用 service role key 查询
-      const response = await fetch(`/api/dealer/certificates?userId=${userId}`);
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error("API error:", result.error);
-        setCertificates([]);
-        return;
-      }
-
-      if (process.env.NODE_ENV !== 'production') console.log("API response:", result);
-      if (process.env.NODE_ENV !== 'production') console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
-      
-      // 调试：打印每个证书的 final_image_url
-      if (result.certificates && result.certificates.length > 0) {
-        result.certificates.forEach((cert: Certificate, idx: number) => {
-          if (process.env.NODE_ENV !== 'production') console.log(`Certificate ${idx}:`, {
-            cert_number: cert.cert_number,
-            final_image_url: cert.final_image_url ? cert.final_image_url.substring(0, 100) : "NULL",
-            status: cert.status
-          });
-        });
-      }
-      
-      setCertificates(result.certificates || []);
-    } catch (error) {
-      console.error("获取证书失败:", error);
-      setCertificates([]);
-    }
-  }, []);
 
   const handleDownload = async (cert: Certificate) => {
     // ✅ 如果图片为空，在后台生成证书

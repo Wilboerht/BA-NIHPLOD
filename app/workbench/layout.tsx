@@ -9,8 +9,8 @@ import { ADMIN_ROLES, type UserSession } from "@/types";
 export default function WorkbenchLayout({ children }: { children: React.ReactNode }) {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [user, setUser] = useState<UserSession | null>(null);
-  const [userType, setUserType] = useState<'admin' | 'dealer' | null>(null);
+  const [, setUser] = useState<UserSession | null>(null);
+  const [, setUserType] = useState<'admin' | 'dealer' | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   
   // 移动端自动收起侧边栏
@@ -97,6 +97,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1 text-xs hover:text-slate-500 transition-colors"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/beian.webp" alt="公安网备" className="w-3 h-3" />
               沪公网安备31010702010178号
             </a>

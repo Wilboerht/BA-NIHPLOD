@@ -57,16 +57,18 @@ export default function ComplaintsPage() {
 
   // 审计日志
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [, setIsLoadingLogs] = useState(false);
 
   useEffect(() => {
     fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, activeTab]);
 
   useEffect(() => {
     if (activeReviewId) {
       fetchAuditLogs(activeReviewId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeReviewId]);
 
   const fetchComplaints = async (status?: string) => {
@@ -357,6 +359,7 @@ export default function ComplaintsPage() {
                  <X className="w-8 h-8" />
                </button>
                <div className="relative">
+                 {/* eslint-disable-next-line @next/next/no-img-element */}
                  <img src={selectedImageUrls[selectedImageIndex]} alt={`证据 ${selectedImageIndex + 1}/${selectedImageUrls.length}`} className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
                  {selectedImageUrls.length > 1 && (
                    <>
@@ -450,6 +453,7 @@ export default function ComplaintsPage() {
                                onClick={() => { setSelectedImageUrls(imgs); setSelectedImageIndex(idx); }}
                                className="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden hover:ring-2 hover:ring-slate-300 transition-all flex-shrink-0"
                              >
+                               {/* eslint-disable-next-line @next/next/no-img-element */}
                                <img src={url} alt={`证据 ${idx + 1}`} className="w-full h-full object-cover" />
                              </button>
                            ))}

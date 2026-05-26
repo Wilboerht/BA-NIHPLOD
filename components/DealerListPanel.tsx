@@ -36,6 +36,29 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
+  const fetchCertificates = useCallback(async (userId: string) => {
+    try {
+      if (process.env.NODE_ENV !== 'production') console.log("Fetching certificates for userId:", userId);
+      
+      // 调用 API 路由，让服务器端使用 service role key 查询
+      const response = await fetch(`/api/dealer/certificates?userId=${userId}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("API error:", result.error);
+        setCertificates([]);
+        return;
+      }
+
+      if (process.env.NODE_ENV !== 'production') console.log("API response:", result);
+      if (process.env.NODE_ENV !== 'production') console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
+      setCertificates(result.certificates || []);
+    } catch (error) {
+      console.error("获取证书失败:", error);
+      setCertificates([]);
+    }
+  }, []);
+
   // 初始化加载用户信息和证书
   useEffect(() => {
     const loadDealerData = async () => {
@@ -70,29 +93,6 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
       loadDealerData();
     }
   }, [isVisible, fetchCertificates]);
-
-  const fetchCertificates = useCallback(async (userId: string) => {
-    try {
-      if (process.env.NODE_ENV !== 'production') console.log("Fetching certificates for userId:", userId);
-      
-      // 调用 API 路由，让服务器端使用 service role key 查询
-      const response = await fetch(`/api/dealer/certificates?userId=${userId}`);
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error("API error:", result.error);
-        setCertificates([]);
-        return;
-      }
-
-      if (process.env.NODE_ENV !== 'production') console.log("API response:", result);
-      if (process.env.NODE_ENV !== 'production') console.log("Certificates data:", JSON.stringify(result.certificates, null, 2));
-      setCertificates(result.certificates || []);
-    } catch (error) {
-      console.error("获取证书失败:", error);
-      setCertificates([]);
-    }
-  }, []);
 
   const handleDownload = async (cert: Certificate) => {
     if (!cert.final_image_url) return;
