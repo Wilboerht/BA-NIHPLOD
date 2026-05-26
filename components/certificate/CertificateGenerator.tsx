@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
 import QRCode from "qrcode";
 import { useToast } from "@/hooks/useToast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 
 export interface CertData {
@@ -55,6 +56,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isVoided, setIsVoided] = useState(initialVoided);
   const [, setIsDownloading] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+
+  useEscapeKey(() => { setShowFullPreview(false); setZoomScale(1); }, showFullPreview);
 
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, '').substring(0, 4).toUpperCase()}`);

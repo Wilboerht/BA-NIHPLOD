@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { parseAuthScope } from "@/lib/utils";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
@@ -37,6 +38,17 @@ export default function CertificatesPage() {
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const totalPages = Math.ceil(total / pageSize);
+
+  const closeIssueModal = () => {
+    setShowIssueModal(false);
+    setSelectedCertData(undefined);
+    setIsViewOnly(false);
+    setIsEditMode(false);
+    setIsViewVoided(false);
+    setPendingApproveId(null);
+  };
+
+  useEscapeKey(closeIssueModal, showIssueModal);
 
   useEffect(() => {
     fetchUserRole();
@@ -397,14 +409,7 @@ export default function CertificatesPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => {
-                setShowIssueModal(false);
-                setSelectedCertData(undefined);
-                setIsViewOnly(false);
-                setIsEditMode(false);
-                setIsViewVoided(false);
-                setPendingApproveId(null);
-              }}
+              onClick={closeIssueModal}
               className="absolute inset-0 bg-black/20 backdrop-blur-sm"
             />
 
@@ -432,13 +437,7 @@ export default function CertificatesPage() {
                       </p>
                   </div>
                   <button
-                    onClick={() => {
-                      setShowIssueModal(false);
-                      setSelectedCertData(undefined);
-                      setIsViewOnly(false);
-                      setIsEditMode(false);
-                      setIsViewVoided(false);
-                    }}
+                    onClick={closeIssueModal}
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
                     aria-label="关闭"
                   >

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Download, LogOut, Loader2, ShieldCheck, X, File, Lock } from "lucide-react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import jsPDF from "jspdf";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
@@ -44,6 +45,7 @@ interface DealerModalPanelProps {
 }
 
 export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword }: DealerModalPanelProps) {
+  useEscapeKey(onClose, isOpen);
   const { toast } = useToast();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);

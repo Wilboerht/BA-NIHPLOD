@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { ConfirmOptions } from "@/hooks/useToast";
 
 interface ConfirmDialogProps extends ConfirmOptions {
@@ -19,6 +20,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useEscapeKey(onCancel, isOpen);
   return (
     <AnimatePresence>
       {isOpen && (
@@ -27,7 +29,7 @@ export default function ConfirmDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[300] flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           aria-label={title}

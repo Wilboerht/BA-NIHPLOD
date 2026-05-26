@@ -7,6 +7,7 @@ import {
   ChevronDown, X, Eye, EyeOff, Loader2, CheckCircle2, Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 const ROLE_OPTIONS = [
   {
@@ -88,6 +89,9 @@ export default function AdminsManagementPage() {
 
   const fullNameRef = useRef<HTMLInputElement>(null);
   const resetPwdRef = useRef<HTMLInputElement>(null);
+
+  useEscapeKey(() => { if (!isSubmitting) { setShowCreate(false); setCreateError(null); } }, showCreate);
+  useEscapeKey(() => { if (!isResetting) closeResetPassword(); }, showResetPwd);
 
   useEffect(() => {
     fetchData();
@@ -459,7 +463,7 @@ export default function AdminsManagementPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeCreate}
-              className="absolute inset-0 bg-white/60 backdrop-blur-md"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
 
             {/* 弹窗主体 */}
@@ -628,7 +632,7 @@ export default function AdminsManagementPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeResetPassword}
-              className="absolute inset-0 bg-white/60 backdrop-blur-md"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.98, y: 15 }}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, X, AlertTriangle } from "lucide-react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export default function LoginModal({ 
   isOpen, 
@@ -19,6 +20,8 @@ export default function LoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loginType] = useState<'dealer'>('dealer');
+
+  useEscapeKey(onClose, isOpen);
 
   // 当产生错误时，开启独立生命周期的 3 秒自动回收机制
   useEffect(() => {

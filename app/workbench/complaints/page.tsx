@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface Complaint {
   id: string;
@@ -48,6 +49,9 @@ export default function ComplaintsPage() {
   const [activeTab, setActiveTab] = useState("ALL"); // ALL, PENDING, INVESTIGATING
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+
+  useEscapeKey(() => setSelectedImageUrls([]), selectedImageUrls.length > 0);
+  useEscapeKey(() => setActiveReviewId(null), !!activeReviewId);
 
   // 分页
   const [page, setPage] = useState(1);
@@ -352,8 +356,15 @@ export default function ComplaintsPage() {
       </div>
 
       {/* 图片预览模态框 */}
-      {selectedImageUrls.length > 0 && (
-         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSelectedImageUrls([])}>
+      <AnimatePresence>
+        {selectedImageUrls.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm"
+            onClick={() => setSelectedImageUrls([])}
+          >
             <div className="relative max-w-4xl w-full bg-white p-2 rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
                <button onClick={() => setSelectedImageUrls([])} className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
                  <X className="w-8 h-8" />
@@ -363,13 +374,13 @@ export default function ComplaintsPage() {
                  <img src={selectedImageUrls[selectedImageIndex]} alt={`证据 ${selectedImageIndex + 1}/${selectedImageUrls.length}`} className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
                  {selectedImageUrls.length > 1 && (
                    <>
-                     <button 
+                     <button
                        onClick={() => setSelectedImageIndex(i => i > 0 ? i - 1 : selectedImageUrls.length - 1)}
                        className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
                      >
                        <ChevronLeft className="w-5 h-5 text-slate-700" />
                      </button>
-                     <button 
+                     <button
                        onClick={() => setSelectedImageIndex(i => i < selectedImageUrls.length - 1 ? i + 1 : 0)}
                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
                      >
@@ -382,8 +393,9 @@ export default function ComplaintsPage() {
                  )}
                </div>
             </div>
-         </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 审核面板模态框 */}
       <AnimatePresence>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Check, ShieldAlert, Eye, EyeOff, X, Loader2 } from "lucide-react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface UserSession {
   id: string;
@@ -178,6 +179,8 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
     setError(null);
     onClose();
   };
+
+  useEscapeKey(handleClose, isOpen);
 
   return (
     <AnimatePresence>

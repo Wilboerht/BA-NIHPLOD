@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
@@ -72,6 +73,21 @@ export default function DealersPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [banningId, setBanningId] = useState<string | null>(null); // 正在执行 API 的 dealer.id
   const [confirmBanId, setConfirmBanId] = useState<string | null>(null); // 待二次确认的 dealer.id
+
+  const closeDealerModal = () => {
+    setSelectedDealer(null);
+    setDealerCerts([]);
+    setDealerNameMap({});
+    setDealerPhoneMap({});
+  };
+
+  const closeViewCert = () => {
+    setViewCertData(undefined);
+    setIsEditMode(false);
+  };
+
+  useEscapeKey(closeDealerModal, !!selectedDealer);
+  useEscapeKey(closeViewCert, !!viewCertData);
 
   const fetchUserRole = useCallback(async () => {
     try {
@@ -399,12 +415,7 @@ export default function DealersPage() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => {
-                setSelectedDealer(null);
-                setDealerCerts([]);
-                setDealerNameMap({});
-                setDealerPhoneMap({});
-              }}
+              onClick={closeDealerModal}
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             />
             <motion.div
@@ -422,12 +433,7 @@ export default function DealersPage() {
                   <p className="text-xs text-slate-500 font-medium">登录账号：{selectedDealer!.phone}</p>
                 </div>
                 <button
-                  onClick={() => {
-                    setSelectedDealer(null);
-                    setDealerCerts([]);
-                    setDealerNameMap({});
-                    setDealerPhoneMap({});
-                  }}
+                  onClick={closeDealerModal}
                   className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
                 >
                   <XCircle className="w-6 h-6" />
@@ -558,10 +564,7 @@ export default function DealersPage() {
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => {
-                setViewCertData(undefined);
-                setIsEditMode(false);
-              }}
+              onClick={closeViewCert}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
             />
             <motion.div

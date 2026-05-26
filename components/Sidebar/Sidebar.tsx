@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe, AlertCircle } from "lucide-react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { PLATFORM_NAME } from "@/lib/config";
 
 export default function Sidebar({
@@ -21,6 +22,8 @@ export default function Sidebar({
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  useEscapeKey(() => setShowLogoutModal(false), showLogoutModal);
 
   useEffect(() => {
     // 从服务端获取当前登录用户信息

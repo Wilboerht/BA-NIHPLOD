@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShieldCheck, Scale } from "lucide-react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 
 interface LegalModalProps {
@@ -11,6 +12,7 @@ interface LegalModalProps {
 }
 
 export default function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
+  useEscapeKey(onClose, isOpen);
   const isService = type === "service";
   const title = isService ? "服务协议" : "隐私声明";
   const Icon = isService ? Scale : ShieldCheck;
