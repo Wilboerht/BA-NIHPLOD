@@ -18,6 +18,7 @@ const PROTECTED_PATHS = [
 const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/logout',
+  '/admin/login',
 ];
 
 export async function proxy(request: NextRequest) {
