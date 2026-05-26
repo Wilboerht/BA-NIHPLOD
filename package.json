@@ -41,9 +41,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/cookie": "^0.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cookie": "^1.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "prisma": "^7.8.0",

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Download, LogOut, Loader2, ShieldCheck, Clock, X, CheckCircle, AlertCircle, File, Lock } from "lucide-react";
+import { FileText, Download, LogOut, Loader2, ShieldCheck, X, File, Lock } from "lucide-react";
 import jsPDF from "jspdf";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
@@ -92,7 +92,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
     };
 
     loadDealerData();
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, fetchCertificates]);
 
   const fetchCertificates = useCallback(async (userId: string) => {
     try {
@@ -420,6 +420,7 @@ export default function DealerModalPanel({ isOpen, onClose, onOpenResetPassword 
 
       return () => clearTimeout(downloadTimer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHiddenGenerator, generatorDataForBackground, isPdfModeBackground]);
 
   const handleLogout = async () => {

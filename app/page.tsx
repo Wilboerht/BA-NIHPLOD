@@ -10,18 +10,9 @@ import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { useToast } from "@/hooks/useToast";
-import { ADMIN_ROLES } from "@/types";
+import { ADMIN_ROLES, type UserSession } from "@/types";
 import { BRAND_NAME_CN } from "@/lib/config";
 import { Html5Qrcode } from "html5-qrcode";
-
-interface UserSession {
-  id: string;
-  phone?: string;
-  username?: string;
-  full_name?: string;
-  role?: string;
-  is_first_login?: boolean;
-}
 
 const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
   if (rawStatus === 'REVOKED' || rawStatus === '已撤销') return { text: '已撤销', style: 'bg-stone-50 text-stone-500 border-stone-200' };

@@ -2,17 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Check, ShieldAlert, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Check, ShieldAlert, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-
-interface UserSession {
-  id: string;
-  phone?: string;
-  username?: string;
-  full_name?: string;
-  role?: string;
-  is_first_login?: boolean;
-}
 
 export default function ResetPasswordPage() {
   const [user, setUser] = useState<UserSession | null>(null);

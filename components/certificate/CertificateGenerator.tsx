@@ -46,20 +46,20 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     phone: "",
   });
 
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [, setIsGenerating] = useState(false);
   const [isFontLoaded, setIsFontLoaded] = useState(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isIssued, setIsIssued] = useState(false);
   const [isVoided, setIsVoided] = useState(initialVoided);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [, setIsDownloading] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
 
   const renderRequestId = useRef(0);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, '').substring(0, 4).toUpperCase()}`);
 
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -150,6 +150,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (initialData?.scopeText) {
       setCustomChannel(getCustomChannel(initialData.scopeText));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
 
   const renderCertificate = async () => {
@@ -490,6 +491,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEffect(() => {
     const h = setTimeout(() => renderCertificate(), 300);
     return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, isFontLoaded]);
 
   const handleDownload = () => {
@@ -782,7 +784,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                     )}
                   </div>
                   {data.sealImage && (
-                    <img src={data.sealImage} alt="预览签章" className="w-12 h-12 object-contain rounded border border-slate-100 bg-white" />
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={data.sealImage} alt="预览签章" className="w-12 h-12 object-contain rounded border border-slate-100 bg-white" />
+                    </>
                   )}
                   <div className="text-[11px] text-slate-400">
                     {data.sealImage ? "已使用自定义签章" : `使用系统默认公章（${BRAND_NAME_CN}官方公章）`}
@@ -952,6 +957,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             </motion.div>
             <div className="w-full h-full flex items-center justify-center overflow-hidden touch-none" onWheel={(e) => setZoomScale(prev => e.deltaY < 0 ? Math.min(5, prev + 0.1) : Math.max(0.2, prev - 0.1))}>
               <motion.div drag dragConstraints={{ left: -1200, right: 1200, top: -1200, bottom: 1200 }} animate={{ scale: zoomScale }} transition={{ type: "spring", damping: 30, stiffness: 200 }} className="relative z-[205]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={previewImageUrl} className="max-w-[85vw] max-h-[85vh] object-contain shadow-2xl rounded-sm pointer-events-none select-none ring-1 ring-white/10" alt="HD" />
               </motion.div>
             </div>

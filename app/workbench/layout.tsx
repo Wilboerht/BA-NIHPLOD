@@ -4,16 +4,7 @@ import { useEffect, useState } from "react";
 
 import Sidebar from "@/components/Sidebar/Sidebar";
 import styles from "./layout.module.css";
-import { ADMIN_ROLES } from "@/types";
-
-interface UserSession {
-  id: string;
-  phone?: string;
-  username?: string;
-  full_name?: string;
-  role?: string;
-  is_first_login?: boolean;
-}
+import { ADMIN_ROLES, type UserSession } from "@/types";
 
 export default function WorkbenchLayout({ children }: { children: React.ReactNode }) {
   const [isAuthorized, setIsAuthorized] = useState(false);

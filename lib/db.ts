@@ -5,6 +5,8 @@ import { ADMIN_ROLES } from '@/types';
  * 原生 Postgres 连接池（保留用于复杂 SQL 查询）
  * 请在 .env.local 中配置 DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
  */
+let sqlInstance: ReturnType<typeof postgres> | null = null;
+
 function createDbClient() {
   const databaseUrl = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
   if (!databaseUrl) {
@@ -27,7 +29,24 @@ function createDbClient() {
   });
 }
 
-export const sql = createDbClient();
+export const sql = new Proxy(
+  function () {} as unknown as ReturnType<typeof postgres>,
+  {
+    get(_target, prop) {
+      if (!sqlInstance) {
+        sqlInstance = createDbClient();
+      }
+      const value = sqlInstance[prop as keyof ReturnType<typeof postgres>];
+      return typeof value === 'function' ? value.bind(sqlInstance) : value;
+    },
+    apply(_target, _thisArg, args: unknown[]) {
+      if (!sqlInstance) {
+        sqlInstance = createDbClient();
+      }
+      return (sqlInstance as unknown as (...args: unknown[]) => unknown)(...args);
+    },
+  }
+);
 
 // 如需使用 Prisma ORM（类型安全查询），请从 @/lib/prisma 导入
 // import { prisma } from '@/lib/prisma';
@@ -67,7 +86,7 @@ export async function getProfileById(id: string): Promise<{ data: SqlRow | null;
  */
 export async function checkIsAdmin(adminId: string): Promise<boolean> {
   if (!adminId) return false;
-  
+
   try {
     const { data: profile, error } = await getProfileById(adminId);
     if (error || !profile) return false;
@@ -211,7 +230,7 @@ export async function getAllCertificates(
   offset?: number
 ): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
   const countRes = await sql`SELECT COUNT(*) as count FROM certificates`;
-  const total = parseInt(countRes[0]?.count || 0, 10);
+  const total = parseInt(String(countRes[0]?.count || 0), 10);
 
   const result = await sql`
     SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
@@ -233,10 +252,10 @@ export async function getActiveIssuedCertificatesCount(): Promise<{ data: { coun
   const result = await sql`
     SELECT COUNT(*) as count
     FROM certificates
-    WHERE status = 'ISSUED' 
+    WHERE status = 'ISSUED'
     AND end_date >= CURRENT_DATE
   `;
-  return { data: { count: parseInt(result[0]?.count || 0, 10) }, error: null };
+  return { data: { count: parseInt(String(result[0]?.count || 0), 10) }, error: null };
 }
 
 // ============================================================================
@@ -275,7 +294,7 @@ export async function getAllComplaints(
       countRes = await sql`SELECT COUNT(*) as count FROM complaints`;
     }
 
-    const total = parseInt(countRes[0]?.count || 0, 10);
+    const total = parseInt(String(countRes[0]?.count || 0), 10);
     console.log('[getAllComplaints] 查询到', total, '条投诉, 本页', result.length, '条, status=', status);
 
     return { data: result || [], total, error: null };
@@ -308,7 +327,7 @@ export async function getPendingComplaintsCount(): Promise<{ data: { count: numb
     FROM complaints
     WHERE status IN ('PENDING', 'INVESTIGATING')
   `;
-  return { data: { count: parseInt(result[0]?.count || 0, 10) }, error: null };
+  return { data: { count: parseInt(String(result[0]?.count || 0), 10) }, error: null };
 }
 
 /**
@@ -337,12 +356,12 @@ export async function getDashboardStats(): Promise<{ data: Record<string, number
     sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING')`,
     sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND end_date >= CURRENT_DATE`
   ]);
-  
+
   return {
     data: {
-      totalCertificates: parseInt(certCountRes[0]?.count || 0, 10),
-      pendingComplaints: parseInt(complaintCountRes[0]?.count || 0, 10),
-      issuedValid: parseInt(issuedCountRes[0]?.count || 0, 10)
+      totalCertificates: parseInt(String(certCountRes[0]?.count || 0), 10),
+      pendingComplaints: parseInt(String(complaintCountRes[0]?.count || 0), 10),
+      issuedValid: parseInt(String(issuedCountRes[0]?.count || 0), 10)
     },
     error: null
   };

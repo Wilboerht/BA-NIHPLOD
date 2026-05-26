@@ -1,15 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import type { UserSession } from '@/types';
 
-export interface UserSession {
-  id: string;
-  phone?: string;
-  username?: string;
-  full_name?: string;
-  role?: string;
-  is_first_login?: boolean;
-}
+export { type UserSession };
 
 export function useAuth() {
   const [user, setUser] = useState<UserSession | null>(null);

@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from './db';
 import { ADMIN_ROLES } from '@/types';
+import { parse } from 'cookie';
 import crypto from 'crypto';
 
 const TOKEN_COOKIE = 'auth-token';
@@ -32,6 +33,7 @@ export interface TokenPayload extends JWTPayload {
   phone?: string;
   full_name?: string;
   role: string;
+  is_banned?: boolean;
   jti?: string;
 }
 
@@ -67,12 +69,8 @@ export async function verifyTokenBasic(request: NextRequest | Request): Promise<
     const cookieHeader = request.headers.get('cookie');
     if (!cookieHeader) return null;
 
-    const token = cookieHeader
-      .split(';')
-      .map(c => c.trim())
-      .find(c => c.startsWith(`${TOKEN_COOKIE}=`))
-      ?.slice(TOKEN_COOKIE.length + 1);
-
+    const cookies = parse(cookieHeader);
+    const token = cookies[TOKEN_COOKIE];
     if (!token) return null;
 
     const secret = getSecret();
@@ -200,7 +198,16 @@ export async function requireAdmin(request: NextRequest | Request) {
  */
 export function setAuthCookie(token: string): string {
   const isSecure = process.env.NODE_ENV === 'production';
-  return `${TOKEN_COOKIE}=${token}; HttpOnly; ${isSecure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=28800`;
+  const parts = [
+    `${TOKEN_COOKIE}=${token}`,
+    'HttpOnly',
+    isSecure ? 'Secure' : '',
+    'SameSite=Lax',
+    isSecure ? 'Partitioned' : '',
+    'Path=/',
+    'Max-Age=28800',
+  ].filter(Boolean);
+  return parts.join('; ');
 }
 
 /**
@@ -208,7 +215,17 @@ export function setAuthCookie(token: string): string {
  */
 export function clearAuthCookie(): string {
   const isSecure = process.env.NODE_ENV === 'production';
-  return `${TOKEN_COOKIE}=; HttpOnly; ${isSecure ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  const parts = [
+    `${TOKEN_COOKIE}=`,
+    'HttpOnly',
+    isSecure ? 'Secure' : '',
+    'SameSite=Lax',
+    isSecure ? 'Partitioned' : '',
+    'Path=/',
+    'Max-Age=0',
+    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+  ].filter(Boolean);
+  return parts.join('; ');
 }
 
 /**

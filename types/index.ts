@@ -3,13 +3,27 @@ export type AdminRole = typeof ADMIN_ROLES[number];
 export const ALL_ROLES = [...ADMIN_ROLES, 'DEALER'] as const;
 export type UserRole = typeof ALL_ROLES[number];
 
-// 认证相关类型
+// ============================================================================
+// 认证相关类型（统一入口，禁止在其他文件中重复定义）
+// ============================================================================
+
+export interface UserSession {
+  id: string;
+  phone?: string;
+  username?: string;
+  full_name?: string;
+  role?: string;
+  is_first_login?: boolean;
+  is_banned?: boolean;
+}
+
 export interface AuthUser {
   id: string;
   username?: string;
   phone?: string;
   full_name?: string;
   role: string;
+  is_banned?: boolean;
 }
 
 export interface TokenPayload {
@@ -18,10 +32,14 @@ export interface TokenPayload {
   phone?: string;
   full_name?: string;
   role: string;
+  is_banned?: boolean;
   jti?: string;
 }
 
+// ============================================================================
 // 数据库实体类型
+// ============================================================================
+
 export interface Profile {
   id: string;
   username: string;
@@ -80,7 +98,10 @@ export interface Template {
   config?: Record<string, unknown>;
 }
 
+// ============================================================================
 // API 响应类型
+// ============================================================================
+
 export interface ApiResponse<T = unknown> {
   success?: boolean;
   data?: T;
@@ -88,7 +109,10 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
+// ============================================================================
 // 证书验证结果
+// ============================================================================
+
 export interface CertificateVerifyResult {
   id: string;
   dealerName: string;

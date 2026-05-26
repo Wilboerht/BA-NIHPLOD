@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, UserPlus, UserCog, Key, Trash2, Info,
-  ChevronDown, X, Eye, EyeOff, ShieldCheck, Loader2, CheckCircle2, Plus
+  Search, UserCog, Key, Trash2, Info,
+  ChevronDown, X, Eye, EyeOff, Loader2, CheckCircle2, Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 
@@ -91,6 +91,7 @@ export default function AdminsManagementPage() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 弹窗打开时聚焦第一个输入框

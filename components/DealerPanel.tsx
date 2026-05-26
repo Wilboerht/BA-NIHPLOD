@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Lock, Download, LogOut, ChevronDown } from "lucide-react";
+import { X, FileText, Lock, Download, LogOut } from "lucide-react";
 
 interface Certificate {
   id: string;
@@ -44,6 +44,7 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
     if (isOpen && user) {
       fetchCertificates();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user]);
 
   const fetchCertificates = async () => {
@@ -146,11 +147,6 @@ export default function DealerPanel({ isOpen, user, onClose }: DealerPanelProps)
     }
     window.location.href = "/";
   };
-
-  const isValid = certificates.some(c => {
-    const endDate = new Date(c.end_date);
-    return endDate > new Date();
-  });
 
   const expiredCerts = certificates.filter(c => {
     const endDate = new Date(c.end_date);

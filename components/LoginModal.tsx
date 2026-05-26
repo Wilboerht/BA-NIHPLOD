@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Eye, EyeOff, ArrowRight, X, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, X, AlertTriangle } from "lucide-react";
 
 export default function LoginModal({ 
   isOpen, 
@@ -117,6 +117,7 @@ export default function LoginModal({
             </div>
 
             <div className="p-10 pt-14 text-center pb-10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-[34px] mx-auto mb-7" />
               <h2 className="text-xl font-bold text-slate-900 tracking-[0.14em]">管理员登录</h2>
             </div>

@@ -69,7 +69,7 @@ export default function DealerListPanel({ isVisible = true, onLogout }: DealerLi
     if (isVisible) {
       loadDealerData();
     }
-  }, [isVisible]);
+  }, [isVisible, fetchCertificates]);
 
   const fetchCertificates = useCallback(async (userId: string) => {
     try {

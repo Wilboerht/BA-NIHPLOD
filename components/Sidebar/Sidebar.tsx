@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe, LogOut as LogOutIcon, AlertCircle } from "lucide-react";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe, AlertCircle } from "lucide-react";
 import { PLATFORM_NAME } from "@/lib/config";
 
 export default function Sidebar({
@@ -31,7 +31,6 @@ export default function Sidebar({
           const user = data.user;
           setUserName(user.full_name || user.username || "User");
           setUserEmail(user.username || user.phone || "admin@nihplod.cn");
-          // eslint-disable-next-line no-console
           setUserRole(user.role);
           if (process.env.NODE_ENV !== 'production') console.log("✅ User info loaded from API:", user);
         }
@@ -54,6 +53,7 @@ export default function Sidebar({
     <nav className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ""}`}>
       <header className={styles.header}>
         <div className={styles.logoGroup}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/NIHPLOD-logo.svg" alt="NIHPLOD Logo" className={styles.logo} />
           {!isCollapsed && (
             <span className={styles.platformName}>{PLATFORM_NAME}</span>
