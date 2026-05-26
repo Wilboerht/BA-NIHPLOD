@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { COMPANY_FULL_NAME } from '@/lib/config';
+import { sendPendingCertNotification } from '@/lib/mail';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 
@@ -107,9 +108,10 @@ export async function POST(req: Request) {
     // --- 流程 1: 审核员提报 (录入数据，状态为 PENDING) ---
     if (action === 'create_pending') {
       let certNumber: string;
+      let dealerId: string;
       await sql.begin(async (tx) => {
         certNumber = await generateCertNumberWithRetry(tx);
-        const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
+        dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
         await tx`
           INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id)
           VALUES (
@@ -126,6 +128,29 @@ export async function POST(req: Request) {
           )
         `;
       });
+
+      // 异步通知管理员（不阻塞响应）
+      (async () => {
+        try {
+          const admins = await sql`SELECT email, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND email IS NOT NULL`;
+          if (admins.length > 0) {
+            const auditorResult = await sql`SELECT full_name FROM profiles WHERE id = ${managerId} LIMIT 1`;
+            const auditorName = ((auditorResult[0] as unknown) as { full_name?: string })?.full_name || '审核员';
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ba.nihplod.cn';
+            sendPendingCertNotification({
+              adminEmails: ((admins as unknown) as { email: string }[]).map(a => a.email),
+              shopName: certData.shopName || '未知店铺',
+              certNumber: certNumber!,
+              auditorName,
+              duration: certData.duration || '',
+              baseUrl,
+            });
+          }
+        } catch {
+          // 邮件通知失败不影响主流程
+        }
+      })();
+
       return NextResponse.json({ success: true, status: 'PENDING' });
     }
 

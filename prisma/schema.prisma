@@ -43,6 +43,7 @@ model Profile {
   username      String?  @unique
   full_name     String?
   phone         String?  @unique
+  email         String?
   password_hash String?
   role          UserRole @default(AUDITOR)
   is_first_login Boolean @default(true)

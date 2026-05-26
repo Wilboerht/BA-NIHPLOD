@@ -358,3 +358,7 @@ CREATE POLICY "Service role can manage rate limits" ON action_rate_limits
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
+
+-- 2026-05-26: profiles 表添加 email 字段，用于邮件提醒
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
