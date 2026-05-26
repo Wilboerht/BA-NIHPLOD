@@ -76,6 +76,8 @@ export default function DealersPage() {
   const [confirmBanId, setConfirmBanId] = useState<string | null>(null); // 待二次确认的 dealer.id
   const [prevDealers, setPrevDealers] = useState<Dealer[]>([]); // 用于乐观更新回滚
 
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const closeDealerModal = () => {
     setSelectedDealer(null);
     setDealerCerts([]);
@@ -147,8 +149,6 @@ export default function DealersPage() {
   useEffect(() => {
     setConfirmBanId(null);
   }, [debouncedSearch]);
-
-  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const filteredDealers = dealers.filter(d =>
     d.company_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||

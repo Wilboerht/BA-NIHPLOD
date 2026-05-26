@@ -52,6 +52,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       FROM certificates c
       LEFT JOIN dealers d ON c.dealer_id = d.id
       WHERE c.cert_number = ${cleanQuery.toUpperCase()}
+        AND c.status = 'ISSUED'
     `;
 
     if (dbResults && dbResults.length > 0) {
@@ -75,8 +76,9 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
                d.company_name
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
-        WHERE d.company_name ILIKE ${prefixPattern}
-           OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern}
+        WHERE (d.company_name ILIKE ${prefixPattern}
+           OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern})
+          AND c.status = 'ISSUED'
         ORDER BY c.end_date DESC
       `;
 
@@ -88,8 +90,9 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
                  d.company_name
           FROM certificates c
           LEFT JOIN dealers d ON c.dealer_id = d.id
-          WHERE d.company_name ILIKE ${containPattern}
-             OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern}
+          WHERE (d.company_name ILIKE ${containPattern}
+             OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern})
+            AND c.status = 'ISSUED'
           ORDER BY c.end_date DESC
         `;
       }
