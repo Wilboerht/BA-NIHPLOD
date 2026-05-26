@@ -251,7 +251,7 @@ export default function WorkbenchPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ delay: 0.15 }}
-            className="notion-card flex flex-col p-0 overflow-hidden h-full flex-1 bg-white border border-slate-100 shadow-sm"
+            className="notion-card flex flex-col p-0 overflow-hidden h-full flex-1 bg-white border border-slate-100"
           >
             <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-3">
@@ -283,7 +283,7 @@ export default function WorkbenchPage() {
                 </div>
               ) : pendingCerts.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
-                  <div className="hidden md:flex w-14 h-14 bg-white rounded-2xl items-center justify-center shadow-sm border border-slate-100">
+                  <div className="hidden md:flex w-14 h-14 bg-white rounded-2xl items-center justify-center border border-slate-100">
                     <CheckCircle2 className="w-7 h-7 text-slate-200" />
                   </div>
                   <div className="text-center">
@@ -308,7 +308,7 @@ export default function WorkbenchPage() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 8, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
                           transition={{ duration: 0.2 }}
-                          className={`bg-white rounded-xl border transition-all flex flex-col gap-4 p-4 ${isBusy ? 'border-slate-100 opacity-70' : 'border-slate-100 hover:border-amber-100 hover:shadow-sm'}`}
+                          className={`bg-white rounded-xl border transition-all flex flex-col gap-4 p-4 ${isBusy ? 'border-slate-100 opacity-70' : 'border-slate-100 hover:border-amber-100'}`}
                         >
                           <div className="flex items-center gap-3">
                              <div className="w-8 h-8 rounded-lg bg-slate-50 flex-shrink-0 flex items-center justify-center">
@@ -337,7 +337,7 @@ export default function WorkbenchPage() {
                                     <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
                                       {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                                     </button>
-                                    <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold hover:bg-black transition-all active:scale-95 shadow-sm">
+                                    <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold hover:bg-black transition-all active:scale-95">
                                       {isApproving ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "核发授权"}
                                     </button>
                                   </>
@@ -352,7 +352,7 @@ export default function WorkbenchPage() {
                                         未通过
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-200 shadow-sm">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-200">
                                          待审核
                                       </span>
                                     )}
@@ -371,7 +371,7 @@ export default function WorkbenchPage() {
         )}
 
         {/* 最新待处理举报 */}
-        <div className="flex-1 notion-card flex flex-col p-0 overflow-hidden h-full bg-white border border-slate-100 shadow-sm transition-all">
+        <div className="flex-1 notion-card flex flex-col p-0 overflow-hidden h-full bg-white border border-slate-100 transition-all">
           <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
             <div className="flex items-center gap-3">
                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
@@ -395,7 +395,7 @@ export default function WorkbenchPage() {
               </div>
             ) : recentComplaints.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-12">
-                <div className="hidden md:flex w-14 h-14 bg-white rounded-2xl items-center justify-center shadow-sm border border-slate-100">
+                <div className="hidden md:flex w-14 h-14 bg-white rounded-2xl items-center justify-center border border-slate-100">
                   <Clock className="w-7 h-7 text-slate-200" />
                 </div>
                 <div className="text-center">
@@ -406,13 +406,13 @@ export default function WorkbenchPage() {
             ) : (
               <div className="space-y-2 pb-4">
                 {recentComplaints.map(complaint => (
-                  <div key={complaint.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between hover:border-blue-100 hover:shadow-sm transition-all group">
+                  <div key={complaint.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between hover:border-blue-100 transition-all group">
                     <div className="min-w-0 pr-4">
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded uppercase">{complaint.id.split('-')[0]}</span>
                         <span className="text-xs font-bold text-slate-900">{complaint.channel}</span>
                       </div>
-                      <p className="text-[12px] text-slate-500 line-clamp-1 font-medium italic">“{complaint.description}”</p>
+                      <p className="text-[12px] text-slate-500 line-clamp-1 font-medium >">“{complaint.description}”</p>
                     </div>
                     <Link href={`/workbench/complaints?id=${complaint.id}`} className="shrink-0 p-2 text-slate-300 group-hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all active:scale-90">
                       <ExternalLink className="w-4 h-4" />
