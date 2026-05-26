@@ -11,8 +11,7 @@ BEGIN
         CREATE TYPE user_role AS ENUM (
           'SUPER_ADMIN',
           'AUDITOR',
-          'MANAGER',
-          'PROJECT_MANAGER'
+
         );
     END IF;
 
@@ -46,7 +45,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     full_name TEXT,
     phone TEXT,
     password_hash TEXT,
-    role user_role DEFAULT 'MANAGER',
+    role user_role DEFAULT 'AUDITOR',
     is_first_login BOOLEAN DEFAULT TRUE,
     is_banned BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -242,7 +241,7 @@ CREATE POLICY "Admins can view all profiles" ON profiles
       EXISTS (
         SELECT 1 FROM profiles p
         WHERE p.id = auth.uid()
-          AND p.role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+          AND p.role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -260,7 +259,7 @@ CREATE POLICY "Only admins can manage dealers" ON dealers
     FOR INSERT WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -269,7 +268,7 @@ CREATE POLICY "Only admins can update dealers" ON dealers
     FOR UPDATE USING (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -291,7 +290,7 @@ CREATE POLICY "Admins can manage all certificates" ON certificates
     FOR ALL USING (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -322,7 +321,7 @@ CREATE POLICY "Only admins can view audit logs" ON audit_logs
     FOR SELECT USING (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -331,7 +330,7 @@ CREATE POLICY "Only admins can create audit logs" ON audit_logs
     FOR INSERT WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -345,7 +344,7 @@ CREATE POLICY "Admins can manage complaints" ON complaints
     FOR ALL USING (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );
 
@@ -356,12 +355,12 @@ CREATE POLICY "Service role can manage rate limits" ON action_rate_limits
     USING (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     )
     WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
-        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+        WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
       )
     );

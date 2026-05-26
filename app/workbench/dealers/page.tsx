@@ -389,7 +389,7 @@ export default function DealersPage() {
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                {cert.status === 'ISSUED' && ['SUPER_ADMIN', 'MANAGER', 'PROJECT_MANAGER'].includes(userRole || '') && (
+                                {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && (
                                   <button
                                     onClick={() => {
                                       const parsed = parseAuthScope(cert.auth_scope);

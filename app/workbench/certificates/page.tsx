@@ -179,7 +179,7 @@ export default function CertificatesPage() {
         >
           <Award className="w-3.5 h-3.5" />
           <span className="font-bold tracking-wide">
-            {['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "核发新证书" : "提报新授权"}
+            {userRole === 'SUPER_ADMIN' ? "核发新证书" : "提报新授权"}
           </span>
         </motion.button>
       </div>
@@ -289,7 +289,7 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
                       <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        {cert.status === 'PENDING' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
+                        {cert.status === 'PENDING' && userRole === 'SUPER_ADMIN' && (
                           <button 
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -346,7 +346,7 @@ export default function CertificatesPage() {
                             查看证书
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && (userRole === 'SUPER_ADMIN' || userRole === 'PROJECT_MANAGER' || userRole === 'MANAGER') && (
+                        {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && (
                           <button 
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -483,14 +483,14 @@ export default function CertificatesPage() {
               <div className="px-8 md:px-12 pt-8 pb-5 flex justify-between items-center bg-white shrink-0 border-b border-slate-100">
                   <div className="space-y-1">
                     <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
-                      {pendingApproveId ? "审核准入核查" : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '') ? "官方授权资质签发" : "授权资质审核提报")}
+                      {pendingApproveId ? "审核准入核查" : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (userRole === 'SUPER_ADMIN' ? "官方授权资质签发" : "授权资质审核提报")}
                     </h3>
                       <p className="text-[12px] text-slate-400 font-medium tracking-wide">
                         {pendingApproveId
                           ? "核对经销商资质信息与授权证书预览，确认无误后核发"
                           : isEditMode
                           ? "正在修正现有授权证书中的录入误差，提交后将同步刷新查验图"
-                          : (['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(userRole || '')
+                          : (userRole === 'SUPER_ADMIN'
                             ? "核实经销商主体资质，签发受防伪协议保护的电子证书"
                             : "录入经销商主体资质，提交品牌授权审核申请")}
                       </p>

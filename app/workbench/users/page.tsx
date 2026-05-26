@@ -19,20 +19,6 @@ const ROLE_OPTIONS = [
     dot: "bg-slate-900",
   },
   {
-    value: "MANAGER",
-    label: "运营经理",
-    desc: "可核发证书、编辑与吊销授权",
-    color: "text-indigo-600",
-    dot: "bg-indigo-500",
-  },
-  {
-    value: "PROJECT_MANAGER",
-    label: "项目经理",
-    desc: "可核发证书、编辑与吊销授权",
-    color: "text-blue-600",
-    dot: "bg-blue-500",
-  },
-  {
     value: "AUDITOR",
     label: "审核员",
     desc: "可受理初审与提报，无法最终签发",

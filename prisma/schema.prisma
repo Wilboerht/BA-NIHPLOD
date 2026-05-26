@@ -17,8 +17,6 @@ datasource db {
 enum UserRole {
   SUPER_ADMIN
   AUDITOR
-  MANAGER
-  PROJECT_MANAGER
 }
 
 enum CertificateStatus {
@@ -46,7 +44,7 @@ model Profile {
   full_name     String?
   phone         String?  @unique
   password_hash String?
-  role          UserRole @default(MANAGER)
+  role          UserRole @default(AUDITOR)
   is_first_login Boolean @default(true)
   is_banned     Boolean  @default(false)
   created_at    DateTime @default(now()) @db.Timestamptz(6)

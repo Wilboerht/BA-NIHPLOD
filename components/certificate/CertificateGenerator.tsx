@@ -560,7 +560,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       if (!meRes.ok) throw new Error("未找到登录信息");
       const meData = await meRes.json();
       const user = meData.user;
-      const isManager = ['SUPER_ADMIN', 'PROJECT_MANAGER', 'MANAGER'].includes(user?.role);
+      const isManager = user?.role === 'SUPER_ADMIN';
 
       // 编辑模式且是待审核证书：先更新再核发
       if (mode === 'edit' && isPending) {

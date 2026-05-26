@@ -1,4 +1,4 @@
-export const ADMIN_ROLES = ['SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER'] as const;
+export const ADMIN_ROLES = ['SUPER_ADMIN', 'AUDITOR'] as const;
 export type AdminRole = typeof ADMIN_ROLES[number];
 export const ALL_ROLES = [...ADMIN_ROLES] as const;
 export type UserRole = typeof ALL_ROLES[number];
@@ -45,7 +45,7 @@ export interface Profile {
   username: string;
   full_name?: string;
   phone?: string;
-  role: 'SUPER_ADMIN' | 'AUDITOR' | 'MANAGER' | 'PROJECT_MANAGER';
+  role: 'SUPER_ADMIN' | 'AUDITOR';
   is_first_login: boolean;
   is_banned: boolean;
   created_at?: string;

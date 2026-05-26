@@ -40,7 +40,7 @@ async function main() {
     const admins = await sql`
       SELECT id, username, full_name, role, is_first_login, created_at
       FROM profiles
-      WHERE role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      WHERE role IN ('SUPER_ADMIN', 'AUDITOR')
       ORDER BY role ASC
     `;
 
@@ -68,7 +68,7 @@ async function main() {
     const withHashes = await sql`
       SELECT username, password_hash
       FROM profiles
-      WHERE role IN ('SUPER_ADMIN', 'AUDITOR', 'MANAGER', 'PROJECT_MANAGER')
+      WHERE role IN ('SUPER_ADMIN', 'AUDITOR')
     `;
 
     if (withHashes) {

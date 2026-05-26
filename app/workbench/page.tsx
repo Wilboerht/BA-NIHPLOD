@@ -158,7 +158,7 @@ export default function WorkbenchPage() {
     }
   };
 
-  const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'MANAGER' || userRole === 'PROJECT_MANAGER';
+  const isAdmin = userRole === 'SUPER_ADMIN';
 
   return (
     <div className="px-4 md:px-10 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 gap-6 md:gap-8">
