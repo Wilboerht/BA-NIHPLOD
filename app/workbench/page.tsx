@@ -337,11 +337,13 @@ export default function WorkbenchPage() {
                           <td className="px-4 py-3 text-right">
                             {isAdmin ? (
                               <div className="flex items-center justify-end gap-2">
-                                <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors rounded-md hover:bg-rose-50">
-                                  {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                <button onClick={() => handleReject(cert)} disabled={isBusy} className="inline-flex items-center gap-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold">
+                                  {isRejecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                                  退回
                                 </button>
-                                <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-md px-3 py-1 text-[11px] font-bold hover:bg-black transition-all active:scale-95">
-                                  {isApproving ? <Loader2 className="w-3 h-3 animate-spin" /> : '核发'}
+                                <button onClick={() => handleApprove(cert)} disabled={isBusy} className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold">
+                                  {isApproving ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                                  核发
                                 </button>
                               </div>
                             ) : (
