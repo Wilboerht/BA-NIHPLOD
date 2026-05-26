@@ -41,7 +41,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     shopName: "",
     shopLabel: "店铺名称",
     scopeText: `予以下渠道:\n淘宝 | 天猫 | 京东 | 小红书 | 抖音 | 微信 | 线下门店\n运营我司代理的品牌 ${BRAND_NAME} (${BRAND_NAME_CN})\n全系列产品的 [合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务`,
-    duration: `${new Date().getFullYear()}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')} - ${new Date().getFullYear() + 1}.${String(new Date().getMonth() + 1).padStart(2, '0')}.${String(new Date().getDate()).padStart(2, '0')}`,
+    duration: (() => {
+      const now = new Date();
+      const start = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+      const endDate = new Date(now);
+      endDate.setMonth(endDate.getMonth() + 1);
+      const end = `${endDate.getFullYear()}.${String(endDate.getMonth() + 1).padStart(2, '0')}.${String(endDate.getDate()).padStart(2, '0')}`;
+      return `${start} - ${end}`;
+    })(),
     authorizer: COMPANY_FULL_NAME,
     sealImage: "",
     phone: "",
