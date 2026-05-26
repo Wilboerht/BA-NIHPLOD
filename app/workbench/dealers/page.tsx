@@ -47,10 +47,10 @@ interface Profile {
 }
 
 interface DealerGroup extends Dealer {
-  allNames: string[];
   allDealerIds: string[];
   totalCerts: number;
   companyName: string;
+  allPhones: string[];
 }
 
 export default function DealersPage() {
@@ -132,33 +132,32 @@ export default function DealersPage() {
     (d.phone || "").toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
-  // 按 phone 分组，合并同 phone 的 dealers
-  const groupedByPhone = useCallback(() => {
-    const phoneMap = new Map<string, Dealer[]>();
+  // 按店铺或平台名称分组
+  const groupedByName = useCallback(() => {
+    const nameMap = new Map<string, Dealer[]>();
     
     filteredDealers.forEach(dealer => {
-      const phone = dealer.phone || 'unknown';
-      if (!phoneMap.has(phone)) {
-        phoneMap.set(phone, []);
+      const name = dealer.company_name || 'unknown';
+      if (!nameMap.has(name)) {
+        nameMap.set(name, []);
       }
-      phoneMap.get(phone)!.push(dealer);
+      nameMap.get(name)!.push(dealer);
     });
 
-    return Array.from(phoneMap.values()).map(dealerGroup => {
-      const allDealer = dealerGroup[0]; // 用第一个作为代表
-      const allNames = [...new Set(dealerGroup.map(d => d.company_name))]; // 去重
+    return Array.from(nameMap.values()).map(dealerGroup => {
+      const allDealer = dealerGroup[0];
       const allDealerIds = dealerGroup.map(d => d.id);
       const totalCerts = dealerGroup.reduce((sum, d) => sum + (d.certificates?.[0]?.count || 0), 0);
-      // 从该 phone 分组下的所有 dealer 中找一个有 auth_scope 的，解析出公司名称
+      const allPhones = [...new Set(dealerGroup.map(d => d.phone).filter(Boolean))];
       const scopeDealer = dealerGroup.find(d => d.auth_scope);
       const companyName = scopeDealer ? (parseAuthScope(scopeDealer.auth_scope!).companyName || '-') : '-';
       
       return {
         ...allDealer,
-        allNames,
         allDealerIds,
         totalCerts,
-        companyName
+        companyName,
+        allPhones
       };
     });
   }, [filteredDealers]);
@@ -259,16 +258,10 @@ export default function DealersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {!isLoading && groupedByPhone().map((dealerGroup) => (
-                <tr key={dealerGroup.phone} className="hover:bg-slate-50/50 transition-colors group">
+              {!isLoading && groupedByName().map((dealerGroup) => (
+                <tr key={dealerGroup.company_name} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4 mr-10">
-                    <div className="flex flex-col">
-                      <div className="space-y-0.5 text-slate-900">
-                        {dealerGroup.allNames.map((name) => (
-                          <div key={name} className="text-[12px]">{name}</div>
-                        ))}
-                      </div>
-                    </div>
+                    <span className="text-[12px] text-slate-900 font-medium">{dealerGroup.company_name}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-[12px] text-slate-600">
@@ -281,9 +274,14 @@ export default function DealersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-[13px] text-slate-600 font-mono uppercase">
-                      {dealerGroup.phone || "-"}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      {dealerGroup.allPhones.map((phone) => (
+                        <span key={phone} className="text-[13px] text-slate-600 font-mono uppercase">
+                          {phone}
+                        </span>
+                      ))}
+                      {dealerGroup.allPhones.length === 0 && <span className="text-slate-300">-</span>}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
@@ -308,7 +306,7 @@ export default function DealersPage() {
             </tbody>
           </table>
 
-          {!isLoading && groupedByPhone().length === 0 && (
+          {!isLoading && groupedByName().length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <Building2 className="w-6 h-6" />
