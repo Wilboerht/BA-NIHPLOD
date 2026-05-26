@@ -487,7 +487,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const h = setTimeout(() => renderCertificate(), 300);
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, isFontLoaded]);
+  }, [data, isFontLoaded, isIssued, isVoided, isPending]);
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
