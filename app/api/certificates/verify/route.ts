@@ -14,8 +14,9 @@ function getClientIP(req: Request): string {
 }
 
 function maskPhone(phone: string): string {
-  if (!phone || phone.length < 8) return phone;
-  return phone.slice(0, 3) + '****' + phone.slice(-4);
+  const cleaned = String(phone || '').replace(/\D/g, '');
+  if (cleaned.length < 8) return cleaned;
+  return cleaned.slice(0, 3) + '****' + cleaned.slice(-4);
 }
 
 /**

@@ -294,7 +294,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     currentY += companyLineH;
 
     currentY += 14 * scale;
-    console.log('[CERT_DEBUG] 授权业务范围起始 Y (canvas):', currentY, '对应显示 px:', currentY / scale);
+    // CERT_DEBUG 已移除
 
     // 授权业务范围
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
@@ -380,7 +380,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
     offCtx.fillText(`授权有效期：${formatDate(dateRange[0])} 至 ${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
     currentY += 46 * scale;
-    console.log('[CERT_DEBUG] 有效期后 currentY (canvas):', currentY, '对应显示 px:', currentY / scale);
+    // CERT_DEBUG 已移除
 
     // 预计算公章尺寸和中心位置
     let sealCenterX = width - 260 * scale;
@@ -425,8 +425,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
     const authorizerY = bottomAlignY - sealDrawHeight / 2 + 28 * scale + 20 * scale;
-    console.log('[CERT_DEBUG] 印章中心 X:', sealCenterX / scale, 'px, 印章中心 Y:', (bottomAlignY - sealDrawHeight / 2 + 20 * scale) / scale, 'px');
-    console.log('[CERT_DEBUG] 授权文字 Y (canvas):', authorizerY, '对应显示 px:', authorizerY / scale);
+    // CERT_DEBUG 已移除
     offCtx.fillText(data.authorizer || "", sealCenterX, authorizerY);
 
     // 二维码：底部对齐（与公章同一水平线），稍微上移

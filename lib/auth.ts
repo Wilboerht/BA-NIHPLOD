@@ -104,7 +104,6 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
       }
       const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
       if (blacklisted.length > 0) {
-        console.log('[verifyToken] Token 在黑名单中');
         return null;
       }
     } catch (err) {
@@ -124,7 +123,6 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
 export async function requireAuth(request: NextRequest | Request) {
   const payload = await verifyToken(request);
   if (!payload || !payload.id) {
-    console.log('[requireAuth] verifyToken 失败，payload:', payload);
     return {
       user: null,
       response: NextResponse.json({ error: '未登录或登录已过期' }, { status: 401 }),
@@ -140,7 +138,6 @@ export async function requireAuth(request: NextRequest | Request) {
       LIMIT 1
     `;
     if (rows.length === 0) {
-      console.log('[requireAuth] 用户不存在，payload.id:', payload.id);
       return {
         user: null,
         response: NextResponse.json({ error: '用户不存在' }, { status: 401 }),
@@ -148,7 +145,6 @@ export async function requireAuth(request: NextRequest | Request) {
     }
     const profile = rows[0];
     if (profile.is_banned) {
-      console.log('[requireAuth] 账号被封禁，payload.id:', payload.id);
       return {
         user: null,
         response: NextResponse.json({ error: '账号已被封禁' }, { status: 403 }),

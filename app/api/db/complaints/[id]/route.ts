@@ -77,7 +77,6 @@ export async function PUT(
         `;
       });
 
-      console.log('[complaints-update] 投诉已更新');
       return NextResponse.json({ success: true });
     } catch (err: unknown) {
       console.error('[complaints-update] 数据库错误:', err);

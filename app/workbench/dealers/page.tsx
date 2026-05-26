@@ -103,12 +103,12 @@ export default function DealersPage() {
       const response = await fetch('/api/db/dealers');
       if (!response.ok) throw new Error('获取经销商列表失败');
       
-      const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string }> };
+      const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string; cert_count?: number }> };
       const data = result.data || [];
       
       setDealers(data.map((d) => ({
         ...d,
-        certificates: [{ count: 1 }], // 临时设置，后续从 API 获取
+        certificates: [{ count: d.cert_count || 0 }],
       })));
     } catch (err) {
       console.error('Error fetching dealers:', err);

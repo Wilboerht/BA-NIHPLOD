@@ -128,8 +128,13 @@ export default function CertificatesPage() {
     if (cert.status === 'REVOKED') return 'REVOKED';
     if (cert.status === 'REJECTED') return 'REJECTED';
     if (cert.status === 'EXPIRED') return 'EXPIRED';
-    if (cert.status === 'ISSUED' && cert.end_date && new Date() > new Date(cert.end_date + 'T23:59:59')) return 'EXPIRED';
-    if (cert.status === 'ISSUED') return 'ISSUED';
+    if (cert.status === 'ISSUED') {
+      if (cert.end_date) {
+        const end = getEndOfDay(cert.end_date.replace(/\./g, '-'));
+        if (new Date() > end) return 'EXPIRED';
+      }
+      return 'ISSUED';
+    }
     return 'PENDING';
   };
 
@@ -265,27 +270,34 @@ export default function CertificatesPage() {
                       {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-6 text-center">
-                      {cert.status === 'REVOKED' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-rose-50 text-rose-600 text-[10px] font-bold tracking-widest uppercase border border-rose-100">
-                          <ShieldOff className="w-3 h-3" /> 已吊销
-                        </span>
-                      ) : cert.status === 'REJECTED' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
-                          <XCircle className="w-3 h-3" /> 已拒绝
-                        </span>
-                      ) : cert.status === 'ISSUED' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase border border-emerald-100">
-                          <CheckCircle2 className="w-3 h-3" /> 生效中
-                        </span>
-                      ) : (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && cert.end_date && new Date() > new Date(cert.end_date + 'T23:59:59'))) ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
-                          <XCircle className="w-3.5 h-3.5" /> 已失效
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-amber-50 text-amber-600 text-[10px] font-bold tracking-widest uppercase border border-amber-100">
-                           待审核
-                        </span>
-                      )}
+                      {(() => {
+                        const displayStatus = getCertDisplayStatus(cert);
+                        if (displayStatus === 'REVOKED') return (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-rose-50 text-rose-600 text-[10px] font-bold tracking-widest uppercase border border-rose-100">
+                            <ShieldOff className="w-3 h-3" /> 已吊销
+                          </span>
+                        );
+                        if (displayStatus === 'REJECTED') return (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
+                            <XCircle className="w-3 h-3" /> 已拒绝
+                          </span>
+                        );
+                        if (displayStatus === 'EXPIRED') return (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-bold tracking-widest uppercase border border-slate-100">
+                            <XCircle className="w-3.5 h-3.5" /> 已失效
+                          </span>
+                        );
+                        if (displayStatus === 'ISSUED') return (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase border border-emerald-100">
+                            <CheckCircle2 className="w-3 h-3" /> 生效中
+                          </span>
+                        );
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-amber-50 text-amber-600 text-[10px] font-bold tracking-widest uppercase border border-amber-100">
+                            待审核
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
                       <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">

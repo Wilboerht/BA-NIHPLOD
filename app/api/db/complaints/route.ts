@@ -7,19 +7,13 @@ export async function GET(req: Request) {
     // 权限检查
     const { user, response } = await requireAdmin(req);
     if (response) {
-      console.log('[API /complaints] 权限检查失败:', response.status);
       return response;
     }
-    console.log('[API /complaints] 管理员权限通过:', user?.id, 'role:', user?.role);
-
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '50', 10), 200);
     const status = searchParams.get('status') || undefined;
-    console.log('[API /complaints] 查询参数:', { page, pageSize, status });
-
     const { data, total, error } = await getAllComplaints(page, pageSize, status);
-    console.log('[API /complaints] 查询结果:', { dataLength: data?.length, total, error: error?.message });
 
     if (error) {
       return NextResponse.json(

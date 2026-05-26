@@ -29,7 +29,7 @@ async function generateCertNumberWithRetry(tx: TransactionSql | typeof sql, maxR
     if (!existing || existing.length === 0) {
       return certNumber;
     }
-    console.warn(`[certificates] 证书编号冲突，第 ${attempt} 次重试...`);
+    // 证书编号冲突，继续重试
   }
   throw new Error(`无法生成唯一证书编号，已重试 ${maxRetries} 次`);
 }
@@ -48,7 +48,15 @@ function parseDuration(duration: string | undefined): { start: string; end: stri
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
     throw new Error(`有效期格式无效："${duration}"，日期应为 YYYY.MM.DD 格式`);
   }
+  if (new Date(start) > new Date(end)) {
+    throw new Error('有效期无效：结束日期不能早于开始日期');
+  }
   return { start, end };
+}
+
+// 清理 auth_scope 拼接字段，防止分隔符冲突
+function sanitizeForAuthScope(input: string): string {
+  return (input || '').replace(/\s*\|\s*/g, '/');
 }
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
@@ -106,7 +114,7 @@ export async function POST(req: Request) {
           VALUES (
             ${certNumber},
             ${dealerId},
-            ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
+            ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
             ${parseDuration(certData.duration).start},
             ${parseDuration(certData.duration).end},
             'PENDING',
@@ -150,7 +158,7 @@ export async function POST(req: Request) {
             VALUES (
               ${certNumber},
               ${dealerId},
-              ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
+              ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
               ${parseDuration(certData.duration).start},
               ${parseDuration(certData.duration).end},
               'ISSUED',
@@ -258,7 +266,7 @@ export async function POST(req: Request) {
         await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
         await tx`
           UPDATE certificates
-          SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
+          SET auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
               start_date = ${parseDuration(certData.duration).start},
               end_date = ${parseDuration(certData.duration).end},
               seal_url = ${certData.sealImage || null},

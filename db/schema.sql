@@ -211,7 +211,6 @@ CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 
 -- dealers 表索引
 CREATE INDEX IF NOT EXISTS idx_dealers_phone ON dealers(phone);
-CREATE INDEX IF NOT EXISTS idx_dealers_profile_id ON dealers(profile_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_dealers_phone_company ON dealers(phone, company_name);
 
 -- audit_logs 表索引
@@ -273,13 +272,8 @@ CREATE POLICY "Only admins can update dealers" ON dealers
     );
 
 -- certificates 表策略
+-- 经销商已不再关联登录账户，原 "Dealers can view own certificates" 策略已废弃并移除
 DROP POLICY IF EXISTS "Dealers can view own certificates" ON certificates;
-CREATE POLICY "Dealers can view own certificates" ON certificates
-    FOR SELECT USING (
-      auth.uid() IN (
-        SELECT profile_id FROM dealers WHERE id = certificates.dealer_id
-      )
-    );
 
 DROP POLICY IF EXISTS "Public can view issued certificates" ON certificates;
 CREATE POLICY "Public can view issued certificates" ON certificates

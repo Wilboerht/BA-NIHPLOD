@@ -13,9 +13,9 @@ function getClientIP(req: Request): string {
 
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
-    // 取最后一个 IP（最靠近服务器），防止客户端在头部前置伪造 IP
+    // 取第一个 IP（客户端真实 IP），配合可信反向代理使用
     const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
-    return ips[ips.length - 1] || 'unknown';
+    return ips[0] || 'unknown';
   }
   return 'unknown';
 }

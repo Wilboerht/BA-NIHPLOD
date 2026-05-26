@@ -164,7 +164,8 @@ function buildDealersNested(row: SqlRow): SqlRow {
 export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
-      SELECT d.id, d.company_name, d.phone, d.created_at
+      SELECT d.id, d.company_name, d.phone, d.created_at,
+             (SELECT COUNT(*) FROM certificates c WHERE c.dealer_id = d.id) as cert_count
       FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
     `;
     return { data: (result || []) as SqlRow[], error: null };
@@ -198,7 +199,7 @@ export async function getCertificatesByDealerId(dealerId: string, limit = 200): 
  */
 export async function getPendingCertificates(limit?: number): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
-    SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
+    SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
     FROM certificates c
     LEFT JOIN dealers d ON c.dealer_id = d.id
     LEFT JOIN profiles p ON c.auditor_id = p.id
@@ -221,7 +222,7 @@ export async function getAllCertificates(
   const total = parseInt(String(countRes[0]?.count || 0), 10);
 
   const result = await sql`
-    SELECT c.*, d.company_name, d.phone, p.id as auditor_id, p.full_name as auditor_name
+    SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
     FROM certificates c
     LEFT JOIN dealers d ON c.dealer_id = d.id
     LEFT JOIN profiles p ON c.auditor_id = p.id
@@ -283,7 +284,7 @@ export async function getAllComplaints(
     }
 
     const total = parseInt(String(countRes[0]?.count || 0), 10);
-    console.log('[getAllComplaints] 查询到', total, '条投诉, 本页', result.length, '条, status=', status);
+    // 调试日志已移除
 
     return { data: result || [], total, error: null };
   } catch (err: unknown) {

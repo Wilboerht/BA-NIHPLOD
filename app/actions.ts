@@ -259,7 +259,6 @@ export async function submitComplaintAction(formData: {
         RETURNING id
       `;
       const insertedId = insertResult[0]?.id;
-      console.log('[submitComplaintAction] 投诉已提交, id:', insertedId);
       return { success: true, id: insertedId };
     } catch (err: unknown) {
       console.error("[submitComplaintAction] 数据库插入失败:", err);
