@@ -95,7 +95,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   useEffect(() => {
     if (initialData) {
-      setData(initialData);
+      setData({ ...initialData, authorizer: COMPANY_FULL_NAME });
       if (mode === 'view' || mode === 'edit') {
         setIsIssued(!isPending);
         setIsVoided(initialVoided);
@@ -711,17 +711,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           <div className="flex items-center gap-3">
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权方</div>
             <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.authorizer}</div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="请输入授权方主体名称"
-                  className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
-                  value={data.authorizer}
-                  onChange={(e) => setData(prev => ({ ...prev, authorizer: e.target.value }))}
-                />
-              )}
+              <div className="text-[13px] text-slate-900 font-medium pl-3">{data.authorizer}</div>
             </div>
           </div>
 
