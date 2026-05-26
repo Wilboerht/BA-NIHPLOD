@@ -260,9 +260,9 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-6 py-6">
                       {cert.dealers?.phone ? (
-                        <a href={`tel:${cert.dealers.phone}`} className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors font-mono tabular-nums text-[12px]">
+                        <span className="flex items-center gap-2 text-slate-400 font-mono tabular-nums text-[12px]">
                           <Phone className="w-3 h-3 opacity-50" /> {cert.dealers.phone}
-                        </a>
+                        </span>
                       ) : (
                         <span className="text-slate-200 text-xs">未录入</span>
                       )}
