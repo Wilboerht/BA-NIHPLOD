@@ -275,7 +275,7 @@ export default function WorkbenchPage() {
               </Link>
             </div>
 
-            <div className="flex-1 bg-slate-50/20 px-2 py-4 relative overflow-auto min-h-0">
+            <div className="flex-1 bg-white relative overflow-auto min-h-0">
               {isLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 pointer-events-none">
                   <Loader2 className="w-6 h-6 animate-spin text-slate-200" />
@@ -292,79 +292,48 @@ export default function WorkbenchPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2 pb-4">
-                  <AnimatePresence>
+                <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
+                  <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
+                    <tr>
+                      <th className="px-4 py-3 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">编号</th>
+                      <th className="px-4 py-3 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">店铺/平台名称</th>
+                      <th className="px-4 py-3 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">有效期</th>
+                      <th className="px-4 py-3 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-700 font-medium">
                     {pendingCerts.map((cert) => {
-                      const parsed = parseAuthScope(cert.auth_scope);
-                      const companyName = parsed.companyName;
                       const isApproving = processingId === cert.id;
                       const isRejecting = rejectingId === cert.id;
                       const isBusy = isApproving || isRejecting;
-
                       return (
-                        <motion.div
-                          key={cert.id}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 8, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className={`bg-white rounded-xl border transition-all flex flex-col gap-4 p-4 ${isBusy ? 'border-slate-100 opacity-70' : 'border-slate-100 hover:border-amber-100'}`}
-                        >
-                          <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded-lg bg-slate-50 flex-shrink-0 flex items-center justify-center">
-                               <span className="text-[11px] font-black text-slate-900 font-mono">{cert.cert_number.slice(-4)}</span>
-                             </div>
-                             <div className="flex-1 min-w-0">
-                               <p className="text-[13px] font-bold text-slate-900 truncate">{cert.dealers?.company_name || '未知经销商'}</p>
-                               <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{companyName}</p>
-                             </div>
-                          </div>
-
-                          <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-1">
-                             <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1 text-slate-400">
-                                  <Calendar className="w-3 h-3" />
-                                  <span className="text-[10px] tabular-nums">{cert.start_date.replace(/-/g, '.')} – {cert.end_date.replace(/-/g, '.')}</span>
-                                </div>
-                                <div className="flex items-center gap-1 text-slate-400">
-                                  <User className="w-3 h-3" />
-                                  <span className="text-[10px] truncate max-w-[80px]">{cert.auditor_profile?.full_name || '审核员'}</span>
-                                </div>
-                             </div>
-                             <div className="flex items-center gap-2">
-                                {isAdmin ? (
-                                  <>
-                                    <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
-                                      {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                    </button>
-                                    <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold hover:bg-black transition-all active:scale-95">
-                                      {isApproving ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "核发授权"}
-                                    </button>
-                                  </>
-                                ) : (
-                                  <div className="flex items-center">
-                                    {cert.status === 'ISSUED' ? (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest">
-                                        已生效
-                                      </span>
-                                    ) : cert.status === 'REJECTED' ? (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-widest border border-slate-200">
-                                        未通过
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-200">
-                                         待审核
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                             </div>
-                          </div>
-                        </motion.div>
+                        <tr key={cert.id} className={`hover:bg-slate-50/60 transition-all group duration-200 ${isBusy ? 'opacity-50' : ''}`}>
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number.slice(-4)}</td>
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-slate-900 text-[13px] tracking-tight">{cert.dealers?.company_name || '-'}</span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-[11px] tabular-nums">{cert.start_date.replace(/-/g, '.')} – {cert.end_date.replace(/-/g, '.')}</td>
+                          <td className="px-4 py-3 text-right">
+                            {isAdmin ? (
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => handleReject(cert)} disabled={isBusy} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors rounded-md hover:bg-rose-50">
+                                  {isRejecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                </button>
+                                <button onClick={() => handleApprove(cert)} disabled={isBusy} className="bg-slate-900 text-white rounded-md px-3 py-1 text-[11px] font-bold hover:bg-black transition-all active:scale-95">
+                                  {isApproving ? <Loader2 className="w-3 h-3 animate-spin" /> : '核发'}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-200">
+                                待审核
+                              </span>
+                            )}
+                          </td>
+                        </tr>
                       );
                     })}
-                  </AnimatePresence>
-                </div>
+                  </tbody>
+                </table>
               )}
             </div>
           </motion.div>
@@ -387,7 +356,7 @@ export default function WorkbenchPage() {
             </Link>
           </div>
 
-          <div className="flex-1 bg-slate-50/20 px-2 py-4 relative overflow-auto min-h-0">
+          <div className="flex-1 bg-white relative overflow-auto min-h-0">
             {isLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 pointer-events-none">
                 <Loader2 className="w-6 h-6 animate-spin text-slate-200" />
@@ -404,22 +373,34 @@ export default function WorkbenchPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2 pb-4">
-                {recentComplaints.map(complaint => (
-                  <div key={complaint.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between hover:border-blue-100 transition-all group">
-                    <div className="min-w-0 pr-4">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded uppercase">{complaint.id.split('-')[0]}</span>
-                        <span className="text-xs font-bold text-slate-900">{complaint.channel}</span>
-                      </div>
-                      <p className="text-[12px] text-slate-500 line-clamp-1 font-medium >">“{complaint.description}”</p>
-                    </div>
-                    <Link href={`/workbench/complaints?id=${complaint.id}`} className="shrink-0 p-2 text-slate-300 group-hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all active:scale-90">
-                      <ExternalLink className="w-4 h-4" />
-                    </Link>
-                  </div>
-                ))}
-              </div>
+              <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
+                <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
+                  <tr>
+                    <th className="px-4 py-3 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">工单编号</th>
+                    <th className="px-4 py-3 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">举报渠道</th>
+                    <th className="px-4 py-3 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">描述</th>
+                    <th className="px-4 py-3 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-10 backdrop-blur-md">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-700 font-medium">
+                  {recentComplaints.map((complaint) => (
+                    <tr key={complaint.id} className="hover:bg-slate-50/60 transition-all group duration-200">
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{complaint.id.split('-')[0]}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-slate-900 text-[13px] tracking-tight">{complaint.channel}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-slate-500 text-[12px] line-clamp-1">{complaint.description}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link href={`/workbench/complaints?id=${complaint.id}`} className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold">
+                          处理 <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>

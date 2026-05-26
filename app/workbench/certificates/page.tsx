@@ -394,7 +394,7 @@ export default function CertificatesPage() {
                             <Edit className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {cert.status === 'EXPIRED' && (
+                        {(cert.status === 'EXPIRED' || cert.status === 'REVOKED') && (
                           <button 
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -415,7 +415,7 @@ export default function CertificatesPage() {
                               setIsEditMode(false);
                               setShowIssueModal(true);
                             }}
-                            className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none shadow-sm shadow-slate-200/50"
+                            className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none"
                           >
                             <FileImage className="w-3.5 h-3.5 opacity-70" />
                             调阅档案
