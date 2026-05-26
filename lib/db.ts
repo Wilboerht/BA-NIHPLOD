@@ -164,7 +164,7 @@ function buildDealersNested(row: SqlRow): SqlRow {
 export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
-      SELECT d.id, d.company_name, d.phone, d.profile_id, d.created_at
+      SELECT d.id, d.company_name, d.phone, d.created_at
       FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
     `;
     return { data: (result || []) as SqlRow[], error: null };
