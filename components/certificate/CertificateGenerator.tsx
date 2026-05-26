@@ -447,7 +447,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
-        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, bottomAlignY + 16 * scale);
+        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
       }
     } catch (err) {
       console.warn("QR code generation failed:", err);
