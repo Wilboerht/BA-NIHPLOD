@@ -422,7 +422,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.textAlign = "center";
     offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
     offCtx.fillStyle = textPrimary;
-    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY - sealDrawHeight / 2 + 5 * scale + 20 * scale);
+    offCtx.fillText(data.authorizer || "", sealCenterX, bottomAlignY - sealDrawHeight / 2 + 8 * scale + 20 * scale);
 
     // 二维码：底部对齐（与公章同一水平线）
     const qrX = leftMargin;
