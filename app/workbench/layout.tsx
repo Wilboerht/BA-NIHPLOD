@@ -1,22 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import Sidebar from "@/components/Sidebar/Sidebar";
 import styles from "./layout.module.css";
 import { ADMIN_ROLES, type UserSession } from "@/types";
 import { fetchWithTimeout } from "@/lib/fetch";
 
+const PAGE_TITLES: Record<string, string> = {
+  '/workbench': '工作台首页',
+  '/workbench/certificates': '授权核发中心',
+  '/workbench/complaints': '打假投诉审核',
+  '/workbench/dealers': '经销商管理',
+  '/workbench/users': '管理员管理',
+};
+
+function getPageTitle(pathname: string): string {
+  // 精确匹配优先
+  if (PAGE_TITLES[pathname]) {
+    return `${PAGE_TITLES[pathname]} · NIHPLOD 管理后台`;
+  }
+  // 子路径 fallback
+  for (const [path, title] of Object.entries(PAGE_TITLES)) {
+    if (pathname.startsWith(path + '/')) {
+      return `${title} · NIHPLOD 管理后台`;
+    }
+  }
+  return 'NIHPLOD 管理后台';
+}
+
 export default function WorkbenchLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [, setUser] = useState<UserSession | null>(null);
   const [, setUserType] = useState<'admin' | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   
-  // 移动端自动收起侧边栏
+  // 移动端自动收起侧边栏 + 动态标题
   useEffect(() => {
-    document.title = "NIHPLOD 品牌授权管理平台";
+    document.title = getPageTitle(pathname);
     const handleResize = () => {
       if (window.innerWidth < 1024) {
         setIsCollapsed(true);
@@ -25,7 +49,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     const loadUser = async () => {
