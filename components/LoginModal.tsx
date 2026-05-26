@@ -19,8 +19,6 @@ export default function LoginModal({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loginType] = useState<'dealer'>('dealer');
-
   useEscapeKey(onClose, isOpen);
 
   // 当产生错误时，开启独立生命周期的 3 秒自动回收机制
@@ -45,13 +43,12 @@ export default function LoginModal({
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // 经销商登录
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, password, loginType: 'dealer' })
+        body: JSON.stringify({ phone, password })
       });
 
       const data = await response.json();
@@ -65,9 +62,9 @@ export default function LoginModal({
       if (data.user.is_first_login) {
         onClose();
         onShowResetPassword?.();
-      } else if (data.user.role === "DEALER") {
-        // 经销商直接关闭登录模态框，让首页检测到变化并打开经销商模态框
-        onClose();
+      } else {
+        // 登录成功，刷新页面以进入工作台
+        window.location.href = "/workbench";
       }
     } catch (err) {
       console.error(err);
@@ -131,7 +128,7 @@ export default function LoginModal({
                 <input
                   type="tel"
                   required
-                  placeholder={loginType === 'dealer' ? "请输入手机号" : "请输入电子邮箱"}
+                  placeholder="请输入手机号"
                   className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -143,7 +140,7 @@ export default function LoginModal({
                   <input 
                     type={showPassword ? "text" : "password"} 
                     required 
-                    placeholder={loginType === 'dealer' ? "请输入密码" : "请输入密码"}
+                    placeholder="请输入密码"
                     className="block w-full bg-slate-50 border border-slate-100 rounded-xl py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 focus:bg-white focus:border-[#C6A87C]/40 focus:ring-4 focus:ring-[#C6A87C]/15 placeholder:text-slate-300"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

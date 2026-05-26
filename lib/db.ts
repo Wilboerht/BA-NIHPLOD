@@ -103,23 +103,11 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
 // ============================================================================
 
 /**
- * 获取用户关联的经销商信息（按 profile_id）
- */
-export async function getDealersByProfileId(profileId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
-  const result = await sql`
-    SELECT id, company_name, phone, profile_id, created_at
-    FROM dealers
-    WHERE profile_id = ${profileId}
-  `;
-  return { data: result || [], error: null };
-}
-
-/**
  * 获取单个经销商详情（按 ID）
  */
 export async function getDealerById(dealerId: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
-    SELECT id, company_name, phone, profile_id, created_at
+    SELECT id, company_name, phone, created_at
     FROM dealers WHERE id = ${dealerId} LIMIT 1
   `;
   return { data: result[0] || null, error: null };

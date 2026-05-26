@@ -118,12 +118,7 @@ export default function AdminsManagementPage() {
         const user = data.user;
         setCurrentUser(user);
         
-        // 如果用户角色是 DEALER，说明没有权限访问管理后台
-        if (user?.role === 'DEALER') {
-          toast({ message: "权限不足：您的账号非管理人员，请重新登录。", type: "error" });
-          window.location.href = "/";
-          return;
-        }
+
       } else {
         // 未登录，跳回首页
         window.location.href = "/";

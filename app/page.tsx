@@ -6,11 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
-import DealerModalPanel from "@/components/DealerModalPanel";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { useToast } from "@/hooks/useToast";
-import { ADMIN_ROLES, type UserSession } from "@/types";
+import { type UserSession } from "@/types";
 import { BRAND_NAME_CN } from "@/lib/config";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -54,11 +53,7 @@ export default function VerificationPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
-  const [showDealerModal, setShowDealerModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
-  const [loggedInUser, setLoggedInUser] = useState<UserSession | null>(null);
-  const [isPageLoading, setIsPageLoading] = useState(true);
-  const prevShowLoginModalRef = useRef(false);
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const evidencePreviewUrls = useRef<Map<string, string>>(new Map());
 
@@ -166,28 +161,7 @@ export default function VerificationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scannerTrigger, setScannerTrigger] = useState(0);
 
-  // 页面加载时检查登录状态（通过 JWT Cookie）
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      try {
-        const res = await fetch('/api/auth/me');
-        if (res.ok) {
-          const data = await res.json();
-          const user = data.user as UserSession;
 
-          // 如果是经销商，设置状态但不自动打开面板
-          if (user?.role === "DEALER") {
-            setLoggedInUser(user);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to check login status:", e);
-      }
-      setIsPageLoading(false);
-    };
-
-    checkLoginStatus();
-  }, []);
 
   // 当产生扫描错误时，开启独立生命周期的 3 秒自动回收机制
   useEffect(() => {
@@ -363,32 +337,6 @@ export default function VerificationPage() {
     setScannerReady(false);
     setScanError(null);
     setIsScanning(false);
-  };
-
-  // 检查是否有经销商用户登录，当登录模态框从打开变为关闭时（登陆完成）才打开面板
-  useEffect(() => {
-    // 只在登陆模态框从 true 变为 false 时执行（即刚完成登陆）
-    if (prevShowLoginModalRef.current && !showLoginModal) {
-      fetch('/api/auth/me')
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data?.user?.role === "DEALER") {
-            setLoggedInUser(data.user);
-            setShowDealerModal(true);
-          }
-        })
-        .catch(e => console.error("Failed to check dealer login:", e));
-    }
-    // 更新 ref 值用于下一次比较
-    prevShowLoginModalRef.current = showLoginModal;
-  }, [showLoginModal]);
-
-  const handleDealerLoginClick = () => {
-    if (loggedInUser?.role === "DEALER") {
-      setShowDealerModal(true);
-    } else {
-      setShowLoginModal(true);
-    }
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -1038,26 +986,6 @@ export default function VerificationPage() {
                <Megaphone className="w-3.5 h-3.5" /> 官方维权申诉
             </button>
 
-            {/* 用户区域 */}
-            {loggedInUser ? (
-              <button
-                onClick={handleDealerLoginClick}
-                className="text-slate-600 flex items-center gap-2 whitespace-nowrap cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                <span className="hidden sm:inline max-w-[60px] truncate">{loggedInUser.phone || "已登陆"}</span>
-              </button>
-            ) : (
-              <>
-                {/* <button 
-                  onClick={handleDealerLoginClick} 
-                  className="cursor-pointer hover:text-slate-900 active:text-slate-700 transition-colors whitespace-nowrap"
-                >
-                  经销商登录
-                </button> */}
-              </>
-            )}
-
             {/* 服务条款 */}
             <button 
               onClick={() => setShowLegalModal({ isOpen: true, type: "service" })} 
@@ -1084,31 +1012,9 @@ export default function VerificationPage() {
         }}
       />
       <LegalModal isOpen={showLegalModal.isOpen} type={showLegalModal.type} onClose={() => setShowLegalModal({ ...showLegalModal, isOpen: false })} />
-      <DealerModalPanel 
-        isOpen={showDealerModal} 
-        onClose={() => setShowDealerModal(false)}
-        onOpenResetPassword={() => {
-          setShowDealerModal(false);
-          setShowResetPasswordModal(true);
-        }}
-      />
-      <ResetPasswordModal 
-        isOpen={showResetPasswordModal} 
+      <ResetPasswordModal
+        isOpen={showResetPasswordModal}
         onClose={() => setShowResetPasswordModal(false)}
-        onSuccess={async () => {
-          // 重置密码成功后，如果是经销商，打开经销商面板
-          try {
-            const res = await fetch('/api/auth/me');
-            if (res.ok) {
-              const data = await res.json();
-              if (data.user?.role === 'DEALER') {
-                setShowDealerModal(true);
-              }
-            }
-          } catch (e) {
-            console.error('Failed to check user after reset:', e);
-          }
-        }}
       />
     </main>
   );

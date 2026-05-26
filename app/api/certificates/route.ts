@@ -63,37 +63,6 @@ async function getOrCreateDealer(phone: string, shopName: string, tx: Transactio
   return result[0].id;
 }
 
-// 辅助函数：获取或创建经销商账户
-// 返回 { id, tempPassword }
-async function getOrCreateDealerProfile(phone: string, shopName: string, tx: TransactionSql | typeof sql): Promise<{ id: string; tempPassword: string | null }> {
-  // 先查询已有账户（在事务内保持一致性）
-  const existing = await tx`SELECT id, role FROM profiles WHERE username = ${phone} LIMIT 1`;
-  if (existing.length > 0) {
-    if (existing[0].role !== 'DEALER') {
-      throw new Error(`该手机号已绑定非经销商账户（角色: ${existing[0].role}），无法为其创建/重置经销商账户`);
-    }
-    return { id: existing[0].id, tempPassword: null };
-  }
-
-  // 创建新账户，ON CONFLICT DO NOTHING 防止并发重复插入
-  const tempPassword = crypto.randomBytes(8).toString('hex');
-  const passwordHash = await bcrypt.hash(tempPassword, 12);
-  const profileId = crypto.randomUUID();
-
-  await tx`
-    INSERT INTO profiles (id, username, full_name, phone, password_hash, role, is_first_login)
-    VALUES (${profileId}, ${phone}, ${shopName}, ${phone}, ${passwordHash}, 'DEALER', true)
-    ON CONFLICT (username) DO NOTHING
-  `;
-
-  // 重新查询获取实际 ID（可能由并发请求插入）
-  const created = await tx`SELECT id FROM profiles WHERE username = ${phone} LIMIT 1`;
-  if (!created || created.length === 0) {
-    throw new Error('经销商账户创建失败');
-  }
-  return { id: created[0].id, tempPassword };
-}
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -195,9 +164,6 @@ export async function POST(req: Request) {
         throw new Error('缺少核发数据');
       }
 
-      // 创建或获取经销商账户（已有账户不会重置密码）——与证书操作分离，失败不影响已核发证书
-      const { tempPassword } = await getOrCreateDealerProfile(dealerPhone, dealerShopName, sql);
-
       // 如果是从待审核转为 ISSUED，更新状态
       if (certId) {
         const updateResult = await sql`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
@@ -218,12 +184,7 @@ export async function POST(req: Request) {
         )
       `;
 
-      const responseData: Record<string, unknown> = { success: true, status: 'ISSUED', phone: dealerPhone };
-      if (tempPassword) {
-        responseData.tempPassword = tempPassword;
-        responseData.note = '该经销商账户为新创建，请通过安全渠道告知对方临时密码';
-      }
-      return NextResponse.json(responseData);
+      return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone });
     }
 
     // --- 流程 3: 吊销证书 (管理员行为) ---
@@ -292,16 +253,9 @@ export async function POST(req: Request) {
       const dealerId = result[0].dealer_id;
       const certNumber = result[0].cert_number;
 
-      // 更新经销商资料、经销商账户名和证书在同一事务中
+      // 更新经销商资料和证书在同一事务中
       await sql.begin(async (tx) => {
         await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
-        // 同步更新经销商登录账户的 full_name（如果存在关联账户）
-        await tx`
-          UPDATE profiles
-          SET full_name = ${certData.shopName}, updated_at = NOW()
-          WHERE username = ${certData.phone}
-            AND role = 'DEALER'
-        `;
         await tx`
           UPDATE certificates
           SET auth_scope = ${certData.companyName + ' | ' + certData.scopeText + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},

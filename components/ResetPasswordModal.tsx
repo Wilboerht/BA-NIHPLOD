@@ -45,8 +45,6 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
       .catch(e => console.error('Failed to fetch user:', e));
   }, [isOpen]);
 
-  const isDealer = user?.role === 'DEALER';
-
   const requirements = [
     { label: "至少 8 个字符", met: password.length >= 8 },
     { label: "包含大写字母", met: /[A-Z]/.test(password) },
@@ -62,107 +60,37 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      if (isDealer && user?.id) {
-        // 经销商改密码（需要验证旧密码，除非是首次登录）
-        if (!user.is_first_login && !oldPassword) {
-          setError("请输入当前密码");
-          setIsLoading(false);
-          return;
-        }
-
-        const response = await fetch("/api/auth/change-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            oldPassword: user.is_first_login ? user.phone : oldPassword,
-            newPassword: password
-          })
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || "密码修改失败");
-          setIsLoading(false);
-          return;
-        }
-
-        // 如果是首次登录，标记为已完成首次登录
-        const isFirstLogin = user.is_first_login;
-        if (isFirstLogin) {
-          try {
-            const completeResponse = await fetch("/api/auth/complete-first-login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ oldPassword: oldPassword || user.phone })
-            });
-
-            if (!completeResponse.ok) {
-              console.warn("更新首次登录状态失败，但继续进行");
-            }
-          } catch (err) {
-            console.warn("更新首次登录状态失败：", err);
-          }
-        }
-
-        setIsSuccess(true);
-        // 2秒后自动关闭
-        setTimeout(() => {
-          onSuccess?.();
-          handleClose();
-        }, 2000);
-      } else {
-        // 管理员改密码（通过 API）
-        if (!oldPassword) {
-          setError("请输入当前密码");
-          setIsLoading(false);
-          return;
-        }
-
-        const response = await fetch("/api/auth/change-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user?.id,
-            oldPassword: oldPassword,
-            newPassword: password
-          })
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || "密码修改失败");
-          setIsLoading(false);
-          return;
-        }
-
-        // 如果是首次登录，标记为已完成首次登录
-        const isFirstLogin = user?.is_first_login;
-        if (isFirstLogin) {
-          try {
-            const completeResponse = await fetch("/api/auth/complete-first-login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ oldPassword: oldPassword || user?.phone })
-            });
-
-            if (!completeResponse.ok) {
-              console.warn("更新首次登录状态失败，但继续进行");
-            }
-          } catch (err) {
-            console.warn("更新首次登录状态失败：", err);
-          }
-        }
-
-        setIsSuccess(true);
-        // 2秒后自动关闭
-        setTimeout(() => {
-          onSuccess?.();
-          handleClose();
-        }, 2000);
+      if (!oldPassword) {
+        setError("请输入当前密码");
+        setIsLoading(false);
+        return;
       }
+
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id,
+          oldPassword: oldPassword,
+          newPassword: password
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "密码修改失败");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsSuccess(true);
+      // 2秒后自动关闭
+      setTimeout(() => {
+        onSuccess?.();
+        handleClose();
+      }, 2000);
     } catch (err: unknown) {
       console.error(err);
       setError(err instanceof Error ? err.message : "密码更新失败，请重试");
@@ -232,34 +160,27 @@ export default function ResetPasswordModal({ isOpen, onClose, onSuccess }: Reset
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* 当前密码 - 仅非首次登录时显示 */}
-                    {!isDealer || !user?.is_first_login ? (
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          当前密码
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showOldPassword ? "text" : "password"}
-                            value={oldPassword}
-                            onChange={(e) => setOldPassword(e.target.value)}
-                            placeholder="输入当前密码"
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowOldPassword(!showOldPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                          >
-                            {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        当前密码
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showOldPassword ? "text" : "password"}
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          placeholder="输入当前密码"
+                          className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOldPassword(!showOldPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                       </div>
-                    ) : (
-                      <div className="text-sm text-slate-600 bg-blue-50 p-3 rounded-lg">
-                        首次登录，请设置新密码
-                      </div>
-                    )}
+                    </div>
 
                     {/* 新密码 */}
                     <div>

@@ -10,7 +10,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [, setUser] = useState<UserSession | null>(null);
-  const [, setUserType] = useState<'admin' | 'dealer' | null>(null);
+  const [, setUserType] = useState<'admin' | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   
   // 移动端自动收起侧边栏

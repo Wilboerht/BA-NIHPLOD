@@ -12,8 +12,7 @@ BEGIN
           'SUPER_ADMIN',
           'AUDITOR',
           'MANAGER',
-          'PROJECT_MANAGER',
-          'DEALER'
+          'PROJECT_MANAGER'
         );
     END IF;
 
@@ -47,7 +46,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     full_name TEXT,
     phone TEXT,
     password_hash TEXT,
-    role user_role DEFAULT 'DEALER',
+    role user_role DEFAULT 'MANAGER',
     is_first_login BOOLEAN DEFAULT TRUE,
     is_banned BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -63,7 +62,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_key ON profiles(phone) WHERE ph
 
 CREATE TABLE IF NOT EXISTS dealers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    -- profile_id 已废弃：经销商不再关联登录账户
     company_name TEXT NOT NULL,
     phone TEXT NOT NULL,
     contact_person TEXT,

@@ -19,11 +19,10 @@ export async function GET(req: Request) {
         sql`
           SELECT id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at
           FROM profiles
-          WHERE role != 'DEALER'
           ORDER BY role ASC
           LIMIT ${pageSize} OFFSET ${offset}
         `,
-        sql`SELECT COUNT(*) as count FROM profiles WHERE role != 'DEALER'`,
+        sql`SELECT COUNT(*) as count FROM profiles`,
       ]);
 
       const total = parseInt(String(countRes[0]?.count || 0), 10);

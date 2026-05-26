@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, FileText, ShieldCheck, XCircle, RefreshCw,
-  Building2, Ban, ShieldOff, Loader2, Edit
+  Building2, Edit
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
@@ -20,14 +20,7 @@ interface Dealer {
   email: string;
   created_at: string;
   certificates: { count: number }[];
-  profile?: {
-    id: string;
-    username: string;
-    full_name: string;
-    role: string;
-    is_first_login: boolean;
-  };
-  isBanned?: boolean;
+
 }
 
 interface DealerCertificate {
@@ -72,9 +65,7 @@ export default function DealersPage() {
   const [viewCertData, setViewCertData] = useState<CertData | undefined>(undefined);
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [banningId, setBanningId] = useState<string | null>(null); // 正在执行 API 的 dealer.id
-  const [confirmBanId, setConfirmBanId] = useState<string | null>(null); // 待二次确认的 dealer.id
-  const [prevDealers, setPrevDealers] = useState<Dealer[]>([]); // 用于乐观更新回滚
+
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -83,7 +74,6 @@ export default function DealersPage() {
     setDealerCerts([]);
     setDealerNameMap({});
     setDealerPhoneMap({});
-    setConfirmBanId(null);
   };
 
   const closeViewCert = () => {
@@ -116,23 +106,10 @@ export default function DealersPage() {
       const result = (await response.json()) as { data: Array<{ id: string; company_name: string; phone: string; email: string; created_at: string }> };
       const data = result.data || [];
       
-      // 获取对应的 profiles（按手机号关联）
-      const profilesResp = await fetch('/api/admin/list');
-      const profilesResult = profilesResp.ok ? await profilesResp.json() as { data: Profile[] } : { data: [] };
-      const profiles = profilesResult.data || [];
-      
-      // 构建 profile 映射（按 username/phone 关联）
-      const enriched = data.map((d) => {
-        const profile = profiles.find((p) => p.username === d.phone);
-        return {
-          ...d,
-          profile: profile || undefined,
-          certificates: [{ count: 1 }], // 临时设置，后续从 API 获取
-          isBanned: profile?.is_banned || false,
-        };
-      });
-      
-      setDealers(enriched);
+      setDealers(data.map((d) => ({
+        ...d,
+        certificates: [{ count: 1 }], // 临时设置，后续从 API 获取
+      })));
     } catch (err) {
       console.error('Error fetching dealers:', err);
       setDealers([]);
@@ -146,9 +123,7 @@ export default function DealersPage() {
     fetchData();
   }, [fetchUserRole, fetchData]);
 
-  useEffect(() => {
-    setConfirmBanId(null);
-  }, [debouncedSearch]);
+
 
   const filteredDealers = dealers.filter(d =>
     d.company_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -228,47 +203,6 @@ export default function DealersPage() {
     }
   };
 
-  // 第一次点击：进入待确认状态
-  const triggerBanConfirm = (dealerGroup: DealerGroup) => {
-    if (!dealerGroup.profile?.id) return;
-    setConfirmBanId(prev => prev === dealerGroup.phone ? null : dealerGroup.phone);
-  };
-
-  // 第二次点击：执行封禁/解封 (应用于该 phone 的所有 dealer)
-  const executeBan = async (dealerGroup: DealerGroup) => {
-    if (!dealerGroup.profile?.id) return;
-    const action = dealerGroup.isBanned ? "unban" : "ban";
-    setConfirmBanId(null);
-    setBanningId(dealerGroup.phone);
-    setPrevDealers(dealers); // 保存旧状态用于回滚
-    try {
-      const res = await fetch('/api/admin/ban-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profileId: dealerGroup.profile.id,
-          action
-        }),
-      });
-
-      if (!res.ok) {
-        const result = await res.json();
-        throw new Error(result.error || '操作失败');
-      }
-
-      // 乐观更新本地状态：该 phone 下的所有 dealer 都更新
-      setDealers(prev => prev.map(d =>
-        dealerGroup.allDealerIds.includes(d.id) ? { ...d, isBanned: action === 'ban' } : d
-      ));
-      toast({ message: action === 'ban' ? '账号已封禁' : '账号已解封', type: 'success' });
-    } catch (err: unknown) {
-      toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
-      setDealers(prevDealers); // 回滚到旧状态
-    } finally {
-      setBanningId(null);
-    }
-  };
-
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
@@ -319,10 +253,10 @@ export default function DealersPage() {
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
               {!isLoading && groupedByPhone().map((dealerGroup) => (
-                <tr key={dealerGroup.phone} className={`hover:bg-slate-50/50 transition-colors group ${dealerGroup.isBanned ? 'bg-rose-50/30' : ''}`}>
+                <tr key={dealerGroup.phone} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4 mr-10">
                     <div className="flex flex-col">
-                      <div className={`space-y-0.5 ${dealerGroup.isBanned ? 'text-slate-400 line-through decoration-rose-300' : 'text-slate-900'}`}>
+                      <div className="space-y-0.5 text-slate-900">
                         {dealerGroup.allNames.map((name) => (
                           <div key={name} className="text-[12px]">{name}</div>
                         ))}
@@ -335,16 +269,9 @@ export default function DealersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-[13px] text-slate-600 font-mono uppercase">
-                        {dealerGroup.phone || "-"}
-                      </span>
-                      {dealerGroup.profile?.is_first_login && (
-                        <span className="text-[10px] text-amber-500 font-bold uppercase tracking-tighter">
-                          未修改初始密码
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-[13px] text-slate-600 font-mono uppercase">
+                      {dealerGroup.phone || "-"}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
@@ -355,55 +282,14 @@ export default function DealersPage() {
                     {new Date(dealerGroup.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {dealerGroup.profile?.id && (
-                        <>
-                          {confirmBanId === dealerGroup.phone ? (
-                            <button
-                              onClick={() => executeBan(dealerGroup)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-[0.1em] border transition-all active:scale-95 ${
-                                dealerGroup.isBanned
-                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                                  : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                              }`}
-                            >
-                              {banningId === dealerGroup.phone ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : dealerGroup.isBanned ? (
-                                <ShieldCheck className="w-3.5 h-3.5" />
-                              ) : (
-                                <Ban className="w-3.5 h-3.5" />
-                              )}
-                              {dealerGroup.isBanned ? '确认解封' : '确认封禁'}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => triggerBanConfirm(dealerGroup)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-[0.1em] border transition-all active:scale-95 ${
-                                dealerGroup.isBanned
-                                  ? 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'
-                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
-                              }`}
-                              title={dealerGroup.isBanned ? '解封账号' : '封禁账号'}
-                            >
-                              {dealerGroup.isBanned ? (
-                                <><ShieldOff className="w-3.5 h-3.5" /> 已封禁</>
-                              ) : (
-                                <><Ban className="w-3.5 h-3.5" /> 封禁</>
-                              )}
-                            </button>
-                          )}
-                        </>
-                      )}
-                      <button
-                        onClick={() => fetchDealerCerts(dealerGroup)}
-                        title="查看名下证书"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
-                      >
-                        <FileText className="w-3.5 h-3.5 opacity-60" />
-                        查看证书
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => fetchDealerCerts(dealerGroup)}
+                      title="查看名下证书"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
+                    >
+                      <FileText className="w-3.5 h-3.5 opacity-60" />
+                      查看证书
+                    </button>
                   </td>
                 </tr>
               ))}

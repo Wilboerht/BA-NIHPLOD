@@ -19,7 +19,6 @@ enum UserRole {
   AUDITOR
   MANAGER
   PROJECT_MANAGER
-  DEALER
 }
 
 enum CertificateStatus {
@@ -47,14 +46,13 @@ model Profile {
   full_name     String?
   phone         String?  @unique
   password_hash String?
-  role          UserRole @default(DEALER)
+  role          UserRole @default(MANAGER)
   is_first_login Boolean @default(true)
   is_banned     Boolean  @default(false)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   // 关系
-  dealers       Dealer[]
   audit_logs    AuditLog[]
   complaints    Complaint[]
   audited_certs Certificate[] @relation("audited")
@@ -69,7 +67,6 @@ model Profile {
 
 model Dealer {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profile_id     String?  @db.Uuid
   company_name   String
   phone          String
   contact_person String?
@@ -78,13 +75,11 @@ model Dealer {
   created_at     DateTime @default(now()) @db.Timestamptz(6)
 
   // 关系
-  profile     Profile?     @relation(fields: [profile_id], references: [id])
   certificates Certificate[]
 
   @@map("dealers")
   @@unique([phone, company_name])
   @@index([phone])
-  @@index([profile_id])
 }
 
 // ============================================================================
