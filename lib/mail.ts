@@ -54,6 +54,7 @@ export function sendPendingCertNotification(params: {
 }): void {
   const { adminEmails, shopName, certNumber, auditorName, duration, baseUrl } = params;
   if (adminEmails.length === 0) return;
+  console.log('[Mail] 准备发送待审核通知给:', adminEmails.join(', '));
   const dashboardUrl = `${baseUrl}/workbench/certificates`;
 
   const text = `有新的授权资质申请待审核
