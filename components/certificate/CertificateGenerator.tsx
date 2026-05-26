@@ -293,7 +293,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
     currentY += companyLineH;
 
-    currentY += 16 * scale;
+    currentY += 15 * scale;
 
     // 授权业务范围
     offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
