@@ -332,9 +332,9 @@ export default function CertificatesPage() {
                               setIsEditMode(true);
                               setShowIssueModal(true);
                             }}
-                            className="bg-slate-900 text-white h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all hover:bg-black active:scale-95 tracking-wide leading-none"
+                            className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <ShieldCheck className="w-3 h-3" />
                             核查准入
                           </button>
                         )}
