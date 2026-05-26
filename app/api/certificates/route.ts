@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       // 异步通知管理员（不阻塞响应）
       (async () => {
         try {
-          const admins = await sql`SELECT email, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND email IS NOT NULL`;
+          const admins = await sql`SELECT COALESCE(email, username) as email, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND (email IS NOT NULL OR username IS NOT NULL)`;
           if (admins.length > 0) {
             const auditorResult = await sql`SELECT full_name FROM profiles WHERE id = ${managerId} LIMIT 1`;
             const auditorName = ((auditorResult[0] as unknown) as { full_name?: string })?.full_name || '审核员';

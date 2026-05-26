@@ -75,5 +75,7 @@ ${dashboardUrl}
     to: adminEmails,
     subject: `【待审核】${shopName} 提交了授权资质申请`,
     text,
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[Mail] 通知发送失败:', err);
+  });
 }

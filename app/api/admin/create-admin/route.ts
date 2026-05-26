@@ -62,8 +62,8 @@ export async function POST(req: Request) {
 
     try {
       await sql`
-        INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
-        VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${passwordHash}, ${role}, false)
+        INSERT INTO profiles (username, full_name, email, password_hash, role, is_first_login)
+        VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${email.trim().toLowerCase()}, ${passwordHash}, ${role}, false)
         RETURNING id
       `;
       return NextResponse.json({ success: true, email });
