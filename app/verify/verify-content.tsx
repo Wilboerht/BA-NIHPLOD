@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Loader2, Home, Calendar, User } from "lucide-react";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
 import { BRAND_NAME, BRAND_NAME_CN } from "@/lib/config";
@@ -21,7 +22,7 @@ interface Certificate {
 export default function VerifyPageContent() {
   const searchParams = useSearchParams();
   const certId = searchParams.get("cert");
-  
+
   const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [isExpired, setIsExpired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,8 +33,6 @@ export default function VerifyPageContent() {
     if (!certNum) return false;
     return /^BAVP-\d{4}-[0-9A-F]{4}$/i.test(certNum);
   };
-
-
 
   useEffect(() => {
     if (!isValidCertNumber(certId)) {
@@ -81,132 +80,156 @@ export default function VerifyPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-slate-600 font-medium">正在验证证书...</p>
-        </div>
+      <div className="min-h-screen bg-[#FAFAFA] relative overflow-hidden flex items-center justify-center px-4">
+        {/* 矿物纹理叠加 */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0"
+             style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 w-full max-w-md bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] shadow-2xl p-10 text-center"
+        >
+          <Loader2 className="w-10 h-10 animate-spin text-[#8B7355] mx-auto mb-4" />
+          <p className="text-[#2C2A29] font-semibold tracking-wide">正在验证证书...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* 返回主页按钮 */}
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-8 transition-colors">
-          <Home className="w-4 h-4" />
-          <span className="text-sm font-medium">返回主页</span>
+    <div className="min-h-screen bg-[#FAFAFA] relative overflow-hidden flex flex-col items-center px-4 py-8 md:py-12">
+      {/* 矿物纹理叠加 */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0"
+           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} />
+
+      {/* 顶部导航 */}
+      <nav className="w-full max-w-2xl flex justify-between items-center z-20 mb-8 md:mb-10">
+        <div className="flex items-center gap-3">
+          <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-6 w-auto" />
+          <div className="w-px h-4 bg-slate-300/60" />
+          <span className="text-xs font-medium tracking-[0.15em] uppercase text-[#2C2A29]">授权核验中心</span>
+        </div>
+        <Link
+          href="/"
+          className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355] hover:text-[#6B5346] transition-all"
+        >
+          <Home className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+          <span>返回主页</span>
         </Link>
+      </nav>
 
-        {/* 验证结果卡片 */}
+      {/* 主内容 */}
+      <div className="w-full max-w-2xl relative z-10">
         {error ? (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-red-500 to-red-600 p-8 text-white text-center">
-              <XCircle className="w-20 h-20 mx-auto mb-4 opacity-90" />
-              <h1 className="text-3xl font-bold mb-3">验证失败</h1>
-              <p className="text-red-50 text-lg">{error}</p>
-            </div>
-            <div className="p-8 text-center">
-              <p className="text-slate-600 mb-6">
-                如果您认为这是一个错误，请联系我们的客服：
-              </p>
-              <a href="tel:+8621123456" className="text-blue-600 hover:text-blue-700 font-medium">
-                +86 21 1234 5678
-              </a>
-            </div>
-          </div>
-        ) : certificate ? (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-            {/* 验证通过头部 */}
-            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-8 text-white text-center">
-              <CheckCircle2 className="w-20 h-20 mx-auto mb-4 opacity-90" />
-              <h1 className="text-3xl font-bold mb-2">✓ 证书真实有效</h1>
-              <p className="text-emerald-50 text-lg">{BRAND_NAME}({BRAND_NAME_CN}) 官方认证</p>
-            </div>
-
-            {/* 证书信息 */}
-            <div className="p-8 space-y-6">
-              {/* 证书号 */}
-              <div className="border-b border-slate-200 pb-6">
-                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">证书编号</h2>
-                <p className="text-2xl font-bold text-slate-900 font-mono">{certificate.cert_number}</p>
-              </div>
-
-              {/* 经销商信息 */}
-              <div>
-                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">经销商信息</h2>
-                <div className="space-y-3 bg-slate-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <User className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="text-xs text-slate-500">经销商名称</p>
-                      <p className="text-slate-900 font-semibold">{certificate.dealers?.company_name || certificate.company_name}</p>
-                    </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] shadow-2xl overflow-hidden"
+          >
+            <div className="p-6 md:p-10">
+              <div className="flex flex-col items-center text-center gap-6">
+                <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-8 w-auto mb-2" />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-red-600 text-[10px] font-bold tracking-[0.15em] bg-red-50 px-3 py-1.5 rounded-full border border-red-200 w-fit mx-auto">
+                    <XCircle className="w-3.5 h-3.5" /> 验证失败
                   </div>
-
+                  <p className="text-lg md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug">
+                    {error}
+                  </p>
+                  <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-md mx-auto">
+                    请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
+                    为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
+                  </p>
                 </div>
               </div>
-
-              {/* 授权范围 */}
-              <div>
-                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">授权范围</h2>
-                <p className="text-slate-700 whitespace-pre-wrap bg-slate-50 p-4 rounded-lg leading-relaxed">
-                  {parseAuthScope(certificate.auth_scope).scopeText || certificate.auth_scope}
-                </p>
+            </div>
+          </motion.div>
+        ) : certificate ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] shadow-2xl overflow-hidden"
+          >
+            {/* 上半部分：核心信息 */}
+            <div className="p-6 md:p-10 space-y-6 md:space-y-8">
+              <div className="flex items-center gap-2 text-[#8B7355] text-[10px] font-bold tracking-[0.15em] bg-[#8B7355]/5 px-3 py-1.5 rounded-full border border-[#8B7355]/20 w-fit shadow-sm shadow-[#8B7355]/5">
+                <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> 官方授权企业资质认证
               </div>
 
-              {/* 有效期 */}
               <div>
-                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">有效期</h2>
-                <div className="flex items-center gap-2 text-slate-900 font-semibold">
-                  <Calendar className="w-5 h-5 text-slate-400" />
-                  <span>
+                <h2 className="text-2xl md:text-[30px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">
+                  {certificate.dealers?.company_name || certificate.company_name}
+                </h2>
+                <div className="flex items-center gap-3 mt-4">
+                  <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
+                  <p className="text-[#8B7355] text-[11px] md:text-[13px] font-bold tracking-widest font-mono pt-[1px]">
+                    {certificate.cert_number}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 票据风格下半部分 */}
+            <div className="relative flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 px-6 md:px-10 pb-8 md:pb-10 rounded-b-[24px]">
+              <div className="space-y-3 md:space-y-4 relative z-10">
+                <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">
                     {new Date(certificate.start_date).toLocaleDateString("zh-CN")} 至{" "}
                     {new Date(certificate.end_date).toLocaleDateString("zh-CN")}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-2">
+                  </p>
                   {isExpired ? (
-                    <span className="text-red-600 font-semibold">⚠ 已过期</span>
+                    <span className="text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap bg-red-50 text-red-600 border-red-200">
+                      已过期
+                    </span>
                   ) : (
-                    <span className="text-emerald-600 font-semibold">
-                      ✓ 有效期内 (剩余{" "}
+                    <span className="text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap bg-emerald-50 text-emerald-600 border-emerald-200">
+                      有效期内 (剩余{" "}
                       {Math.ceil(
                         (new Date(certificate.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
                       )}{" "}
                       天)
                     </span>
                   )}
+                </div>
+              </div>
+
+              <div className="space-y-3 md:space-y-4 relative z-10">
+                <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
+                <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium opacity-80 whitespace-pre-wrap break-words">
+                  {parseAuthScope(certificate.auth_scope).scopeText || certificate.auth_scope}
                 </p>
               </div>
 
-              {/* 下载证书 - 已禁用（仅内部使用） */}
-              {/* 公众验证页面不提供下载功能，防止伪造 */}
-
               {/* 验证时间 */}
-              <div className="text-center pt-6 border-t border-slate-200">
-                <p className="text-xs text-slate-500">
+              <div className="text-center pt-2 relative z-10">
+                <p className="text-[10px] text-[#8B7355]/60 tracking-widest">
                   验证时间：{new Date().toLocaleString("zh-CN")}
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
         ) : null}
 
         {/* 底部说明 */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-          <p className="font-semibold mb-2">💡 验证说明</p>
-          <ul className="list-disc list-inside space-y-1 text-blue-800">
-            <li>此证书由 {BRAND_NAME}({BRAND_NAME_CN}) 官方签发</li>
-            <li>如发现侵权冒充，请立即
-              <Link href="/" className="text-blue-600 hover:underline ml-1">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-8 bg-[#8B7355]/5 border border-[#8B7355]/15 rounded-2xl p-5 md:p-6"
+        >
+          <p className="text-[13px] font-bold text-[#8B7355] mb-2 tracking-wide">验证说明</p>
+          <ul className="list-disc list-inside space-y-1 text-[#8B7355]/80 text-[13px] leading-relaxed">
+            <li>此证书由 {BRAND_NAME}（{BRAND_NAME_CN}）官方签发</li>
+            <li>
+              如发现侵权冒充，请立即
+              <Link href="/" className="text-[#8B7355] hover:text-[#6B5346] hover:underline ml-1 font-semibold transition-colors">
                 提交举报
               </Link>
             </li>
             <li>验证结果实时更新，最后的书面证明以官方文件为准</li>
           </ul>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
