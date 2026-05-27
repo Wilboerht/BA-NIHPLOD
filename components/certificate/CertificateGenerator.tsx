@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Download, CheckCircle2, XCircle, X, ZoomIn, ZoomOut, File, FileImage } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
@@ -554,20 +554,17 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     setShowFullPreview(true);
   };
 
-  const handleIssueSubmit = async () => {
-    if (!data.shopName.trim()) {
-      toast({ message: "请填写必填字段：店铺或平台名称", type: "warning" });
-      return;
-    }
-    if (!data.duration || !data.duration.includes(' - ')) {
-      toast({ message: "请填写完整的有效期", type: "warning" });
-      return;
-    }
+  const canSubmit = useMemo(() => {
+    if (mode === 'view') return false;
+    const hasShopName = !!data.shopName.trim();
+    const hasDuration = !!data.duration && data.duration.includes(' - ');
     const selectedChannels = getChannelsFromScopeText(data.scopeText);
-    if (selectedChannels.length === 0) {
-      toast({ message: "请至少选择一个授权业务范围", type: "warning" });
-      return;
-    }
+    const hasChannels = selectedChannels.length > 0;
+    return hasShopName && hasDuration && hasChannels;
+  }, [data.shopName, data.duration, data.scopeText, mode]);
+
+  const handleIssueSubmit = async () => {
+    if (!canSubmit) return;
     setIsSubmitting(true);
     try {
       const meRes = await fetchWithTimeout('/api/auth/me');
@@ -908,7 +905,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               )}
               <button
                 onClick={handleIssueSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !canSubmit}
                 className="h-10 px-6 bg-slate-900 text-white rounded-lg text-[13px] font-semibold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
