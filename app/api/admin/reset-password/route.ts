@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     const result = await sql`
       UPDATE profiles 
       SET password_hash = ${passwordHash}, updated_at = NOW()
-      WHERE id = ${userId}
+      WHERE id = ${userId} AND deleted_at IS NULL
       RETURNING id, username, full_name
     `;
     if (!result || result.length === 0) {

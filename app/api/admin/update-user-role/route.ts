@@ -60,7 +60,7 @@ export async function PUT(req: Request) {
       const updateResult = await sql`
         UPDATE profiles 
         SET role = ${newRole}, updated_at = NOW()
-        WHERE id = ${userId}
+        WHERE id = ${userId} AND deleted_at IS NULL
         RETURNING id
       `;
       if (!updateResult || updateResult.length === 0) {

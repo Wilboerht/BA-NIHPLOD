@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     // 验证旧密码
     try {
-      const result = await sql`SELECT password_hash FROM profiles WHERE id = ${user!.id} LIMIT 1`;
+      const result = await sql`SELECT password_hash FROM profiles WHERE id = ${user!.id} AND deleted_at IS NULL LIMIT 1`;
       if (!result || result.length === 0) {
         return NextResponse.json({ error: '用户不存在' }, { status: 404 });
       }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       }
 
       // 更新用户的 is_first_login 标记为 false
-      await sql`UPDATE profiles SET is_first_login = false WHERE id = ${user!.id}`;
+      await sql`UPDATE profiles SET is_first_login = false WHERE id = ${user!.id} AND deleted_at IS NULL`;
       return NextResponse.json({
         success: true,
         message: "首次登录状态已更新"

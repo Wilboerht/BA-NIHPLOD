@@ -129,18 +129,19 @@ export async function requireAuth(request: NextRequest | Request) {
     };
   }
 
-  // 查询数据库确认用户存在且未被禁用
+  // 查询数据库确认用户存在、未被删除且未被禁用
   try {
     const rows = await sql`
       SELECT id, username, full_name, phone, role, is_banned
       FROM profiles
       WHERE id = ${payload.id}
+        AND deleted_at IS NULL
       LIMIT 1
     `;
     if (rows.length === 0) {
       return {
         user: null,
-        response: NextResponse.json({ error: '用户不存在' }, { status: 401 }),
+        response: NextResponse.json({ error: '用户不存在或已被删除' }, { status: 401 }),
       };
     }
     const profile = rows[0];

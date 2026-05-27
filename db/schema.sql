@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- 部分唯一索引：只对非 NULL 的 phone 强制唯一性（允许多个 NULL）
 CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_key ON profiles(phone) WHERE phone IS NOT NULL;
 
+-- 2026-05-26: profiles 表添加 email 字段，用于邮件提醒
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- 为已删除用户过滤创建索引
+CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON profiles(deleted_at) WHERE deleted_at IS NULL;
+
 -- ============================================================================
 -- 3. 经销商表（支持一个 phone 对应多个主体名称）
 -- ============================================================================
@@ -241,6 +248,7 @@ CREATE POLICY "Admins can view all profiles" ON profiles
         SELECT 1 FROM profiles p
         WHERE p.id = auth.uid()
           AND p.role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND p.deleted_at IS NULL
       )
     );
 
@@ -259,6 +267,7 @@ CREATE POLICY "Only admins can manage dealers" ON dealers
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
@@ -268,6 +277,7 @@ CREATE POLICY "Only admins can update dealers" ON dealers
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
@@ -285,6 +295,7 @@ CREATE POLICY "Admins can manage all certificates" ON certificates
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
@@ -298,6 +309,7 @@ CREATE POLICY "Only super admins can manage templates" ON templates
     FOR INSERT WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'SUPER_ADMIN'
+          AND deleted_at IS NULL
       )
     );
 
@@ -306,6 +318,7 @@ CREATE POLICY "Only super admins can update templates" ON templates
     FOR UPDATE USING (
       EXISTS (
         SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'SUPER_ADMIN'
+          AND deleted_at IS NULL
       )
     );
 
@@ -316,6 +329,7 @@ CREATE POLICY "Only admins can view audit logs" ON audit_logs
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
@@ -325,6 +339,7 @@ CREATE POLICY "Only admins can create audit logs" ON audit_logs
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
@@ -339,6 +354,7 @@ CREATE POLICY "Admins can manage complaints" ON complaints
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
@@ -350,15 +366,17 @@ CREATE POLICY "Service role can manage rate limits" ON action_rate_limits
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     )
     WITH CHECK (
       EXISTS (
         SELECT 1 FROM profiles
         WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'AUDITOR')
+          AND deleted_at IS NULL
       )
     );
 
 -- 2026-05-26: profiles 表添加 email 字段，用于邮件提醒
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+-- 注意：email 和 deleted_at 的 ALTER TABLE 已移至 profiles 表创建后
 

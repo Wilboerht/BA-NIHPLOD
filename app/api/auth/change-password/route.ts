@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     try {
       // 1. 查询现有密码
       const result = await sql`
-        SELECT password_hash FROM profiles WHERE id = ${userId} LIMIT 1
+        SELECT password_hash FROM profiles WHERE id = ${userId} AND deleted_at IS NULL LIMIT 1
       `;
 
       if (!result || result.length === 0) {
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         SET password_hash = ${newPasswordHash},
             is_first_login = false,
             updated_at = NOW()
-        WHERE id = ${userId}
+        WHERE id = ${userId} AND deleted_at IS NULL
       `;
 
       console.log('[change-password] 密码已修改');

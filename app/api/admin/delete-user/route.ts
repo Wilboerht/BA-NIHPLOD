@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { sql, getProfileById } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
 /**
  * POST /api/admin/delete-user
- * 安全地删除用户，先处理所有外键关系
+ * 软删除用户：保留关联记录中的名字，标记删除时间
  * Body: { userId: string }
  */
 export async function POST(req: Request) {
@@ -32,34 +32,37 @@ export async function POST(req: Request) {
       );
     }
 
-    // 查询目标用户角色
-    const { data: targetProfile } = await getProfileById(userId);
-    if (targetProfile?.role === 'SUPER_ADMIN') {
+    // 获取要删除的用户信息
+    const userResult = await sql`SELECT * FROM profiles WHERE id = ${userId} AND deleted_at IS NULL LIMIT 1`;
+    if (!userResult || userResult.length === 0) {
+      return NextResponse.json({ error: "用户不存在或已被移除" }, { status: 404 });
+    }
+    const userToDelete = userResult[0];
+
+    // 不能删除超级管理员
+    if (userToDelete.role === 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: '不能删除超级管理员账号' },
         { status: 403 }
       );
     }
 
-    // 获取要删除的用户信息
-    const userResult = await sql`SELECT * FROM profiles WHERE id = ${userId} LIMIT 1`;
-    if (!userResult || userResult.length === 0) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+    // 软删除用户：保留关联记录中的名字，仅标记删除时间
+    const updateResult = await sql`
+      UPDATE profiles
+      SET deleted_at = NOW(),
+          username = ${userToDelete.username + '.deleted.' + Date.now()},
+          phone = ${userToDelete.phone ? userToDelete.phone + '.deleted.' + Date.now() : null}
+      WHERE id = ${userId} AND deleted_at IS NULL
+      RETURNING id
+    `;
+    if (!updateResult || updateResult.length === 0) {
+      return NextResponse.json({ error: "用户不存在或已被移除" }, { status: 404 });
     }
-    const userToDelete = userResult[0];
-
-    // 处理外键关系并删除用户（在同一事务中）
-    await sql.begin(async (tx) => {
-      await tx`UPDATE certificates SET auditor_id = NULL WHERE auditor_id = ${userId}`;
-      await tx`UPDATE certificates SET manager_id = NULL WHERE manager_id = ${userId}`;
-      await tx`UPDATE audit_logs SET actor_id = NULL WHERE actor_id = ${userId}`;
-      await tx`UPDATE complaints SET handler_id = NULL WHERE handler_id = ${userId}`;
-      await tx`DELETE FROM profiles WHERE id = ${userId}`;
-    });
 
     return NextResponse.json({
       success: true,
-      message: `用户 "${userToDelete.full_name}" 已被成功删除`,
+      message: `用户 "${userToDelete.full_name}" 已被成功移除`,
       deletedUser: {
         id: userToDelete.id,
         username: userToDelete.username,

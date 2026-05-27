@@ -83,7 +83,7 @@ async function createOrUpdateAdmin(admin, password) {
   try {
     // 检查用户是否存在
     const existing = await sql`
-      SELECT id FROM profiles WHERE username = ${username} LIMIT 1
+      SELECT id FROM profiles WHERE username = ${username} AND deleted_at IS NULL LIMIT 1
     `;
 
     if (existing.length > 0) {
@@ -94,7 +94,7 @@ async function createOrUpdateAdmin(admin, password) {
             full_name = ${fullName},
             role = ${role},
             is_first_login = false
-        WHERE username = ${username}
+        WHERE username = ${username} AND deleted_at IS NULL
       `;
       console.log(`✅ 更新: ${fullName} (${username}) - Role: ${role}`);
     } else {

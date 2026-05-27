@@ -64,9 +64,10 @@ export async function findProfileForLogin(identifier: string): Promise<{ data: S
   const result = await sql`
     SELECT id, username, full_name, phone, password_hash, role, is_banned, is_first_login
     FROM profiles
-    WHERE phone = ${identifier}
+    WHERE deleted_at IS NULL
+      AND (phone = ${identifier}
        OR username = ${identifier}
-       OR username = ${identifier.toLowerCase()}
+       OR username = ${identifier.toLowerCase()})
     LIMIT 1
   `;
   return { data: result[0] || null, error: null };
@@ -78,7 +79,7 @@ export async function findProfileForLogin(identifier: string): Promise<{ data: S
 export async function getProfileById(id: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
     SELECT id, username, full_name, phone, role, is_banned, is_first_login, created_at, updated_at
-    FROM profiles WHERE id = ${id} LIMIT 1
+    FROM profiles WHERE id = ${id} AND deleted_at IS NULL LIMIT 1
   `;
   return { data: result[0] || null, error: null };
 }

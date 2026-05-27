@@ -39,17 +39,18 @@ enum ComplaintStatus {
 // ============================================================================
 
 model Profile {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  username      String?  @unique
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username      String?   @unique
   full_name     String?
-  phone         String?  @unique
+  phone         String?   @unique
   email         String?
   password_hash String?
-  role          UserRole @default(AUDITOR)
-  is_first_login Boolean @default(true)
-  is_banned     Boolean  @default(false)
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  role          UserRole  @default(AUDITOR)
+  is_first_login Boolean  @default(true)
+  is_banned     Boolean   @default(false)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   // 关系
   audit_logs    AuditLog[]

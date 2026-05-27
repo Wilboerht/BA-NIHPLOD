@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     // 执行封禁/解封操作
     try {
       const isBanned = action === "ban";
-      await sql`UPDATE profiles SET is_banned = ${isBanned} WHERE id = ${profileId}`;
+      await sql`UPDATE profiles SET is_banned = ${isBanned} WHERE id = ${profileId} AND deleted_at IS NULL`;
       console.log(`[ban-user] ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
       return NextResponse.json({
         success: true,
