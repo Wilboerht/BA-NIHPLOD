@@ -115,7 +115,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const lines = text.split('\n');
     if (lines.length >= 2) {
       const items = lines[1].split(/\s*\|\s*/).filter(Boolean);
-      return CHANNELS.filter(ch => items.includes(ch));
+      const presetSet = new Set(CHANNELS);
+      const result = CHANNELS.filter(ch => items.includes(ch));
+      // 若存在非预设渠道内容，视为"其他"被选中
+      if (items.some(item => !presetSet.has(item)) && !result.includes('其他')) {
+        result.push('其他');
+      }
+      return result;
     }
     return [];
   };
