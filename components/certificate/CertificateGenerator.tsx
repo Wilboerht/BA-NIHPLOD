@@ -98,7 +98,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   useEffect(() => {
     if (initialData) {
-      setData({ ...initialData, authorizer: COMPANY_FULL_NAME });
+      setData({ ...initialData, authorizer: initialData.authorizer || COMPANY_FULL_NAME });
       if (mode === 'view' || mode === 'edit') {
         setIsIssued(!isPending);
         setIsVoided(initialVoided);
