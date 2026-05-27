@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight, Filter, Trash2 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -160,6 +160,27 @@ export default function CertificatesPage() {
       fetchCertificates();
     } catch (err: unknown) {
       toast({ message: "打回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    }
+  };
+
+  const deleteCertificate = async (id: string) => {
+    const ok = await confirm({ message: "确定要彻底删除此证书记录吗？\n\n此操作不可恢复，关联的审计日志也将一并清除。" });
+    if (!ok) return;
+
+    try {
+      const response = await fetchWithTimeout('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_certificate', certId: id })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      toast({ message: result.message || "证书记录已彻底删除", type: "success" });
+      fetchCertificates();
+    } catch (err: unknown) {
+      toast({ message: "删除失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     }
   };
 
@@ -438,13 +459,13 @@ export default function CertificatesPage() {
                           </button>
                         )}
                         {(cert.status === 'EXPIRED' || cert.status === 'REVOKED') && (
-                          <button 
+                          <button
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
                               setSelectedCertData({
                                 cert_number: cert.cert_number,
                                 companyName: parsed.companyName,
-                                companyLabel: "公司名称", 
+                                companyLabel: "公司名称",
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺或平台名称",
                                 scopeText: parsed.scopeText || "品牌官方经销授权",
@@ -462,6 +483,15 @@ export default function CertificatesPage() {
                           >
                             <FileImage className="w-3.5 h-3.5 opacity-70" />
                             调阅档案
+                          </button>
+                        )}
+                        {(cert.status === 'EXPIRED' || cert.status === 'REVOKED' || cert.status === 'REJECTED') && userRole === 'SUPER_ADMIN' && (
+                          <button
+                            onClick={() => deleteCertificate(cert.id)}
+                            className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
+                            title="彻底删除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {cert.status === 'ISSUED' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') && (

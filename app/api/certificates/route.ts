@@ -271,6 +271,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
+    // --- 流程 6: 彻底删除无效证书 (仅 SUPER_ADMIN，不留记录) ---
+    if (action === 'delete_certificate') {
+      if (!certId) throw new Error('缺少证书 ID');
+
+      // 仅 SUPER_ADMIN 可删除
+      if (adminUser!.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: '无权限执行此操作，仅超级管理员可彻底删除证书记录' }, { status: 403 });
+      }
+
+      // 只能删除无效状态的证书；RETURNING 用于确认确实删到了记录
+      const result = await sql`
+        DELETE FROM certificates
+        WHERE id = ${certId}
+          AND status IN ('EXPIRED', 'REVOKED', 'REJECTED')
+        RETURNING cert_number
+      `;
+
+      if (!result || result.length === 0) {
+        return NextResponse.json({ error: '删除失败：只能彻底删除已失效、已吊销或已拒绝的证书，且记录必须存在' }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: `证书 ${result[0].cert_number} 已彻底删除` });
+    }
+
     // --- 流程 5: 更新证书信息 (管理员修正笔误等) ---
     if (action === 'update_certificate') {
       if (!certId) throw new Error('缺少证书 ID');
