@@ -374,7 +374,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       }
 
       // 渠道列表行与下一段之间增加段间距
-      if ((trimmed.match(/\|/g) || []).length >= 2) {
+      if ((trimmed.match(/\|/g) || []).length >= 1) {
         currentY += 22 * scale;
       }
     });
