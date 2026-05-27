@@ -310,7 +310,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     offCtx.fillStyle = textPrimary;
     const scopeLines = (data.scopeText || "").split('\n');
 
-    scopeLines.forEach((line) => {
+    scopeLines.forEach((line, lineIndex) => {
       const trimmed = line.trim();
       if (!trimmed) {
         currentY += 22 * scale;
@@ -373,8 +373,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         }
       }
 
-      // 渠道列表行与下一段之间增加段间距
-      if ((trimmed.match(/\|/g) || []).length >= 1) {
+      // 渠道列表行与下一段之间增加段间距（渠道固定在第2行，index === 1）
+      if (lineIndex === 1) {
         currentY += 22 * scale;
       }
     });
