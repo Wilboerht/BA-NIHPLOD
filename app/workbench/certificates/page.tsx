@@ -43,6 +43,24 @@ export default function CertificatesPage() {
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<'ISSUED' | 'PENDING' | 'invalid'>('ISSUED');
 
+  // 审核员不显示待审核选项
+  const auditorFilterItems = [
+    { key: 'ISSUED' as const, label: '生效中', desc: '生效中' },
+    { key: 'invalid' as const, label: '无效', desc: '已失效、已吊销、已拒绝' },
+  ];
+  const adminFilterItems = [
+    { key: 'ISSUED' as const, label: '生效中', desc: '生效中' },
+    { key: 'PENDING' as const, label: '待审核', desc: '待审核' },
+    { key: 'invalid' as const, label: '无效', desc: '已失效、已吊销、已拒绝' },
+  ];
+  const filterItems = userRole === 'AUDITOR' ? auditorFilterItems : adminFilterItems;
+
+  useEffect(() => {
+    if (userRole === 'AUDITOR' && statusFilter === 'PENDING') {
+      setStatusFilter('ISSUED');
+    }
+  }, [userRole, statusFilter]);
+
   const closeIssueModal = () => {
     setShowIssueModal(false);
     setSelectedCertData(undefined);
@@ -207,11 +225,7 @@ export default function CertificatesPage() {
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <Filter className="w-3.5 h-3.5 text-slate-400 mr-1" />
-            {([
-              { key: 'ISSUED', label: '生效中', desc: '生效中' },
-              { key: 'PENDING', label: '待审核', desc: '待审核' },
-              { key: 'invalid', label: '无效', desc: '已失效、已吊销、已拒绝' },
-            ] as const).map((item) => (
+            {filterItems.map((item) => (
               <button
                 key={item.key}
                 onClick={() => setStatusFilter(item.key)}
