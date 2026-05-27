@@ -21,6 +21,7 @@ interface Certificate {
   seal_url?: string;
   templates?: { stamp_url?: string } | null;
   dealers?: { company_name?: string; phone?: string } | null;
+  auditor_name?: string;
 }
 
 export default function CertificatesPage() {
@@ -251,6 +252,9 @@ export default function CertificatesPage() {
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">公司名称</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">联系方式</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
+                {statusFilter === 'PENDING' && (
+                  <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提报人</th>
+                )}
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">当前状态</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
@@ -277,6 +281,9 @@ export default function CertificatesPage() {
                     <td className="px-6 py-6 text-[11px] text-slate-400 font-medium tabular-nums px-x uppercase tracking-wide">
                       {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
                     </td>
+                    {statusFilter === 'PENDING' && (
+                      <td className="px-6 py-6 text-[13px] text-slate-600">{cert.auditor_name || '-'}</td>
+                    )}
                     <td className="px-6 py-6 text-center">
                       {(() => {
                         const displayStatus = getCertDisplayStatus(cert);
