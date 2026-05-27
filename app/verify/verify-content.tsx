@@ -185,11 +185,7 @@ export default function VerifyPageContent() {
                     </span>
                   ) : (
                     <span className="text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap bg-emerald-50 text-emerald-600 border-emerald-200">
-                      有效期内 (剩余{" "}
-                      {Math.ceil(
-                        (new Date(certificate.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                      )}{" "}
-                      天)
+                      有效期内
                     </span>
                   )}
                 </div>
