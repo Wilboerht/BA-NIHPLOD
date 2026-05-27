@@ -21,11 +21,11 @@ class ValidationError extends Error {
 }
 
 // 辅助函数：生成唯一的证书编号
+// 格式：BAVP-YYYY-XXXX（4位十六进制），与前端验证正则保持一致
 function generateUniqueCertNumber(): string {
   const year = new Date().getFullYear();
-  const timePart = Date.now().toString(36).substring(0, 3).toUpperCase();
-  const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 3).toUpperCase();
-  return `BAVP-${year}-${timePart}${randomPart}`;
+  const randomHex = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
+  return `BAVP-${year}-${randomHex}`;
 }
 
 // 辅助函数：带重试的唯一证书编号生成

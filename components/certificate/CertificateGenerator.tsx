@@ -70,7 +70,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEscapeKey(() => { setShowFullPreview(false); setZoomScale(1); }, showFullPreview);
 
   const renderRequestId = useRef(0);
-  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, '').substring(0, 4).toUpperCase()}`);
+  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 4) : Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0')).toUpperCase()}`);
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -885,7 +885,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         </div>
 
         <div className="pt-12 pb-2 flex items-center gap-6 flex-wrap">
-          {!isVoided && !isIssued && !isPending && (
+          {!isVoided && !isIssued && !isPending && mode !== 'create' && (
             <>
               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>

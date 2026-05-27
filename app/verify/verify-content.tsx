@@ -48,7 +48,7 @@ export default function VerifyPageContent() {
         const response = await fetchWithTimeout("/api/certificates/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ certNumber: decodeURIComponent(certId || "") })
+          body: JSON.stringify({ certNumber: certId || "" })
         });
 
         const result = await response.json();
