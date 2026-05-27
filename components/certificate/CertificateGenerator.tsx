@@ -30,9 +30,10 @@ interface CertificateGeneratorProps {
   isVoided?: boolean;
   isPending?: boolean;
   onSuccess?: () => void;
+  onReject?: () => void;
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, onSuccess }: CertificateGeneratorProps) {
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, onSuccess, onReject }: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -893,26 +894,38 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             </>
           )}
           {mode !== 'view' && (
-            <button
-              onClick={handleIssueSubmit}
-              disabled={isSubmitting}
-              className="h-10 px-6 bg-slate-900 text-white rounded-lg text-[13px] font-semibold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  正在提交...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={15} />
-                  {isPending ? "确认修改并核发" : mode === 'edit' ? "确认修改" : userRole === 'SUPER_ADMIN' ? "签发授权" : "提报授权"}
-                </>
+            <div className="flex items-center gap-3">
+              {isPending && onReject && (
+                <button
+                  onClick={onReject}
+                  disabled={isSubmitting}
+                  className="h-10 px-6 bg-white text-rose-600 border border-rose-200 rounded-lg text-[13px] font-semibold hover:bg-rose-50 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <XCircle size={15} />
+                  打回申请
+                </button>
               )}
-            </button>
+              <button
+                onClick={handleIssueSubmit}
+                disabled={isSubmitting}
+                className="h-10 px-6 bg-slate-900 text-white rounded-lg text-[13px] font-semibold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    正在提交...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={15} />
+                    {isPending ? "确认修改并核发" : mode === 'edit' ? "确认修改" : userRole === 'SUPER_ADMIN' ? "签发授权" : "提报授权"}
+                  </>
+                )}
+              </button>
+            </div>
           )}
           {isIssued && !isVoided && (
             <div className="flex gap-4">

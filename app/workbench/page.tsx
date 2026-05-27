@@ -180,6 +180,30 @@ export default function WorkbenchPage() {
     }
   };
 
+  const handleRejectFromModal = async () => {
+    if (!pendingApproveId) return;
+    const cert = pendingCerts.find(c => c.id === pendingApproveId);
+    const ok = await confirm({ message: `确定退回「${cert?.dealers?.company_name || selectedCertData?.shopName || '该'}」的申请吗？\n此操作将把申请状态标记为已拒绝。` });
+    if (!ok) return;
+    setRejectingId(pendingApproveId);
+    try {
+      const response = await fetchWithTimeout('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject_pending', certId: pendingApproveId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      toast({ message: "申请已退回", type: "success" });
+      closeIssueModal();
+      await loadDashboard(userRole ?? undefined);
+    } catch (err: unknown) {
+      toast({ message: "退回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   const isAdmin = userRole === 'SUPER_ADMIN';
 
   return (
@@ -481,6 +505,7 @@ export default function WorkbenchPage() {
                       closeIssueModal();
                       loadDashboard(userRole ?? undefined);
                     }}
+                    onReject={handleRejectFromModal}
                   />
                 </div>
               </div>
