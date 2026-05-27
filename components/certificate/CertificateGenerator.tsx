@@ -742,7 +742,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     <div className="text-[12px] text-slate-900 font-medium">
-                      {data.sealImage ? "自定义签章文件" : "使用系统默认公章"}
+                      {data.sealImage && data.sealImage !== "/default-seal.png" ? "自定义签章文件" : "使用系统默认公章"}
                     </div>
                   </div>
                   {data.sealImage && (
@@ -811,7 +811,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                     </>
                   )}
                   <div className="text-[11px] text-slate-400">
-                    {data.sealImage ? "已使用自定义签章" : `使用系统默认公章（${BRAND_NAME_CN}官方公章）`}
+                    {data.sealImage && data.sealImage !== "/default-seal.png" ? "已使用自定义签章" : `使用系统默认公章（${BRAND_NAME_CN}官方公章）`}
                   </div>
                 </div>
               )}
