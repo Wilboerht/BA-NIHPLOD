@@ -64,6 +64,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isVoided, setIsVoided] = useState(initialVoided);
   const [, setIsDownloading] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+  const [isScopeExpanded, setIsScopeExpanded] = useState(false);
 
   useEscapeKey(() => { setShowFullPreview(false); setZoomScale(1); }, showFullPreview);
 
@@ -847,12 +848,31 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                       />
                     )}
                   </div>
-                  <textarea
-                    className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none leading-relaxed"
-                    rows={5}
-                    value={data.scopeText}
-                    onChange={(e) => setData(prev => ({ ...prev, scopeText: e.target.value }))}
-                  />
+                  {isScopeExpanded ? (
+                    <>
+                      <textarea
+                        className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none leading-relaxed"
+                        rows={5}
+                        value={data.scopeText}
+                        onChange={(e) => setData(prev => ({ ...prev, scopeText: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsScopeExpanded(false)}
+                        className="mt-2 text-[11px] text-slate-500 hover:text-slate-700 font-medium transition-colors"
+                      >
+                        收起说明文字编辑
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsScopeExpanded(true)}
+                      className="text-[11px] text-slate-500 hover:text-slate-700 font-medium transition-colors"
+                    >
+                      展开编辑说明文字
+                    </button>
+                  )}
                 </>
               )}
             </div>
