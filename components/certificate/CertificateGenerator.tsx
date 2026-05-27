@@ -42,7 +42,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     companyLabel: "公司名称",
     shopName: "",
     shopLabel: "店铺或平台名称",
-    scopeText: `予以下渠道:\n淘宝 | 天猫 | 京东 | 小红书 | 抖音 | 微信 | 线下门店\n运营我司代理的品牌 ${BRAND_NAME} (${BRAND_NAME_CN})\n全系列产品的 [合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务`,
+    scopeText: `予以下渠道:\n\n运营我司代理的品牌 ${BRAND_NAME} (${BRAND_NAME_CN})\n全系列产品的 [合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务`,
     duration: (() => {
       const now = new Date();
       const start = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
@@ -565,6 +565,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
     if (!data.duration || !data.duration.includes(' - ')) {
       toast({ message: "请填写完整的有效期", type: "warning" });
+      return;
+    }
+    const selectedChannels = getChannelsFromScopeText(data.scopeText);
+    if (selectedChannels.length === 0) {
+      toast({ message: "请至少选择一个授权业务范围", type: "warning" });
       return;
     }
     setIsSubmitting(true);
