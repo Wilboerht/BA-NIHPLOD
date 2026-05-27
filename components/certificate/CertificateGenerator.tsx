@@ -20,7 +20,7 @@ export interface CertData {
   duration: string;
   authorizer: string;
   sealImage: string; // URL or DataURL
-  phone: string;
+  phone?: string;
   cert_number?: string; // 证书编号
 }
 
@@ -559,10 +559,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       toast({ message: "请填写必填字段：店铺或平台名称", type: "warning" });
       return;
     }
-    if (!data.phone.trim()) {
-      toast({ message: "请填写必填字段：联系电话", type: "warning" });
-      return;
-    }
     if (!data.duration || !data.duration.includes(' - ')) {
       toast({ message: "请填写完整的有效期", type: "warning" });
       return;
@@ -713,7 +709,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">联系电话</div>
             <div className="flex-1">
               {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight pl-3">{data.phone}</div>
+                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight pl-3">{data.phone || "未录入"}</div>
               ) : (
                 <input
                   type="tel"

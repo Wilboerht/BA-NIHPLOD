@@ -68,7 +68,7 @@ model Profile {
 model Dealer {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   company_name   String
-  phone          String
+  phone          String?
   contact_person String?
   email          String?
   address        String?

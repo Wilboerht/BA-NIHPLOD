@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS dealers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     -- profile_id 已废弃：经销商不再关联登录账户
     company_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
+    phone TEXT,
     contact_person TEXT,
     email TEXT,
     address TEXT,

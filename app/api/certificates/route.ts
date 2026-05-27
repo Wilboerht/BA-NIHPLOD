@@ -63,10 +63,11 @@ function sanitizeForAuthScope(input: string): string {
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
 // 使用 ON CONFLICT 避免并发竞态
-async function getOrCreateDealer(phone: string, shopName: string, tx: TransactionSql | typeof sql) {
+async function getOrCreateDealer(phone: string | undefined | null, shopName: string, tx: TransactionSql | typeof sql) {
+  const safePhone = phone?.trim() || null;
   const result = await tx`
     INSERT INTO dealers (company_name, phone) 
-    VALUES (${shopName}, ${phone}) 
+    VALUES (${shopName}, ${safePhone}) 
     ON CONFLICT (phone, company_name) DO UPDATE SET company_name = EXCLUDED.company_name
     RETURNING id
   `;
@@ -213,7 +214,7 @@ export async function POST(req: Request) {
           ${certId || null},
           ${managerId},
           'ISSUE_CERTIFICATE',
-          ${`核发证书 ${certNumber}，经销商：${dealerPhone}`},
+          ${`核发证书 ${certNumber}，经销商：${dealerPhone || '未填写电话'}`},
           NOW()
         )
       `;
@@ -313,7 +314,7 @@ export async function POST(req: Request) {
 
       // 更新经销商资料和证书在同一事务中
       await sql.begin(async (tx) => {
-        await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone} WHERE id = ${dealerId}`;
+        await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone?.trim() || null} WHERE id = ${dealerId}`;
         await tx`
           UPDATE certificates
           SET auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},

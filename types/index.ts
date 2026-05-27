@@ -55,7 +55,7 @@ export interface Profile {
 export interface Dealer {
   id: string;
   company_name: string;
-  phone: string;
+  phone?: string;
   contact_person?: string;
   email?: string;
   address?: string;
