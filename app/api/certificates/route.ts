@@ -132,7 +132,7 @@ export async function POST(req: Request) {
           VALUES (
             ${certNumber},
             ${dealerId},
-            ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
+            ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
             ${parseDuration(certData.duration).start},
             ${parseDuration(certData.duration).end},
             'PENDING',
@@ -200,7 +200,7 @@ export async function POST(req: Request) {
             VALUES (
               ${certNumber},
               ${dealerId},
-              ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
+              ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
               ${parseDuration(certData.duration).start},
               ${parseDuration(certData.duration).end},
               'ISSUED',
@@ -339,7 +339,7 @@ export async function POST(req: Request) {
         await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone?.trim() || null} WHERE id = ${dealerId}`;
         await tx`
           UPDATE certificates
-          SET auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + sanitizeForAuthScope(certData.scopeText) + ' | ' + (certData.authorizer || COMPANY_FULL_NAME)},
+          SET auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
               start_date = ${parseDuration(certData.duration).start},
               end_date = ${parseDuration(certData.duration).end},
               seal_url = ${certData.sealImage || null},
