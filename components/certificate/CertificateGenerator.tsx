@@ -847,7 +847,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                       />
                     )}
                   </div>
-
+                  <textarea
+                    className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none leading-relaxed"
+                    rows={5}
+                    value={data.scopeText}
+                    onChange={(e) => setData(prev => ({ ...prev, scopeText: e.target.value }))}
+                  />
                 </>
               )}
             </div>
