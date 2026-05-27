@@ -141,6 +141,28 @@ export default function CertificatesPage() {
     }
   };
 
+  const rejectPendingCertificate = async (id: string) => {
+    const ok = await confirm({ message: "确定要打回此审核申请吗？打回后该申请将标记为已拒绝，审核员可重新提报。" });
+    if (!ok) return;
+
+    try {
+      const response = await fetchWithTimeout('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject_pending', certId: id })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      toast({ message: "申请已打回，该证书标记为已拒绝。", type: "success" });
+      closeIssueModal();
+      fetchCertificates();
+    } catch (err: unknown) {
+      toast({ message: "打回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    }
+  };
+
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // 计算证书的实际展示状态（处理 ISSUED 但已过期的情况）
@@ -560,6 +582,7 @@ export default function CertificatesPage() {
                       setPendingApproveId(null);
                       fetchCertificates(); // 重新加载证书列表
                     }}
+                    onReject={pendingApproveId ? () => rejectPendingCertificate(pendingApproveId) : undefined}
                   />
 
 
