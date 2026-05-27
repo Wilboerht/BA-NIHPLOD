@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { deletePublicUpload } from '@/lib/storage';
 
 // 合法的状态流转图
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -118,6 +119,24 @@ export async function DELETE(
       return response;
     }
 
+    // 先查询关联的媒体文件路径
+    const complaintRows = await sql`
+      SELECT evidence_image_url, evidence_image_urls
+      FROM complaints WHERE id = ${id} LIMIT 1
+    `;
+    const imageUrls: string[] = [];
+    if (complaintRows.length > 0) {
+      const row = complaintRows[0];
+      if (Array.isArray(row.evidence_image_urls)) {
+        imageUrls.push(...row.evidence_image_urls);
+      }
+      if (row.evidence_image_url && typeof row.evidence_image_url === 'string') {
+        if (!imageUrls.includes(row.evidence_image_url)) {
+          imageUrls.push(row.evidence_image_url);
+        }
+      }
+    }
+
     // 删除工单和记录审计日志应在同一事务中
     await sql.begin(async (tx) => {
       const delResult = await tx`DELETE FROM complaints WHERE id = ${id} RETURNING id`;
@@ -129,6 +148,16 @@ export async function DELETE(
         VALUES (${id}, ${user!.id}, 'DELETED', '管理员删除工单', NOW())
       `;
     });
+
+    // 数据库删除成功后，清理关联的媒体文件
+    if (imageUrls.length > 0) {
+      for (const url of imageUrls) {
+        const { error } = await deletePublicUpload(url);
+        if (error) {
+          console.error(`[complaints-delete] 删除媒体文件失败: ${url}`, error);
+        }
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

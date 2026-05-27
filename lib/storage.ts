@@ -83,3 +83,53 @@ export function getPublicUrl(bucket: string, filePath: string): string {
   const cleanPath = filePath.replace(/^\/+/g, '');
   return `/uploads/${cleanBucket}/${cleanPath}`;
 }
+
+export async function deleteFile(
+  bucket: string,
+  filePath: string
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const safeBucket = sanitizeFilePath(bucket);
+    const safeFilePath = sanitizeFilePath(filePath);
+
+    if (!safeBucket || !safeFilePath) {
+      return { success: false, error: '非法的文件路径' };
+    }
+
+    const uploadDir = path.resolve(process.cwd(), 'public', 'uploads', safeBucket);
+    const fullPath = path.resolve(uploadDir, safeFilePath);
+
+    if (!ensurePathInside(uploadDir, fullPath)) {
+      return { success: false, error: '非法的文件路径' };
+    }
+
+    await fs.unlink(fullPath);
+    return { success: true, error: null };
+  } catch (error: unknown) {
+    // 文件不存在时视为成功（幂等删除）
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return { success: true, error: null };
+    }
+    console.error('[Storage] Local delete error:', error);
+    const message = error instanceof Error ? error.message : '删除失败';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * 根据公开 URL 删除本地文件
+ * URL 格式: /uploads/<bucket>/<path>
+ */
+export async function deletePublicUpload(url: string): Promise<{ success: boolean; error: string | null }> {
+  if (!url.startsWith('/uploads/')) {
+    return { success: false, error: '非本地上传文件' };
+  }
+  const relative = url.slice('/uploads/'.length); // e.g. public-uploads/complaints/xxx.png
+  const firstSlash = relative.indexOf('/');
+  if (firstSlash === -1) {
+    return { success: false, error: '非法的文件路径' };
+  }
+  const bucket = relative.slice(0, firstSlash);
+  const filePath = relative.slice(firstSlash + 1);
+  return deleteFile(bucket, filePath);
+}
