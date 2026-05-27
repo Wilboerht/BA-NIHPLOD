@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, FileText, ShieldCheck, XCircle, RefreshCw,
-  Building2, Edit
+  Building2, Edit, ShieldOff, CheckCircle2
 } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
@@ -387,15 +387,33 @@ export default function DealersPage() {
                               {cert.start_date.replace(/-/g, '.')} - {cert.end_date.replace(/-/g, '.')}
                             </td>
                             <td className="px-6 py-4">
-                              {isVoided ? (
-                                <span className="text-rose-500 text-[10px] font-bold bg-rose-50 px-2 py-0.5 rounded">已作废</span>
-                              ) : isExpiredByDate || cert.status === 'EXPIRED' ? (
-                                <span className="text-slate-400 text-[10px] font-bold">已失效</span>
-                              ) : cert.status === 'ISSUED' ? (
-                                <span className="text-emerald-500 text-[10px] font-bold">生效中</span>
-                              ) : (
-                                <span className="text-amber-500 text-[10px] font-bold">待审核</span>
-                              )}
+                              {(() => {
+                                if (cert.status === 'REVOKED') return (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-rose-50 text-rose-700 text-[11px] font-semibold tracking-wide uppercase">
+                                    <ShieldOff className="w-3 h-3" /> 已吊销
+                                  </span>
+                                );
+                                if (cert.status === 'REJECTED') return (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wide uppercase">
+                                    <XCircle className="w-3 h-3" /> 已拒绝
+                                  </span>
+                                );
+                                if (cert.status === 'EXPIRED' || (cert.status === 'ISSUED' && isExpiredByDate)) return (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wide uppercase">
+                                    <XCircle className="w-3 h-3" /> 已失效
+                                  </span>
+                                );
+                                if (cert.status === 'ISSUED') return (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide uppercase">
+                                    <CheckCircle2 className="w-3 h-3" /> 生效中
+                                  </span>
+                                );
+                                return (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold tracking-wide uppercase">
+                                    待审核
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
