@@ -114,7 +114,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const getChannelsFromScopeText = (text: string): string[] => {
     const lines = text.split('\n');
     if (lines.length >= 2) {
-      const items = lines[1].split(/\s*\|\s*/).filter(Boolean);
+      const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
       const presetSet = new Set(CHANNELS);
       const result = CHANNELS.filter(ch => items.includes(ch));
       // 若存在非预设渠道内容，视为"其他"被选中
@@ -130,7 +130,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const getCustomChannel = (text: string): string => {
     const lines = text.split('\n');
     if (lines.length >= 2) {
-      const items = lines[1].split(/\s*\|\s*/).filter(Boolean);
+      const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
       const presetSet = new Set(CHANNELS);
       const custom = items.find(item => !presetSet.has(item));
       return custom || '';
