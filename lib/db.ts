@@ -102,21 +102,6 @@ export async function checkIsAdmin(adminId: string): Promise<boolean> {
 }
 
 // ============================================================================
-// 【经销商数据类】
-// ============================================================================
-
-/**
- * 获取单个经销商详情（按 ID）
- */
-export async function getDealerById(dealerId: string): Promise<{ data: SqlRow | null; error: Error | null }> {
-  const result = await sql`
-    SELECT id, company_name, phone, created_at
-    FROM dealers WHERE id = ${dealerId} LIMIT 1
-  `;
-  return { data: result[0] || null, error: null };
-}
-
-// ============================================================================
 // 【通用工具】
 // ============================================================================
 
@@ -158,45 +143,8 @@ function buildDealersNested(row: SqlRow): SqlRow {
 }
 
 // ============================================================================
-// 【经销商数据类】
-// ============================================================================
-
-/**
- * 获取所有经销商列表
- */
-export async function getAllDealers(limit = 1000): Promise<{ data: SqlRow[]; error: Error | null }> {
-  try {
-    const result = await sql`
-      SELECT d.id, d.company_name, d.phone, d.created_at,
-             (SELECT COUNT(*)::int FROM certificates c WHERE c.dealer_id = d.id) as cert_count,
-             (SELECT c.auth_scope FROM certificates c WHERE c.dealer_id = d.id ORDER BY c.created_at DESC LIMIT 1) as auth_scope
-      FROM dealers d ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 5000)}
-    `;
-    return { data: (result || []) as SqlRow[], error: null };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '数据库查询失败';
-    return { data: [], error: new Error(message) };
-  }
-}
-
-// ============================================================================
 // 【证书数据类】
 // ============================================================================
-
-/**
- * 获取经销商的证书列表
- */
-export async function getCertificatesByDealerId(dealerId: string, limit = 200): Promise<{ data: SqlRow[]; error: Error | null }> {
-  const result = await sql`
-    SELECT id, cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id, created_at
-    FROM certificates
-    WHERE dealer_id = ${dealerId}
-    ORDER BY created_at DESC
-    LIMIT ${limit}
-  `;
-  const formatted = result.map(formatDateFields);
-  return { data: formatted || [], error: null };
-}
 
 /**
  * 获取待核发证书列表（用于管理面板）

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Building2, UserCog, Globe, AlertCircle } from "lucide-react";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, UserCog, Globe, AlertCircle } from "lucide-react";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { PLATFORM_NAME } from "@/lib/config";
@@ -84,12 +84,6 @@ export default function Sidebar({
             <span className={styles.icon}><Megaphone size={17} /></span>
             {!isCollapsed && "打假投诉审核"}
           </Link>
-          {(userRole === 'SUPER_ADMIN' || userRole === 'AUDITOR') && (
-            <Link href="/workbench/dealers" className={`${styles.menuLink} ${pathname === "/workbench/dealers" ? styles.active : ""}`}>
-              <span className={styles.icon}><Building2 size={17} /></span>
-              {!isCollapsed && "经销商管理"}
-            </Link>
-          )}
         </div>
 
         {userRole === 'SUPER_ADMIN' && (
