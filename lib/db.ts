@@ -168,20 +168,48 @@ export async function getPendingCertificates(limit?: number): Promise<{ data: Sq
  */
 export async function getAllCertificates(
   limit?: number,
-  offset?: number
+  offset?: number,
+  statusFilter?: string
 ): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
-  const countRes = await sql`SELECT COUNT(*) as count FROM certificates`;
-  const total = parseInt(String(countRes[0]?.count || 0), 10);
-
-  const result = await sql`
+  const baseSelect = sql`
     SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
     FROM certificates c
     LEFT JOIN dealers d ON c.dealer_id = d.id
     LEFT JOIN profiles p ON c.auditor_id = p.id
-    ORDER BY c.created_at DESC
-    ${limit ? sql`LIMIT ${limit}` : sql``}
-    ${offset ? sql`OFFSET ${offset}` : sql``}
   `;
+
+  let countRes;
+  let result;
+
+  if (statusFilter === 'invalid') {
+    countRes = await sql`SELECT COUNT(*) as count FROM certificates WHERE status IN ('EXPIRED', 'REVOKED', 'REJECTED')`;
+    result = await sql`
+      ${baseSelect}
+      WHERE c.status IN ('EXPIRED', 'REVOKED', 'REJECTED')
+      ORDER BY c.created_at DESC
+      ${limit ? sql`LIMIT ${limit}` : sql``}
+      ${offset ? sql`OFFSET ${offset}` : sql``}
+    `;
+  } else if (statusFilter) {
+    countRes = await sql`SELECT COUNT(*) as count FROM certificates WHERE status = ${statusFilter}`;
+    result = await sql`
+      ${baseSelect}
+      WHERE c.status = ${statusFilter}
+      ORDER BY c.created_at DESC
+      ${limit ? sql`LIMIT ${limit}` : sql``}
+      ${offset ? sql`OFFSET ${offset}` : sql``}
+    `;
+  } else {
+    countRes = await sql`SELECT COUNT(*) as count FROM certificates`;
+    result = await sql`
+      ${baseSelect}
+      ORDER BY c.created_at DESC
+      ${limit ? sql`LIMIT ${limit}` : sql``}
+      ${offset ? sql`OFFSET ${offset}` : sql``}
+    `;
+  }
+
+  const total = parseInt(String(countRes[0]?.count || 0), 10);
   const formatted = result.map(buildDealersNested);
   return { data: formatted || [], total, error: null };
 }

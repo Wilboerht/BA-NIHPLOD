@@ -9,8 +9,7 @@ import { sql } from '@/lib/db';
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const secret = searchParams.get('secret');
+    const secret = request.headers.get('x-cron-secret');
     const expectedSecret = process.env.CRON_SECRET;
 
     if (!expectedSecret) {

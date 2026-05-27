@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { sql } from "@/lib/db";
+import { sql, checkActionRateLimit } from "@/lib/db";
 import { requireAdmin, validatePassword } from "@/lib/auth";
 
 export async function POST(req: Request) {
@@ -21,6 +21,12 @@ export async function POST(req: Request) {
     const { user: adminUser, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    // 速率限制
+    const allowed = await checkActionRateLimit(`admin:reset-password:${adminUser!.id}`, 10);
+    if (!allowed) {
+      return NextResponse.json({ error: '操作过于频繁，请稍后再试' }, { status: 429 });
     }
 
     // 自保护：不能重置自己的密码（应走 /api/auth/change-password）

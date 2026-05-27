@@ -131,6 +131,8 @@ model Certificate {
   @@index([status])
   @@index([dealer_id])
   @@index([end_date])
+  @@index([cert_number])
+  @@index([status, end_date])
 }
 
 // ============================================================================

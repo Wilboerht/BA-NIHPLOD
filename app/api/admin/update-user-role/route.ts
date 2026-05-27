@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql, getProfileById } from '@/lib/db';
+import { sql, getProfileById, checkActionRateLimit } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { ALL_ROLES } from '@/types';
 
@@ -18,6 +18,12 @@ export async function PUT(req: Request) {
     const { user: adminUser, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    // 速率限制
+    const allowed = await checkActionRateLimit(`admin:update-role:${adminUser!.id}`, 10);
+    if (!allowed) {
+      return NextResponse.json({ error: '操作过于频繁，请稍后再试' }, { status: 429 });
     }
 
     // 自保护：不能修改自己的角色

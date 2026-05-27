@@ -209,6 +209,8 @@ CREATE TRIGGER trg_complaints_updated_at
 CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status);
 CREATE INDEX IF NOT EXISTS idx_certificates_dealer_id ON certificates(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_end_date ON certificates(end_date);
+CREATE INDEX IF NOT EXISTS idx_certificates_cert_number ON certificates(cert_number);
+CREATE INDEX IF NOT EXISTS idx_certificates_status_end_date ON certificates(status, end_date);
 
 -- profiles 表索引
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
