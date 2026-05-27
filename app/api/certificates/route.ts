@@ -56,9 +56,9 @@ function parseDuration(duration: string | undefined): { start: string; end: stri
   return { start, end };
 }
 
-// 清理 auth_scope 拼接字段，防止分隔符冲突
+// 保留原值存储；parseAuthScope 使用 firstSep/lastSep 策略，可安全处理 scopeText 内部包含 " | " 的情况
 function sanitizeForAuthScope(input: string): string {
-  return (input || '').replace(/\s*\|\s*/g, '/');
+  return input || '';
 }
 
 // 辅助函数：查询或创建经销商（支持一个 phone 对应多个主体名称）
