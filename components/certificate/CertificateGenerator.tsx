@@ -556,12 +556,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const canSubmit = useMemo(() => {
     if (mode === 'view') return false;
-    const hasShopName = !!data.shopName.trim();
+    const hasName = !!(data.shopName.trim() || data.companyName.trim());
     const hasDuration = !!data.duration && data.duration.includes(' - ');
     const selectedChannels = getChannelsFromScopeText(data.scopeText);
     const hasChannels = selectedChannels.length > 0;
-    return hasShopName && hasDuration && hasChannels;
-  }, [data.shopName, data.duration, data.scopeText, mode]);
+    return hasName && hasDuration && hasChannels;
+  }, [data.shopName, data.companyName, data.duration, data.scopeText, mode]);
 
   const handleIssueSubmit = async () => {
     if (!canSubmit) return;
