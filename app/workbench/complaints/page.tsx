@@ -304,22 +304,22 @@ export default function ComplaintsPage() {
                     <td className="px-6 py-4 text-center">
                       {getStatusBadge(complaint.status)}
                     </td>
-                     <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                     <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
+                        <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => {
                               setActiveReviewId(complaint.id);
                               setReviewNote(complaint.review_note || '');
                             }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-200 active:scale-95 font-bold text-[11px] uppercase tracking-[0.1em] border border-slate-100/50"
+                            className="text-slate-600 hover:bg-slate-100 h-8 px-4 rounded-lg font-bold text-[11px] inline-flex items-center gap-2 transition-all tracking-wide leading-none"
                           >
+                             <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                              进入审核
-                             <ExternalLink className="w-3 h-3 opacity-60" />
                           </button>
                           <button
                             onClick={() => handleDelete(complaint)}
                             disabled={deletingId === complaint.id}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-50 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all duration-200 active:scale-95 border border-slate-100/50 disabled:opacity-50"
+                            className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none disabled:opacity-50"
                             title="删除工单"
                           >
                             {deletingId === complaint.id ? (
