@@ -85,6 +85,10 @@ export default function VerificationPage() {
       toast({ message: "请填写维权描述", type: "warning" });
       return;
     }
+    if (!reportContact.trim()) {
+      toast({ message: "请填写联系方式", type: "warning" });
+      return;
+    }
     
     setIsSubmittingReport(true);
     
@@ -735,7 +739,7 @@ export default function VerificationPage() {
 
               <div className="space-y-6">
                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述 <span className="text-red-400 normal-case">*</span></label>
                     <textarea 
                        value={reportDesc}
                        onChange={(e) => setReportDesc(e.target.value)}
@@ -755,7 +759,7 @@ export default function VerificationPage() {
                        />
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">联系方式 <span className="text-slate-300 normal-case">(选填，便于回访)</span></label>
+                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">联系方式 <span className="text-red-400 normal-case">*</span></label>
                        <input 
                           type="text" 
                           value={reportContact}
@@ -872,7 +876,7 @@ export default function VerificationPage() {
       {/* 二维码扫描模态框 */}
       <AnimatePresence>
         {showScanner && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[70] flex flex-col md:items-center md:justify-center md:p-6">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={handleCloseScanner}
@@ -899,7 +903,7 @@ export default function VerificationPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full max-w-md bg-white rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-8 overflow-hidden"
+               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[32px] md:shadow-2xl p-6 md:p-8 overflow-hidden"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
