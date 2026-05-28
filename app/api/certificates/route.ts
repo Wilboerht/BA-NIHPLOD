@@ -155,6 +155,8 @@ export async function POST(req: Request) {
             sendPendingCertNotification({
               adminEmails: ((admins as unknown) as { email: string }[]).map(a => a.email),
               shopName: certData.shopName || '未知店铺',
+              companyName: certData.companyName,
+              phone: certData.phone,
               certNumber: certNumber!,
               auditorName,
               duration: certData.duration || '',
