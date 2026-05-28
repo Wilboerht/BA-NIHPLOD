@@ -8,6 +8,7 @@ import { headers } from 'next/headers';
 export interface CertificateVerifyResult {
   id: string;
   dealerName: string;
+  companyName: string;
   duration: string;
   scope: string;
   status: string;
@@ -159,11 +160,13 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
 
       const startDate = typeof data.start_date === 'string' ? data.start_date : formatDateISO(data.start_date);
       const endDate = typeof data.end_date === 'string' ? data.end_date : formatDateISO(data.end_date);
+      const parsed = parseAuthScope(data.auth_scope);
       finalData.push({
         id: data.cert_number,
         dealerName: companyName,
+        companyName: parsed.companyName || '',
         duration: `${startDate.replace(/-/g, '.')} - ${endDate.replace(/-/g, '.')}`,
-        scope: parseAuthScope(data.auth_scope).scopeText || data.auth_scope || '-',
+        scope: parsed.scopeText || data.auth_scope || '-',
         status: data.status?.toUpperCase() || '',
         final_image_url: data.final_image_url || undefined
       });
