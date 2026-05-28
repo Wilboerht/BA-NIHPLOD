@@ -128,22 +128,12 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     const firstResult = results[0];
     const rawStatus = String(firstResult.status || '').toUpperCase();
 
-    // 检查撤销
-    if (rawStatus === 'REVOKED') {
-      return { success: false, error: "该主体的商业授权已被品牌官方撤销终止" };
-    }
-
-    // 检查过期
+    // 负面状态统一按"未查到"处理，不暴露具体原因
     const endDateStr = typeof firstResult.end_date === 'string' ? firstResult.end_date : formatDateISO(firstResult.end_date);
     const endDate = getEndOfDay(endDateStr || '1970-01-01');
     const isExpired = rawStatus === 'EXPIRED' || new Date() > endDate;
-    if (isExpired) {
-      return { success: false, error: `曾有授权，但该证书已于 ${endDateStr} 过期失效` };
-    }
-
-    // 检查其他异常状态
-    if (rawStatus !== 'ISSUED') {
-      return { success: false, error: "该授权状态异常，请核查资质" };
+    if (rawStatus === 'REVOKED' || isExpired || rawStatus !== 'ISSUED') {
+      return { success: false, error: "未检索到相关的官方授权记录" };
     }
 
     const finalData: CertificateVerifyResult[] = [];

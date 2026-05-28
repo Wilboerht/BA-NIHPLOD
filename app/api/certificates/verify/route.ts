@@ -83,29 +83,13 @@ export async function POST(req: Request) {
     const rawStatus = getStr(data.status).toUpperCase();
     const endDateStr = getStr(data.end_date);
 
-    // 检查撤销
-    if (rawStatus === 'REVOKED') {
-      return NextResponse.json({
-        success: false,
-        error: "该主体的商业授权已被品牌官方撤销终止"
-      });
-    }
-
-    // 检查过期（双重检查：status 和 end_date）
+    // 负面状态统一按"未查到"处理，不暴露具体原因
     const endDate = getEndOfDay(endDateStr || '1970-01-01');
     const isExpired = rawStatus === 'EXPIRED' || new Date() > endDate;
-    if (isExpired) {
+    if (rawStatus === 'REVOKED' || isExpired || rawStatus !== 'ISSUED') {
       return NextResponse.json({
         success: false,
-        error: `曾有授权，但该证书已于 ${endDateStr} 过期失效`
-      });
-    }
-
-    // 检查其他异常状态
-    if (rawStatus !== 'ISSUED') {
-      return NextResponse.json({
-        success: false,
-        error: "该授权状态异常，请核查资质"
+        error: "未检索到相关的官方授权记录"
       });
     }
 
