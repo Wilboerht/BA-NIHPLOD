@@ -158,20 +158,23 @@ export default function VerifyPageContent() {
               </div>
 
               <div>
-                <h2 className="text-2xl md:text-[30px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">
-                  {certificate.dealers?.company_name || certificate.company_name}
-                </h2>
                 {(() => {
+                  const shop = certificate.dealers?.company_name || certificate.company_name || '';
                   const parsed = parseAuthScope(certificate.auth_scope);
-                  const shopName = certificate.dealers?.company_name || certificate.company_name || '';
-                  if (parsed.companyName && parsed.companyName !== shopName) {
-                    return (
-                      <p className="mt-2 text-[15px] md:text-[17px] text-[#5C5348] font-semibold tracking-wide">
-                        {parsed.companyName}
-                      </p>
-                    );
-                  }
-                  return null;
+                  const isShopValid = shop && shop !== '未知经销商';
+                  const title = isShopValid ? shop : (parsed.companyName || shop || '');
+                  return (
+                    <>
+                      <h2 className="text-2xl md:text-[30px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">
+                        {title}
+                      </h2>
+                      {isShopValid && parsed.companyName && parsed.companyName !== shop && (
+                        <p className="mt-2 text-[15px] md:text-[17px] text-[#5C5348] font-semibold tracking-wide">
+                          {parsed.companyName}
+                        </p>
+                      )}
+                    </>
+                  );
                 })()}
                 <div className="flex items-center gap-3 mt-4">
                   <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>

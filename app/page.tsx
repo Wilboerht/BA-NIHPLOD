@@ -640,12 +640,22 @@ export default function VerificationPage() {
                       </div>
                       
                       <div>
-                         <h2 className="text-2xl md:text-[34px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{result.dealerName}</h2>
-                         {result.companyName && result.companyName !== result.dealerName && (
-                           <p className="mt-2 text-[15px] md:text-[17px] text-[#5C5348] font-semibold tracking-wide">
-                             {result.companyName}
-                           </p>
-                         )}
+                         {(() => {
+                           const shop = result.dealerName;
+                           const comp = result.companyName;
+                           const isShopValid = shop && shop !== '未知经销商';
+                           const title = isShopValid ? shop : (comp || shop || '');
+                           return (
+                             <>
+                               <h2 className="text-2xl md:text-[34px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{title}</h2>
+                               {isShopValid && comp && comp !== shop && (
+                                 <p className="mt-2 text-[15px] md:text-[17px] text-[#5C5348] font-semibold tracking-wide">
+                                   {comp}
+                                 </p>
+                               )}
+                             </>
+                           );
+                         })()}
                          <div className="flex items-center gap-3 mt-4">
                            <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
                            <p 
