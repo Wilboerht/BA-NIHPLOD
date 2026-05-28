@@ -205,7 +205,10 @@ export default function CertificatesPage() {
 
   const filteredCerts = certificates.filter(c => {
     const query = debouncedSearch.toLowerCase();
-    const matchesSearch = !query || c.cert_number.toLowerCase().includes(query) || (c.dealers?.company_name || "").toLowerCase().includes(query);
+    const matchesSearch = !query || 
+      c.cert_number.toLowerCase().includes(query) || 
+      (c.dealers?.company_name || "").toLowerCase().includes(query) ||
+      (parseAuthScope(c.auth_scope).companyName || "").toLowerCase().includes(query);
     if (!matchesSearch) return false;
 
     const displayStatus = getCertDisplayStatus(c);
