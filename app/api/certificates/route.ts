@@ -157,6 +157,7 @@ export async function POST(req: Request) {
               shopName: certData.shopName || '未知店铺',
               companyName: certData.companyName,
               phone: certData.phone,
+              scopeText: certData.scopeText,
               certNumber: certNumber!,
               auditorName,
               duration: certData.duration || '',

@@ -49,12 +49,13 @@ export function sendPendingCertNotification(params: {
   shopName: string;
   companyName?: string;
   phone?: string;
+  scopeText?: string;
   certNumber: string;
   auditorName: string;
   duration: string;
   baseUrl: string;
 }): void {
-  const { adminEmails, shopName, companyName, phone, certNumber, auditorName, duration, baseUrl } = params;
+  const { adminEmails, shopName, companyName, phone, scopeText, certNumber, auditorName, duration, baseUrl } = params;
   if (adminEmails.length === 0) return;
   console.log('[Mail] 准备发送待审核通知给:', adminEmails.join(', '));
   const dashboardUrl = `${baseUrl}/workbench/certificates`;
@@ -65,6 +66,7 @@ export function sendPendingCertNotification(params: {
 店铺/平台名称：${shopName}
 公司名称：${companyName || '未填写'}
 联系电话：${phone || '未填写'}
+授权范围：${scopeText || '未填写'}
 证书编号：${certNumber}
 提报人：${auditorName}
 有效期：${duration}
