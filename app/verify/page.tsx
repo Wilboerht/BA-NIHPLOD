@@ -1,6 +1,14 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import VerifyPageContent from "./verify-content";
 import { Loader2 } from "lucide-react";
+import { BRAND_NAME, BRAND_NAME_CN } from "@/lib/config";
+
+export const metadata: Metadata = {
+  title: "授权证书验证结果",
+  description: `查看 ${BRAND_NAME}（${BRAND_NAME_CN}）品牌授权证书的详细信息，包括被授权方、有效期及经营范围。`,
+  robots: { index: false, follow: true },
+};
 
 function VerifyPageLoading() {
   return (

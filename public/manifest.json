@@ -1,0 +1,19 @@
+{
+  "name": "NIHPLOD 旎柏 — 品牌授权资质官方核查",
+  "short_name": "NIHPLOD 授权核验",
+  "description": "NIHPLOD（旎柏）官方品牌授权书真伪验证平台，查询经销商授权状态",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#8B7355",
+  "icons": [
+    {
+      "src": "/NIHPLOD-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}
