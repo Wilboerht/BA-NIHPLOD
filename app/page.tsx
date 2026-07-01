@@ -27,18 +27,18 @@ export const metadata: Metadata = {
     description: `输入授权编号即可验证${BRAND_NAME}经销商授权书的真实性。官方品牌授权管理与防伪验证平台。`,
     images: [
       {
-        url: "/NIHPLOD-logo.svg",
-        width: 512,
-        height: 512,
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
         alt: `${BRAND_NAME} Logo`,
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: `${BRAND_NAME} | 授权资质官方核查`,
     description: `输入授权编号即可验证${BRAND_NAME}经销商授权书的真实性。`,
-    images: ["/NIHPLOD-logo.svg"],
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
