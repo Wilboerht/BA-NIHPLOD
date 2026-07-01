@@ -51,8 +51,9 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     if (!allowed) {
       return { success: false, error: "查询过于频繁，请稍后再试" };
     }
-  } catch {
-    // 限流检查失败时继续执行，不阻塞查询
+  } catch (rateLimitErr) {
+    // 限流检查失败时继续执行，不阻塞查询；但仍需记录以便运维发现数据库异常
+    console.warn('[verifyCertificateAction] 限流检查失败，降级放行:', rateLimitErr instanceof Error ? rateLimitErr.message : String(rateLimitErr));
   }
 
   try {

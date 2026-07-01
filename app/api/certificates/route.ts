@@ -66,8 +66,19 @@ function sanitizeForAuthScope(input: string): string {
 }
 
 // 辅助函数：查询或创建经销商
+// 注意：phone 可能为 NULL，此时 PostgreSQL 的 ON CONFLICT (phone, company_name) 不生效
+//       因此 NULL phone 时需要先查后插，避免创建重复经销商记录
 async function getOrCreateDealer(phone: string | undefined | null, shopName: string, tx: TransactionSql | typeof sql) {
   const safePhone = phone?.trim() || null;
+
+  if (!safePhone) {
+    // NULL phone 时 ON CONFLICT 不触发，需手动去重
+    const existing = await tx`SELECT id FROM dealers WHERE company_name = ${shopName} AND phone IS NULL LIMIT 1`;
+    if (existing && existing.length > 0) return existing[0].id;
+    const result = await tx`INSERT INTO dealers (company_name, phone) VALUES (${shopName}, NULL) RETURNING id`;
+    return result[0].id;
+  }
+
   const result = await tx`
     INSERT INTO dealers (company_name, phone) 
     VALUES (${shopName}, ${safePhone}) 
@@ -99,7 +110,11 @@ export async function POST(req: Request) {
       return response;
     }
 
-    const managerId = adminUser!.id;
+    // 操作者 ID：在不同流程中代表不同角色
+    //   create_pending → 作为 auditor_id（审核员提报）
+    //   approve_issue / reject_pending / update_certificate → 作为 manager_id（超级管理员操作）
+    //   revoke_certificate / delete_certificate → 作为审计日志的 actor_id
+    const operatorId = adminUser!.id;
 
     // 字段长度校验
     if (certData) {
@@ -138,7 +153,7 @@ export async function POST(req: Request) {
             'PENDING',
             null,
             ${certData.sealImage || null},
-            ${managerId},
+            ${operatorId},
             null
           )
         `;
@@ -149,7 +164,7 @@ export async function POST(req: Request) {
         try {
           const admins = await sql`SELECT COALESCE(email, username) as email, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND deleted_at IS NULL AND (email IS NOT NULL OR username IS NOT NULL)`;
           if (admins.length > 0) {
-            const auditorResult = await sql`SELECT full_name FROM profiles WHERE id = ${managerId} AND deleted_at IS NULL LIMIT 1`;
+            const auditorResult = await sql`SELECT full_name FROM profiles WHERE id = ${operatorId} AND deleted_at IS NULL LIMIT 1`;
             const auditorName = ((auditorResult[0] as unknown) as { full_name?: string })?.full_name || '审核员';
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ba.nihplod.cn';
             sendPendingCertNotification({
@@ -209,7 +224,7 @@ export async function POST(req: Request) {
               'ISSUED',
               null,
               ${certData.sealImage || null},
-              ${managerId}
+              ${operatorId}
             )
           `;
         });
@@ -219,7 +234,7 @@ export async function POST(req: Request) {
 
       await sql.begin(async (tx) => {
         if (certId) {
-          const updateResult = await tx`UPDATE certificates SET status = 'ISSUED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
+          const updateResult = await tx`UPDATE certificates SET status = 'ISSUED', manager_id = ${operatorId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
           if (!updateResult || updateResult.length === 0) {
             throw new ValidationError('该证书不是待审核状态，无法核发');
           }
@@ -228,7 +243,7 @@ export async function POST(req: Request) {
           INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
           VALUES (
             ${certId || null},
-            ${managerId},
+            ${operatorId},
             'ISSUE_CERTIFICATE',
             ${`核发证书 ${certNumber}，经销商：${dealerPhone || '未填写电话'}`},
             NOW()
@@ -250,17 +265,17 @@ export async function POST(req: Request) {
         const result = await tx`SELECT id, status, cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
         if (!result || result.length === 0) throw new ValidationError('未找到对应证书');
         if (result[0].status === 'REVOKED') {
-          return NextResponse.json({ success: true, status: 'REVOKED', message: '证书已是吊销状态' });
+          throw new ValidationError('证书已是吊销状态，无需重复操作');
         }
         if (result[0].status !== 'ISSUED') {
-          return NextResponse.json({ error: '只能吊销已核发的证书' }, { status: 400 });
+          throw new ValidationError('只能吊销已核发的证书');
         }
         await tx`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
         await tx`
           INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
           VALUES (
             ${certId},
-            ${managerId},
+            ${operatorId},
             'REVOKE_CERTIFICATE',
             ${`吊销证书 ${result[0].cert_number}`},
             NOW()
@@ -280,15 +295,15 @@ export async function POST(req: Request) {
 
       await sql.begin(async (tx) => {
         const certInfo = await tx`SELECT cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
-        const updateResult = await tx`UPDATE certificates SET status = 'REJECTED', manager_id = ${managerId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
+        const updateResult = await tx`UPDATE certificates SET status = 'REJECTED', manager_id = ${operatorId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
         if (!updateResult || updateResult.length === 0) {
-          return NextResponse.json({ error: '该证书不是待审核状态，无法拒绝' }, { status: 400 });
+          throw new ValidationError('该证书不是待审核状态，无法拒绝');
         }
         await tx`
           INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
           VALUES (
             ${certId},
-            ${managerId},
+            ${operatorId},
             'REJECT_CERTIFICATE',
             ${`退回证书申请 ${certInfo[0]?.cert_number || ''}`},
             NOW()
@@ -340,20 +355,21 @@ export async function POST(req: Request) {
 
       await sql.begin(async (tx) => {
         await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone?.trim() || null} WHERE id = ${dealerId}`;
+        // 注意：cert_number 为不可变字段，更新证书时绝不修改，确保已签发证书的二维码永久有效
         await tx`
           UPDATE certificates
           SET auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
               start_date = ${parseDuration(certData.duration).start},
               end_date = ${parseDuration(certData.duration).end},
               seal_url = ${certData.sealImage || null},
-              manager_id = ${managerId}
+              manager_id = ${operatorId}
           WHERE id = ${certId}
         `;
         await tx`
           INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
           VALUES (
             ${certId},
-            ${managerId},
+            ${operatorId},
             'UPDATE_CERTIFICATE',
             ${`更新证书信息 ${certNumber}`},
             NOW()
