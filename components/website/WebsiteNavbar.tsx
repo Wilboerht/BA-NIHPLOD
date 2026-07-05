@@ -4,15 +4,15 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ExternalLink, User, LogOut, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Menu, ExternalLink, LogOut, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND_NAME_CN } from "@/lib/config";
 
 export function WebsiteNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { user, logout } = useAuth();
+  const touchStartX = useRef(0);
   const pathname = usePathname();
   const isHome = pathname === "/";
 
@@ -28,8 +28,7 @@ export function WebsiteNavbar() {
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = "hidden";
-      // 等待面板 DOM 渲染完成后聚焦关闭按钮
-      requestAnimationFrame(() => closeButtonRef.current?.focus());
+
     } else {
       document.body.style.overflow = "";
     }
@@ -152,25 +151,19 @@ export function WebsiteNavbar() {
           role="dialog"
         aria-modal="true"
         aria-label="导航菜单"
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current - e.changedTouches[0].clientX > 60) {
+              setMobileMenuOpen(false);
+            }
+          }}
         className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl transform transition-transform duration-500 ease-out ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex flex-col h-full px-6 pt-6 pb-8">
-            {/* 关闭按钮 */}
-            <div className="flex justify-end mb-6">
-              <button
-                ref={closeButtonRef}
-                onClick={() => setMobileMenuOpen(false)}
-                aria-label="关闭菜单"
-                className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 transition-colors text-slate-500 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+          <div className="flex flex-col h-full px-6 py-6">
             {/* 用户信息 / 登录入口 */}
-            <div className="mb-8 px-2">
+            <div className="my-3">
               {user ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-4">
@@ -208,22 +201,25 @@ export function WebsiteNavbar() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-4 px-2">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                    <User className="w-6 h-6" />
-                  </div>
-                  <p className="text-[15px] text-[#13263D] font-medium">
+                <div className="flex items-center justify-center gap-3">
+                  <Image
+                    src="/NIHPLOD-logo.svg"
+                    alt="NIHPLOD"
+                    width={0}
+                    height={0}
+                    className="h-7 w-auto"
+                    unoptimized
+                  />
+                  <div className="w-px h-4 bg-slate-300/60" />
+                  <span className="text-[14px] font-medium tracking-[0.2em] uppercase text-[#13263D]">
                     授权核验平台
-                  </p>
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* 分隔线 */}
-            <div className="border-t border-slate-100 mb-4" />
-
-            {/* 导航链接 */}
-            <nav className="flex flex-col gap-1">
+            {/* 导航链接 + 快捷操作 */}
+            <nav className="flex flex-col gap-1 mt-auto pb-6">
               {!isHome && (
                 <Link
                   href="/"
@@ -233,6 +229,31 @@ export function WebsiteNavbar() {
                   首页
                 </Link>
               )}
+
+              {/* 分割线 */}
+              <div className="border-t border-slate-100 my-2" />
+
+              <button
+                onClick={() => {
+                  handleNavClick();
+                  window.dispatchEvent(new CustomEvent('open-report-modal'));
+                }}
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-red-500/80 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                官方维权申诉
+              </button>
+              <a
+                href="https://nihplod.cn/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleNavClick}
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                隐私声明
+                <ExternalLink className="w-3.5 h-3.5 opacity-40 ml-auto" />
+              </a>
+
               <a
                 href="https://nihplod.cn"
                 target="_blank"
@@ -253,41 +274,6 @@ export function WebsiteNavbar() {
                 <ExternalLink className="w-3.5 h-3.5 opacity-50 ml-auto transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </a>
             </nav>
-
-            {/* 快捷操作 */}
-            <div className="mt-auto space-y-3 pb-6">
-              <button
-                onClick={() => {
-                  handleNavClick();
-                  window.dispatchEvent(new CustomEvent('open-report-modal'));
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-red-500/80 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
-              >
-                <ShieldAlert className="w-4 h-4" />
-                官方维权申诉
-              </button>
-              <a
-                href="https://nihplod.cn/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleNavClick}
-                className="flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
-              >
-                隐私声明
-                <ExternalLink className="w-3.5 h-3.5 opacity-40 ml-auto" />
-              </a>
-              {/* 底部品牌信息 */}
-              <div className="pt-4">
-                <Image
-                  src="/NIHPLOD-logo.svg"
-                  alt="NIHPLOD"
-                  width={0}
-                  height={0}
-                  className="h-5 w-auto opacity-40 mx-auto"
-                  unoptimized
-                />
-              </div>
-            </div>
           </div>
         </div>
       </div>
