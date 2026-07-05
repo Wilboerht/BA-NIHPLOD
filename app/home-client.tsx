@@ -549,7 +549,7 @@ export default function HomeClient() {
               ) : result ? (
                 <div className="relative w-full flex flex-col">
                   {/* Logo */}
-                  <div className="flex justify-center mb-5 md:mb-8">
+                  <div className="flex justify-center mb-6 md:mb-8">
                     <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 md:h-10 w-auto" unoptimized />
                   </div>
 
@@ -564,7 +564,7 @@ export default function HomeClient() {
                            const title = isShopValid ? shop : (comp || shop || '');
                            return (
                              <>
-                               <h2 className="text-[22px] md:text-[24px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{title}</h2>
+                               <h2 className="text-xl md:text-[24px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{title}</h2>
                                {isShopValid && comp && comp !== shop && (
                                  <p className="mt-1.5 text-sm md:text-[15px] text-[#8B7355]/80">
                                    {comp}
@@ -574,9 +574,9 @@ export default function HomeClient() {
                            );
                          })()}
                          <div className="flex items-center gap-3 mt-3">
-                           <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">证书编号</span>
+                           <span className="text-[10px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-bold tracking-wider leading-relaxed">证书编号</span>
                            <p 
-                             className="text-[#8B7355] text-[11px] md:text-[13px] font-bold tracking-widest font-mono pt-[1px] cursor-pointer hover:underline decoration-dotted transition-all"
+                             className="text-[#8B7355] text-xs md:text-[13px] font-medium tracking-widest font-mono cursor-pointer hover:underline decoration-dotted transition-all"
                              onClick={() => {
                                navigator.clipboard.writeText(result.id);
                                // 可以加个简单的 toast 效果，但先保持极简
@@ -590,9 +590,9 @@ export default function HomeClient() {
                     </div>
                     
                     {/* 分割线下半截：票据风格 */}
-                    <div className="relative flex flex-col gap-4 md:gap-8 pt-5 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-8 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
+                    <div className="relative flex flex-col gap-3 md:gap-8 pt-4 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-6 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
                        <div className="space-y-2 md:space-y-4 relative z-10">
-                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
+                          <span className="text-[11px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <div className="flex items-center gap-3">
                             <p className="text-sm md:text-[15px] text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
                             {(() => {
@@ -607,8 +607,8 @@ export default function HomeClient() {
                           </div>
                        </div>
                        <div className="space-y-2 md:space-y-4 relative z-10">
-                          <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
-                          <p className="text-[13px] md:text-[15px] text-[#13263D] font-light leading-relaxed whitespace-pre-wrap break-words">
+                          <span className="text-[11px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
+                          <p className="text-sm md:text-[15px] text-[#13263D] font-light leading-relaxed whitespace-pre-wrap break-words">
                             {result.scope?.replace(/\*\*/g, '')}
                           </p>
                        </div>
