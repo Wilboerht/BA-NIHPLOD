@@ -125,7 +125,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       return { success: false, error: "未检索到相关的官方授权记录" };
     }
 
-    // 状态校验：与 API /api/certificates/verify 保持一致
+    // 状态校验
     const firstResult = results[0];
     const rawStatus = String(firstResult.status || '').toUpperCase();
 
