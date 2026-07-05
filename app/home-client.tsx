@@ -802,7 +802,7 @@ export default function HomeClient() {
             aria-modal="true"
             aria-label="扫码验证"
             tabIndex={-1}
-            className="fixed inset-0 z-[70] flex md:items-center md:justify-center"
+            className="fixed inset-0 z-[110] flex md:items-center md:justify-center"
             onKeyDown={(e) => { if (e.key === "Escape") handleCloseScanner(); }}>
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
