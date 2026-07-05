@@ -392,7 +392,7 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="relative h-[calc(100dvh-68px)] md:h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center bg-[#FAFAFA] overflow-hidden font-sans">
+    <main className="relative h-[calc(100dvh-68px)] md:h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center bg-[#EAE5DA] overflow-hidden font-sans">
 
       {/* 核心内容区 */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10">

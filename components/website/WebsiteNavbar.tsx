@@ -50,8 +50,8 @@ export function WebsiteNavbar() {
         aria-label="主导航"
         className={`fixed top-0 left-0 right-0 z-[100] grid place-items-center px-6 md:px-12 lg:px-20 py-5 md:py-7 transition-[background-color,border-color,box-shadow] duration-500 ${
           scrolled
-            ? "bg-white/50 backdrop-blur-md border-b border-black/[0.04]"
-            : "bg-transparent border-b border-transparent"
+            ? "bg-[#EAE5DA]/70 backdrop-blur-md border-b border-black/[0.04]"
+            : "bg-[#EAE5DA] border-b border-transparent"
         }`}
       >
         <div className="w-full flex items-center justify-between gap-4">
@@ -71,7 +71,7 @@ export function WebsiteNavbar() {
               unoptimized
             />
             <div className="hidden sm:block w-px h-4 md:h-5 bg-slate-300/60" />
-            <span className="hidden sm:inline text-[13px] md:text-[15px] font-medium tracking-[0.2em] uppercase text-[#00263e] leading-none">
+            <span className="hidden sm:inline text-[13px] md:text-[15px] font-medium tracking-[0.2em] uppercase text-[#13263D] leading-none">
               授权核验平台
             </span>
           </Link>
@@ -212,7 +212,7 @@ export function WebsiteNavbar() {
                   <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                     <User className="w-6 h-6" />
                   </div>
-                  <p className="text-[15px] text-slate-400 font-medium">
+                  <p className="text-[15px] text-[#13263D] font-medium">
                     授权核验平台
                   </p>
                 </div>
