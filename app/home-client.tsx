@@ -391,7 +391,7 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="relative h-screen min-h-[100dvh] w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
+    <main className="relative h-[calc(100dvh-68px)] md:h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
           style={{ background: "#FAFAFA" }}>
       
       {/* 装饰渐变 & 矿物纹理叠加 */}
