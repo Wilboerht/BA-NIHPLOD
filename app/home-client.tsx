@@ -548,8 +548,8 @@ export default function HomeClient() {
                 </div>
               ) : result ? (
                 <div className="relative w-full flex flex-col">
-                  <div className="flex flex-col space-y-8 md:space-y-10 relative z-10">
-                    <div className="space-y-5 px-0">
+                  <div className="flex flex-col space-y-5 md:space-y-10 relative z-10">
+                    <div className="space-y-4 md:space-y-5 px-0">
                       <div className="flex items-center gap-1.5 md:gap-2 text-[#8B7355] text-[10px] md:text-[11px] font-bold tracking-[0.15em] md:tracking-[0.2em] bg-[#8B7355]/5 px-2.5 md:px-3 py-1.5 rounded-full border border-[#8B7355]/20 w-fit shadow-sm shadow-[#8B7355]/5">
                          <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> 官方授权企业资质认证
                       </div>
@@ -588,8 +588,8 @@ export default function HomeClient() {
                     </div>
                     
                     {/* 分割线下半截：票据风格 */}
-                    <div className="relative flex flex-col gap-6 md:gap-8 pt-8 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-10 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
-                       <div className="space-y-3 md:space-y-4 relative z-10">
+                    <div className="relative flex flex-col gap-4 md:gap-8 pt-5 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-8 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
+                       <div className="space-y-2 md:space-y-4 relative z-10">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <div className="flex items-center gap-3">
                             <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
