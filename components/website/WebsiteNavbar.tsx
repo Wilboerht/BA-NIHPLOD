@@ -4,15 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, ExternalLink, LogOut, ShieldCheck, ShieldAlert, QrCode, ChevronDown } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { Menu, ExternalLink, ShieldAlert, QrCode, ChevronDown } from "lucide-react";
 import { BRAND_NAME_CN } from "@/lib/config";
 
 export function WebsiteNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wechatExpanded, setWechatExpanded] = useState(false);
-  const { user, logout } = useAuth();
   const touchStartX = useRef(0);
   const pathname = usePathname();
   const isHome = pathname === "/";
@@ -39,9 +37,6 @@ export function WebsiteNavbar() {
   }, [mobileMenuOpen]);
 
   const handleNavClick = () => setMobileMenuOpen(false);
-
-  const userDisplayName = user?.full_name || user?.username || user?.phone || "用户";
-  const userInitial = userDisplayName.charAt(0).toUpperCase();
 
   return (
     <>
@@ -142,60 +137,22 @@ export function WebsiteNavbar() {
           }`}
         >
           <div className="flex flex-col h-full px-6 py-6">
-            {/* 用户信息 / 登录入口 */}
+            {/* 品牌标识 */}
             <div className="my-3">
-              {user ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-[var(--navbar-accent,#8B7355)]/10 flex items-center justify-center text-lg font-bold text-[var(--navbar-accent,#8B7355)] shrink-0">
-                      {userInitial}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[15px] font-semibold text-slate-800 truncate">
-                        {userDisplayName}
-                      </p>
-                      <p className="text-[13px] text-slate-400 mt-0.5">
-                        {user.role === "SUPER_ADMIN" ? "超级管理员" : user.role === "AUDITOR" ? "审核员" : "已登录"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Link
-                      href="/workbench"
-                      onClick={handleNavClick}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--navbar-accent,#8B7355)]/8 text-[13px] font-medium text-[var(--navbar-accent,#8B7355)] hover:bg-[var(--navbar-accent,#8B7355)]/15 transition-colors"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                      管理后台
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleNavClick();
-                        logout();
-                      }}
-                      className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 text-[13px] font-medium text-red-500 hover:bg-red-100 transition-colors cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      退出
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-3">
-                  <Image
-                    src="/NIHPLOD-logo.svg"
-                    alt="NIHPLOD"
-                    width={0}
-                    height={0}
-                    className="h-7 w-auto"
-                    unoptimized
-                  />
-                  <div className="w-px h-4 bg-slate-300/60" />
-                  <span className="text-[14px] font-medium tracking-[0.2em] uppercase text-[#13263D]">
-                    授权核验平台
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center justify-center gap-3">
+                <Image
+                  src="/NIHPLOD-logo.svg"
+                  alt="NIHPLOD"
+                  width={0}
+                  height={0}
+                  className="h-7 w-auto"
+                  unoptimized
+                />
+                <div className="w-px h-4 bg-slate-300/60" />
+                <span className="text-[14px] font-medium tracking-[0.2em] uppercase text-[#13263D]">
+                  授权核验平台
+                </span>
+              </div>
             </div>
 
             {/* 菜单项 */}
