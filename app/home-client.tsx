@@ -836,7 +836,7 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto"
+               className="relative w-full h-full md:h-auto md:max-w-md bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col justify-center"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
@@ -848,7 +848,7 @@ export default function HomeClient() {
                 </button>
               </div>
 
-              <div className="text-center mb-4 pt-2 md:mb-10">
+              <div className="text-center mb-6 pt-2 md:mb-10">
                  <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-3 md:mb-7" unoptimized />
                  <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">扫码验证</h2>
                  <p className="text-sm text-slate-500 mt-1.5">将摄像头对准授权书上的二维码</p>
@@ -866,11 +866,11 @@ export default function HomeClient() {
                 <div id="qr-scanner-container" style={{ width: '100%', aspectRatio: '1/1' }}></div>
               </div>
 
-              <div className="flex flex-col gap-4 mt-4">
+              <div className="flex flex-col gap-4">
                 <div className="text-center">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 text-xs md:text-[11px] text-[#8B7355] font-medium hover:text-[#6B5346] transition-colors group px-4 py-3 md:px-0 md:py-0 rounded-full md:rounded-none bg-slate-50/80 hover:bg-slate-100/80 md:bg-transparent"
+                    className="inline-flex items-center gap-1.5 text-[11px] text-[#8B7355]/70 hover:text-[#6B5346] transition-colors group"
                   >
                     <Upload className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
                     <span>从相册选择图片扫描</span>
