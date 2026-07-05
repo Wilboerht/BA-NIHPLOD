@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, ShieldAlert, Globe, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -46,6 +47,9 @@ const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
 
 export default function HomeClient() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const certParam = searchParams.get("cert");
+  const autoVerified = useRef(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CertificateVerifyResult[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -175,6 +179,29 @@ export default function HomeClient() {
   const [scanError, setScanError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scannerTrigger, setScannerTrigger] = useState(0);
+
+  // 从 URL 参数自动验证证书
+  useEffect(() => {
+    if (!certParam || autoVerified.current) return;
+    autoVerified.current = true;
+    const doAutoVerify = async () => {
+      setIsSearching(true);
+      try {
+        const res = await verifyCertificateAction(certParam.trim());
+        if (res.success && res.data) {
+          setResults(res.data);
+          setCurrentIndex(0);
+        } else {
+          setError(res.error || "未查询到相关授权信息。");
+        }
+      } catch {
+        setError("系统查询出错，请稍后再试。");
+      } finally {
+        setIsSearching(false);
+      }
+    };
+    doAutoVerify();
+  }, [certParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 监听侧边栏触发的维权申诉事件
   useEffect(() => {

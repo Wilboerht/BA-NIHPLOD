@@ -1,4 +1,5 @@
 ﻿import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 import HomeClient from "./home-client";
 
@@ -63,7 +64,9 @@ export default function HomePage() {
       </section>
 
       {/* 客户端交互层 */}
-      <HomeClient />
+      <Suspense fallback={<div className="h-screen bg-[#F2EDE3]" />}>
+        <HomeClient />
+      </Suspense>
     </>
   );
 }
