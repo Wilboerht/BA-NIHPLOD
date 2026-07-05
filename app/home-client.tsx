@@ -894,6 +894,16 @@ export default function HomeClient() {
                <Image src="/assets/beian.webp" alt="公安网备" width={10} height={10} className="w-2.5 h-2.5 opacity-50" unoptimized />
                沪公网安备31010702010178号
              </a>
+             <span className="mx-1.5 text-slate-300/40">|</span>
+             <a
+               href="https://wap.scjgj.sh.gov.cn/businessCheck/verifKey.do?showType=extShow&serial=YOUR_SERIAL&signData=YOUR_SIGN_DATA"
+               target="_blank"
+               rel="noopener noreferrer"
+               className="inline-flex items-center gap-0.5 hover:text-slate-500 transition-colors"
+             >
+               <Image src="/assets/aic_icon.png" alt="电子营业执照" width={14} height={14} className="w-3.5 h-3.5 opacity-50" unoptimized />
+               电子营业执照
+             </a>
            </p>
            <p className="text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
              &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
