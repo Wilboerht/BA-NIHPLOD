@@ -519,8 +519,8 @@ export default function HomeClient() {
                 </div>
 
               {error ? (
-                <div className="flex flex-col items-center text-center py-10 gap-6">
-                  <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-10 w-auto mx-auto" unoptimized />
+                <div className="flex flex-col items-center text-center py-8 md:py-10 gap-4 md:gap-6">
+                  <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 md:h-10 w-auto mx-auto" unoptimized />
                   <p className="text-lg md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug px-2 md:px-4">{error}</p>
                   <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
                     请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
@@ -528,7 +528,7 @@ export default function HomeClient() {
                   </p>
                   <button 
                     onClick={() => { setError(null); setShowReportModal(true); setEvidenceFiles([]); }}
-                    className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-8 py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-colors flex items-center justify-center gap-2 mx-auto tracking-[0.1em] font-medium"
+                    className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-colors flex items-center justify-center gap-2 mx-auto tracking-[0.1em] font-medium"
                   >
                         <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
                       </button>
