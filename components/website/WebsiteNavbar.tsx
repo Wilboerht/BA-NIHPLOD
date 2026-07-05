@@ -84,7 +84,7 @@ export function WebsiteNavbar() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="前往旎柏中国官网（新窗口打开）"
-              className="group hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 text-[15px] font-medium tracking-[0.1em] text-[#8B7355]/80 hover:text-[#8B7355] hover:scale-[1.03] transition-all duration-500"
+              className="group hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 text-sm font-medium tracking-[0.1em] text-[#8B7355]/80 hover:text-[#8B7355] transition-colors duration-300"
             >
               <div className="w-6 h-6 rounded-full bg-white/60 border border-[#8B7355]/15 flex items-center justify-center shrink-0">
                 <Image

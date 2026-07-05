@@ -685,7 +685,7 @@ export default function HomeClient() {
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={() => { setShowReportModal(false); resetReportForm(); }}
-               className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+               className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl"
             />
             <motion.div 
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
@@ -855,7 +855,7 @@ export default function HomeClient() {
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={handleCloseScanner}
-               className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+               className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl"
             />
 
             {/* 浮动错误提示 */}
@@ -896,12 +896,12 @@ export default function HomeClient() {
               </div>
 
               <div className="text-center mb-6 pt-2">
-                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-6" unoptimized />
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-4" unoptimized />
                  <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">扫码验证</h2>
-                 <p className="text-xs text-slate-500 mt-2">将摄像头对准授权书上的二维码</p>
+                 <p className="text-xs text-slate-500 mt-1.5">将摄像头对准授权书上的二维码</p>
               </div>
 
-              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner max-w-[240px] mx-auto">
+              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner max-w-[280px] md:max-w-xs mx-auto">
                 {(!scannerReady || isScanning) && !scanError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
                     <RefreshCw className="w-8 h-8 animate-spin text-[#8B7355] mb-4" />
