@@ -553,7 +553,7 @@ export default function HomeClient() {
                     <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 md:h-10 w-auto" unoptimized />
                   </div>
 
-                  <div className="flex flex-col space-y-5 md:space-y-10 relative z-10">
+                  <div className="flex flex-col space-y-4 md:space-y-6 relative z-10">
                     <div className="space-y-4 md:space-y-5 px-0">
                       
                       <div>
@@ -590,7 +590,7 @@ export default function HomeClient() {
                     </div>
                     
                     {/* 分割线下半截：票据风格 */}
-                    <div className="relative flex flex-col gap-3 md:gap-8 pt-4 md:pt-10 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-6 md:pb-14 rounded-b-[24px] md:rounded-b-[32px]">
+                    <div className="relative flex flex-col gap-3 md:gap-6 pt-4 md:pt-6 border-t border-dashed border-[#8B7355]/20 bg-slate-50/60 -mx-6 md:-mx-14 -mb-6 md:-mb-14 px-6 md:px-14 pb-6 md:pb-10 rounded-b-[24px] md:rounded-b-[32px]">
                        <div className="space-y-2 md:space-y-4 relative z-10">
                           <span className="text-[11px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <div className="flex items-center gap-3">
