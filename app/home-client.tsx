@@ -493,7 +493,7 @@ export default function HomeClient() {
             role="dialog"
             aria-modal="true"
             aria-label={error ? "查询结果" : "授权证书详情"}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6 md:p-12"
+            className="fixed inset-0 z-[110] flex items-center justify-center p-6 md:p-12"
             onKeyDown={(e) => { if (e.key === "Escape") { setResults(null); setCurrentIndex(0); setError(null); } }}>
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -519,19 +519,32 @@ export default function HomeClient() {
                 </div>
 
               {error ? (
-                <div className="flex flex-col items-center text-center py-8 md:py-10 gap-4 md:gap-6">
+                <div className="flex flex-col items-center text-center py-8 md:py-10 gap-5 md:gap-6">
                   <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 md:h-10 w-auto mx-auto" unoptimized />
                   <p className="text-lg md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug px-2 md:px-4">{error}</p>
-                  <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
-                    请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
-                    为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
-                  </p>
-                  <button 
-                    onClick={() => { setError(null); setShowReportModal(true); setEvidenceFiles([]); }}
-                    className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-colors flex items-center justify-center gap-2 mx-auto tracking-[0.1em] font-medium"
-                  >
-                        <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
-                      </button>
+                  {(() => {
+                    if (error === "系统查询出错，请稍后再试。") {
+                      return (
+                        <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
+                          服务暂时不可用，请稍后重试。如问题持续，请联系客服。
+                        </p>
+                      );
+                    }
+                    return (
+                      <>
+                        <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
+                          请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
+                          为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
+                        </p>
+                        <button 
+                          onClick={() => { setError(null); setShowReportModal(true); setEvidenceFiles([]); }}
+                          className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-colors flex items-center justify-center gap-2 mx-auto tracking-[0.1em] font-medium"
+                        >
+                          <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : result ? (
                 <div className="relative w-full flex flex-col">
