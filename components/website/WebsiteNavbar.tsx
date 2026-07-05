@@ -84,16 +84,19 @@ export function WebsiteNavbar() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="前往旎柏中国官网（新窗口打开）"
-              className="group hidden md:flex items-center gap-2 text-[15px] font-medium tracking-[0.1em] text-[#8B7355]/80 hover:text-[#8B7355] transition-colors duration-500"
+              className="group hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 text-[15px] font-medium tracking-[0.1em] text-[#8B7355]/80 hover:text-[#8B7355] hover:scale-[1.03] transition-all duration-500"
             >
-              <Image
-                src="/watermark.png"
-                alt=""
-                width={36}
-                height={36}
-                className="w-8 h-8 object-contain drop-shadow-[0_1px_2px_rgba(0,38,62,0.2)] animate-[soft-blink_3s_ease-in-out_infinite]"
-                unoptimized
-              />
+              <div className="w-6 h-6 rounded-full bg-white/60 border border-[#8B7355]/15 flex items-center justify-center shrink-0">
+                <Image
+                  src="/watermark.png"
+                  alt=""
+                  width={22}
+                  height={22}
+                  className="w-[18px] h-[18px] object-contain brightness-110 saturate-125 animate-[soft-blink_3s_ease-in-out_infinite]"
+                  style={{ filter: "drop-shadow(0 1px 1px rgba(0,38,62,0.2))" }}
+                  unoptimized
+                />
+              </div>
               <span>{BRAND_NAME_CN}中国官网</span>
               <ExternalLink className="w-3 h-3 opacity-50 transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
@@ -243,7 +246,7 @@ export function WebsiteNavbar() {
                   alt=""
                   width={28}
                   height={28}
-                  className="w-7 h-7 object-contain drop-shadow-[0_1px_2px_rgba(0,38,62,0.2)] animate-[soft-blink_3s_ease-in-out_infinite]"
+                  className="w-7 h-7 object-contain drop-shadow-[0_1px_2px_rgba(0,38,62,0.2)] brightness-110 saturate-125 animate-[soft-blink_3s_ease-in-out_infinite]"
                   unoptimized
                 />
                 {BRAND_NAME_CN}中国官网
