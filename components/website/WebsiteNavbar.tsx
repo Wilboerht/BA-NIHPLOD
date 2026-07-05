@@ -100,27 +100,6 @@ export function WebsiteNavbar() {
               <span>{BRAND_NAME_CN}中国官网</span>
               <ExternalLink className="w-3 h-3 opacity-50 transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
-
-            {/* 用户状态 - 桌面端 */}
-            {user ? (
-              <div className="hidden md:flex items-center gap-2">
-                <Link
-                  href="/workbench"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/60 text-xs lg:text-[13px] font-medium tracking-[0.05em] text-slate-600 hover:text-slate-800 transition-colors duration-300"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>管理后台</span>
-                </Link>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-50/80 border border-slate-100/60">
-                  <span className="w-6 h-6 rounded-full bg-[var(--navbar-accent,#8B7355)]/10 flex items-center justify-center text-[11px] font-bold text-[var(--navbar-accent,#8B7355)] shrink-0">
-                    {userInitial}
-                  </span>
-                  <span className="text-xs lg:text-[13px] font-medium text-slate-600 max-w-[80px] truncate">
-                    {userDisplayName}
-                  </span>
-                </div>
-              </div>
-            ) : null}
           </div>
 
           {/* 移动端汉堡菜单按钮：绝对定位右侧 */}
