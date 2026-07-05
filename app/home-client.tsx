@@ -814,10 +814,10 @@ export default function HomeClient() {
             <AnimatePresence>
               {scanError && (
                 <motion.div
-                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className="absolute top-12 left-1/2 -translate-x-1/2 z-[100] bg-white text-slate-800 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 text-xs font-medium tracking-[0.05em] whitespace-nowrap"
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute bottom-6 md:top-12 md:bottom-auto left-1/2 -translate-x-1/2 z-[100] bg-white text-slate-800 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 text-xs font-medium tracking-[0.05em] whitespace-nowrap"
                 >
                   <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-[14px] h-[14px] text-amber-500" />
@@ -836,9 +836,22 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-md bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col justify-center"
+               className="relative w-full h-full md:h-auto md:max-w-md bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col"
             >
-              <div className="absolute top-4 right-4 md:top-6 md:right-6">
+              {/* 手机端顶部栏：Logo 居中 + 关闭 */}
+              <div className="flex md:hidden items-center justify-center relative mb-4">
+                <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 w-auto" unoptimized />
+                <button 
+                  onClick={handleCloseScanner}
+                  aria-label="关闭"
+                  className="absolute right-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* PC 端绝对定位关闭按钮 */}
+              <div className="absolute top-4 right-4 md:top-6 md:right-6 hidden md:block">
                 <button 
                   onClick={handleCloseScanner}
                   aria-label="关闭"
@@ -848,8 +861,11 @@ export default function HomeClient() {
                 </button>
               </div>
 
-              <div className="text-center mb-6 pt-2 md:mb-10">
-                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-3 md:mb-7" unoptimized />
+              {/* 内容区：手机端在剩余空间居中 */}
+              <div className="flex-1 flex flex-col justify-center md:block">
+
+              <div className="text-center mb-6 md:mb-10">
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="hidden md:block h-[34px] w-auto mx-auto mb-3 md:mb-7" unoptimized />
                  <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">扫码验证</h2>
                  <p className="text-sm text-slate-500 mt-1.5">将摄像头对准授权书上的二维码</p>
               </div>
@@ -883,6 +899,8 @@ export default function HomeClient() {
                     onChange={handleFileScan} 
                   />
                 </div>
+              </div>
+
               </div>
             </motion.div>
           </div>
