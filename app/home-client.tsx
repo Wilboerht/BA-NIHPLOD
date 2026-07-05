@@ -470,28 +470,8 @@ export default function HomeClient() {
            transition={{ duration: 38, repeat: Infinity, ease: "linear" }}
       />
 
-      {/* 顶部导航 */}
-      <nav className="hidden md:flex w-full max-w-7xl px-6 md:px-12 py-6 md:py-10 justify-between items-center z-20 shrink-0">
-         <div className="flex items-center gap-3 md:gap-5 transition-all hover:opacity-80">
-            <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-6 md:h-8 w-auto" />
-            <div className="w-px h-4 md:h-5 bg-slate-300/60 mx-0.5 md:mx-1" />
-            <span className="text-xs md:text-[17px] font-medium tracking-[0.1em] md:tracking-[0.2em] uppercase text-[#2C2A29] leading-none">授权核验中心</span>
-         </div>
-         
-         <Link
-            href="https://nihplod.cn"
-            target="_blank"
-            className="group flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs md:text-[13px] font-semibold tracking-[0.05em] text-[#8B7355] hover:text-[#6B5346] transition-all"
-         >
-            <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
-            <span className="hidden sm:inline">{BRAND_NAME_CN}中国官网</span>
-            <span className="sm:hidden">{BRAND_NAME_CN}中国官网</span>
-            <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
-         </Link>
-      </nav>
-
       {/* 核心内容区 */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10 md:-mt-20">
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10">
         <div className="w-full flex flex-col items-center">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -575,6 +555,7 @@ export default function HomeClient() {
               <Link
                 href="https://nihplod.cn"
                 target="_blank"
+                rel="noopener noreferrer"
                 className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355]/70 hover:text-[#8B7355] transition-all"
               >
                 <Building2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
@@ -971,7 +952,7 @@ export default function HomeClient() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full max-w-7xl px-6 md:px-12 py-4 md:py-10 flex flex-col md:flex-row justify-between items-center gap-3 md:gap-6 shrink-0 border-t border-slate-100/30">
+      <footer className="w-full px-6 md:px-12 lg:px-20 py-4 md:py-10 flex flex-col md:flex-row justify-between items-center gap-3 md:gap-6 shrink-0 border-t border-slate-100/30">
          <div className="flex flex-col items-center md:items-start gap-1 order-3 md:order-1">
            <p className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 tracking-normal antialiased">
              &copy; 2026 NIHPLOD. All rights reserved

@@ -14,6 +14,11 @@
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.03);
 
+  /* Navbar Brand Tokens (aligned with skin-advisor-standalone) */
+  --navbar-text: #00263e;
+  --navbar-accent: #8B7355;
+  --navbar-accent-hover: #5c4937;
+
   /* Notion Color Palette (from HRD-Dashboard) */
   --notion-bg: #ffffff;
   --notion-bg-secondary: #f7f6f3;

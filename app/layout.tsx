@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "@/components/ui/ToastProvider";
+import { WebsiteLayoutClient } from "@/components/website/WebsiteLayoutClient";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 
 const geistSans = Geist({
@@ -151,7 +152,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <WebsiteLayoutClient>{children}</WebsiteLayoutClient>
+        </ToastProvider>
       </body>
     </html>
   );
