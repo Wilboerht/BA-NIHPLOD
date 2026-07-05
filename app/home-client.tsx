@@ -873,64 +873,64 @@ export default function HomeClient() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full px-6 md:px-12 lg:px-20 py-4 md:py-10 flex flex-col md:flex-row justify-between items-center gap-3 md:gap-6 shrink-0 border-t border-slate-100/30">
-         <div className="flex flex-col items-center md:items-start gap-0.5 order-1">
-           <p className="text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
-             <a
-               href="https://beian.miit.gov.cn/"
-               target="_blank"
-               rel="noopener noreferrer"
-               className="hover:text-slate-500 transition-colors"
-             >
-               沪ICP备2026014764号-1
-             </a>
-             <span className="mx-1.5 text-slate-300/40">|</span>
-             <a
-               href="https://www.beian.gov.cn/portal/registerSystemInfo"
-               target="_blank"
-               rel="noopener noreferrer"
-               className="inline-flex items-center gap-0.5 hover:text-slate-500 transition-colors"
-             >
-               <Image src="/assets/beian.webp" alt="公安网备" width={10} height={10} className="w-2.5 h-2.5 opacity-50" unoptimized />
-               沪公网安备31010702010178号
-             </a>
-             <span className="mx-1.5 text-slate-300/40">|</span>
-             <a
-               href="https://wap.scjgj.sh.gov.cn/businessCheck/verifKey.do?showType=extShow&serial=YOUR_SERIAL&signData=YOUR_SIGN_DATA"
-               target="_blank"
-               rel="noopener noreferrer"
-               className="inline-flex items-center gap-0.5 hover:text-slate-500 transition-colors"
-             >
-               <Image src="/assets/aic_icon.png" alt="电子营业执照" width={14} height={14} className="w-3.5 h-3.5 opacity-50" unoptimized />
-               电子营业执照
-             </a>
-           </p>
-           <p className="text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
-             &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
-           </p>
-         </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-normal text-slate-400/80 justify-center md:justify-end order-2 w-full md:w-auto">
-             {/* 官方维权申诉 */}
-             <button 
-               onClick={() => { setShowReportModal(true); setEvidenceFiles([]); }} 
-               className="text-xs text-red-400/90 hover:text-red-500 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap"
-             >
-               <ShieldAlert className="w-3 h-3" /> 官方维权申诉
-            </button>
-
-            <span className="text-slate-300/60">|</span>
-
-            {/* 隐私声明 */}
+      <footer className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-10 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 shrink-0 border-t border-slate-100/30">
+        <div className="flex flex-col items-center md:items-start gap-2 md:gap-0.5 order-1">
+          <p className="order-2 md:order-1 flex flex-col md:flex-row items-center md:items-start gap-1 md:gap-x-1.5 md:gap-y-0.5 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
             <a
-              href="https://nihplod.cn/privacy"
+              href="https://beian.miit.gov.cn/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-slate-500 hover:text-slate-600 hover:underline underline-offset-2 cursor-pointer transition-colors whitespace-nowrap inline-flex items-center gap-1"
+              className="hover:text-slate-500 transition-colors"
             >
-              隐私声明
-              <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+              沪ICP备2026014764号-1
             </a>
-         </div>
+            <span className="hidden md:inline text-slate-300/40 select-none">|</span>
+            <a
+              href="https://www.beian.gov.cn/portal/registerSystemInfo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 hover:text-slate-500 transition-colors"
+            >
+              <Image src="/assets/beian.webp" alt="公安网备" width={10} height={10} className="w-2.5 h-2.5 opacity-50" unoptimized />
+              沪公网安备31010702010178号
+            </a>
+            <span className="hidden md:inline text-slate-300/40 select-none">|</span>
+            <a
+              href="https://wap.scjgj.sh.gov.cn/businessCheck/verifKey.do?showType=extShow&serial=YOUR_SERIAL&signData=YOUR_SIGN_DATA"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 hover:text-slate-500 transition-colors"
+            >
+              <Image src="/assets/aic_icon.png" alt="电子营业执照" width={14} height={14} className="w-3.5 h-3.5 opacity-50" unoptimized />
+              电子营业执照
+            </a>
+          </p>
+          <p className="order-1 md:order-2 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
+            &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 md:gap-x-4 md:gap-y-1 text-[11px] font-normal text-slate-400/80 order-2 w-full md:w-auto">
+          {/* 官方维权申诉 */}
+          <button
+            onClick={() => { setShowReportModal(true); setEvidenceFiles([]); }}
+            className="text-xs text-red-400/90 hover:text-red-500 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap px-4 py-2.5 md:px-0 md:py-0 rounded-full bg-red-50/80 hover:bg-red-100/80 md:bg-transparent"
+          >
+            <ShieldAlert className="w-3 h-3" /> 官方维权申诉
+          </button>
+
+          <span className="hidden md:inline text-slate-300/60">|</span>
+
+          {/* 隐私声明 */}
+          <a
+            href="https://nihplod.cn/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-slate-500 hover:text-slate-600 cursor-pointer transition-colors whitespace-nowrap inline-flex items-center gap-1 px-4 py-2.5 md:px-0 md:py-0 rounded-full bg-slate-100/80 hover:bg-slate-200/80 md:bg-transparent md:hover:underline underline-offset-2"
+          >
+            隐私声明
+            <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+          </a>
+        </div>
       </footer>
       <LoginModal 
         isOpen={showLoginModal} 
