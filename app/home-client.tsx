@@ -850,6 +850,7 @@ export default function HomeClient() {
             role="dialog"
             aria-modal="true"
             aria-label="扫码验证"
+            tabIndex={-1}
             className="fixed inset-0 z-[70] flex flex-col md:items-center md:justify-center md:p-6"
             onKeyDown={(e) => { if (e.key === "Escape") handleCloseScanner(); }}>
             <motion.div 
@@ -865,7 +866,7 @@ export default function HomeClient() {
                   initial={{ opacity: 0, y: -20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className="absolute top-12 left-1/2 -translate-x-1/2 z-[100] bg-white text-slate-800 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 text-xs md:text-[13px] font-bold tracking-widest whitespace-nowrap"
+                  className="absolute top-12 left-1/2 -translate-x-1/2 z-[100] bg-white text-slate-800 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 text-xs font-medium tracking-[0.05em] whitespace-nowrap"
                 >
                   <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-[14px] h-[14px] text-amber-500" />
@@ -884,11 +885,12 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[32px] md:shadow-2xl p-6 md:p-8 overflow-hidden"
+               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[32px] md:shadow-2xl p-6 md:p-8"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
                   onClick={handleCloseScanner}
+                  aria-label="关闭"
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
                   <X size={16} strokeWidth={2.5} />
@@ -905,7 +907,7 @@ export default function HomeClient() {
                 {(!scannerReady || isScanning) && !scanError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
                     <RefreshCw className="w-8 h-8 animate-spin text-[#8B7355] mb-4" />
-                    <p className="text-xs text-[#8B7355] font-bold tracking-widest uppercase">
+                    <p className="text-xs text-[#8B7355] font-medium tracking-[0.05em]">
                       {isScanning ? "正在核验授权信息..." : "正在启动安全摄像头..."}
                     </p>
                   </div>
