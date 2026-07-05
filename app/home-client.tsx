@@ -548,11 +548,13 @@ export default function HomeClient() {
                 </div>
               ) : result ? (
                 <div className="relative w-full flex flex-col">
+                  {/* Logo */}
+                  <div className="flex justify-center mb-5 md:mb-8">
+                    <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 md:h-10 w-auto" unoptimized />
+                  </div>
+
                   <div className="flex flex-col space-y-5 md:space-y-10 relative z-10">
                     <div className="space-y-4 md:space-y-5 px-0">
-                      <div className="flex items-center gap-1.5 md:gap-2 text-[#8B7355] text-[10px] md:text-[11px] font-bold tracking-[0.15em] md:tracking-[0.2em] bg-[#8B7355]/5 px-2.5 md:px-3 py-1.5 rounded-full border border-[#8B7355]/20 w-fit shadow-sm shadow-[#8B7355]/5">
-                         <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> 官方授权企业资质认证
-                      </div>
                       
                       <div>
                          {(() => {
@@ -562,17 +564,17 @@ export default function HomeClient() {
                            const title = isShopValid ? shop : (comp || shop || '');
                            return (
                              <>
-                               <h2 className="text-2xl md:text-[34px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{title}</h2>
+                               <h2 className="text-[22px] md:text-[24px] font-black text-[#2C2A29] tracking-[0.05em] leading-snug break-words">{title}</h2>
                                {isShopValid && comp && comp !== shop && (
-                                 <p className="mt-2 text-[15px] md:text-[17px] text-[#5C5348] font-semibold tracking-wide">
+                                 <p className="mt-1.5 text-sm md:text-[15px] text-[#8B7355]/80">
                                    {comp}
                                  </p>
                                )}
                              </>
                            );
                          })()}
-                         <div className="flex items-center gap-3 mt-4">
-                           <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">SN</span>
+                         <div className="flex items-center gap-3 mt-3">
+                           <span className="text-[9px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-black uppercase tracking-widest leading-relaxed">证书编号</span>
                            <p 
                              className="text-[#8B7355] text-[11px] md:text-[13px] font-bold tracking-widest font-mono pt-[1px] cursor-pointer hover:underline decoration-dotted transition-all"
                              onClick={() => {
@@ -592,7 +594,7 @@ export default function HomeClient() {
                        <div className="space-y-2 md:space-y-4 relative z-10">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权有效期限</span>
                           <div className="flex items-center gap-3">
-                            <p className="text-[15px] md:text-lg text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
+                            <p className="text-sm md:text-[15px] text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
                             {(() => {
                               const status = getDurationStatus(result.duration, result.status);
                               if (!status) return null;
@@ -604,9 +606,9 @@ export default function HomeClient() {
                             })()}
                           </div>
                        </div>
-                       <div className="space-y-3 md:space-y-4 relative z-10">
+                       <div className="space-y-2 md:space-y-4 relative z-10">
                           <span className="text-[10px] md:text-[11px] text-[#8B7355] uppercase tracking-[0.2em] leading-none block font-bold">授权经营范围</span>
-                          <p className="text-[13px] md:text-[15px] text-[#2C2A29] leading-[2] md:leading-[1.9] font-medium opacity-80 whitespace-pre-wrap break-words">
+                          <p className="text-[13px] md:text-[15px] text-[#13263D] font-light leading-relaxed whitespace-pre-wrap break-words">
                             {result.scope?.replace(/\*\*/g, '')}
                           </p>
                        </div>
