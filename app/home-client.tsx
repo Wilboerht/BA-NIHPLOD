@@ -392,84 +392,7 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="relative h-[calc(100dvh-68px)] md:h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center selection:bg-[#8B7355]/20 overflow-hidden font-sans"
-          style={{ background: "#FAFAFA" }}>
-      
-      {/* 装饰渐变 & 矿物纹理叠加 */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0" 
-           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} />
-      
-      {/* 动态流体全屏流转 (Sophisticated Balanced Full-screen Glows) */}
-      {/* 1. 琥珀色 - 主色调 (Amber - Primary Flow) */}
-      <motion.div 
-           className="absolute w-[750px] h-[750px] md:w-[1200px] md:h-[1200px] rounded-full pointer-events-none blur-[140px] md:blur-[180px] z-0" 
-           style={{ background: "radial-gradient(circle, #8B7355 0%, #8B7355 8%, transparent 65%)" }}
-           animate={{
-              x: ['5vw', '55vw', '15vw', '60vw', '5vw'],
-              y: ['10vh', '45vh', '80vh', '30vh', '10vh'],
-              scale: [1, 1.25, 0.85, 1.15, 1],
-              opacity: [0.15, 0.3, 0.2, 0.32, 0.15],
-              scaleX: [1, 1.4, 0.7, 1.2, 1],
-              scaleY: [1, 0.6, 1.3, 0.8, 1],
-           }}
-           transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-      />
-      {/* 2. 暖亚麻 - 逆向漂移 (Warm Linen - Inverse Flow) */}
-      <motion.div 
-           className="absolute w-[650px] h-[650px] md:w-[1100px] md:h-[1100px] rounded-full pointer-events-none blur-[130px] md:blur-[170px] z-0" 
-           style={{ background: "radial-gradient(circle, #E5DED4 0%, #D4BC9B 10%, transparent 68%)" }}
-           animate={{
-              x: ['70vw', '20vw', '60vw', '15vw', '70vw'],
-              y: ['15vh', '70vh', '25vh', '60vh', '15vh'],
-              scale: [0.9, 1.15, 1.05, 0.8, 0.9],
-              opacity: [0.18, 0.35, 0.25, 0.4, 0.18],
-              scaleX: [1.1, 0.8, 1.3, 0.9, 1.1],
-              scaleY: [0.8, 1.2, 0.75, 1.15, 0.8],
-           }}
-           transition={{ duration: 65, repeat: Infinity, ease: "linear" }}
-      />
-      {/* 3. 香槟金 - 交叉扰动 (Champagne Gold - Cross-current Flow) */}
-      <motion.div 
-           className="absolute w-[550px] h-[550px] md:w-[950px] md:h-[950px] rounded-full pointer-events-none blur-[100px] md:blur-[150px] z-0" 
-           style={{ background: "radial-gradient(circle, #F7E7CE 0%, #F1E5AC 12%, transparent 65%)" }}
-           animate={{
-              x: ['10vw', '60vw', '20vw', '55vw', '10vw'],
-              y: ['75vh', '20vh', '40vh', '70vh', '75vh'],
-              scale: [0.85, 1.25, 0.9, 1.2, 0.85],
-              opacity: [0.2, 0.38, 0.28, 0.42, 0.2],
-              scaleX: [1.2, 0.85, 1.1, 0.75, 1.2],
-              scaleY: [0.75, 1.2, 0.9, 1.25, 0.75],
-           }}
-           transition={{ duration: 42, repeat: Infinity, ease: "linear" }}
-      />
-      {/* 4. 淡玫瑰金 - 对角漂移 (Rose Gold - Diagonal Flow) */}
-      <motion.div 
-           className="absolute w-[500px] h-[500px] md:w-[850px] md:h-[850px] rounded-full pointer-events-none blur-[110px] md:blur-[160px] z-0" 
-           style={{ background: "radial-gradient(circle, #E5D0C8 0%, #C9A89A 10%, transparent 68%)" }}
-           animate={{
-              x: ['65vw', '15vw', '55vw', '20vw', '65vw'],
-              y: ['70vh', '25vh', '65vh', '80vh', '70vh'],
-              scale: [0.8, 1.1, 0.95, 1.15, 0.8],
-              opacity: [0.12, 0.22, 0.15, 0.25, 0.12],
-              scaleX: [0.9, 1.3, 1, 0.85, 0.9],
-              scaleY: [1.1, 0.7, 1.2, 1.05, 1.1],
-           }}
-           transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
-      />
-      {/* 5. 象牙白 - 中心环绕 (Ivory Cream - Orbit Flow) */}
-      <motion.div 
-           className="absolute w-[600px] h-[600px] md:w-[1000px] md:h-[1000px] rounded-full pointer-events-none blur-[120px] md:blur-[170px] z-0" 
-           style={{ background: "radial-gradient(circle, #F0EBE3 0%, #DDD5C8 12%, transparent 65%)" }}
-           animate={{
-              x: ['50vw', '25vw', '75vw', '30vw', '50vw'],
-              y: ['50vh', '25vh', '50vh', '75vh', '50vh'],
-              scale: [1, 0.85, 1.1, 0.9, 1],
-              opacity: [0.18, 0.32, 0.22, 0.35, 0.18],
-              scaleX: [1, 0.75, 1.15, 1.05, 1],
-              scaleY: [1, 1.25, 0.8, 1.1, 1],
-           }}
-           transition={{ duration: 38, repeat: Infinity, ease: "linear" }}
-      />
+    <main className="relative h-[calc(100dvh-68px)] md:h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center bg-[#FAFAFA] overflow-hidden font-sans">
 
       {/* 核心内容区 */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10">
@@ -544,11 +467,16 @@ export default function HomeClient() {
       {/* 结果模态框 */}
       <AnimatePresence>
         {(result || error) && !isSearching && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 md:p-12">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={error ? "查询结果" : "授权证书详情"}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 md:p-12"
+            onKeyDown={(e) => { if (e.key === "Escape") { setResults(null); setCurrentIndex(0); setError(null); } }}>
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
-              className="absolute inset-0 bg-slate-900/10 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl"
             />
             
             <motion.div 
@@ -561,6 +489,7 @@ export default function HomeClient() {
                 <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50">
                   <button 
                     onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
+                    aria-label="关闭"
                     className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                   >
                     <X size={16} strokeWidth={2.5} />
@@ -568,23 +497,19 @@ export default function HomeClient() {
                 </div>
 
               {error ? (
-                <div className="flex flex-col items-center text-center py-10 gap-8">
-                  <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-10 w-auto mb-6 mx-auto" />
-                  <div className="space-y-4 text-center">
-                     <div className="space-y-4 md:space-y-5">
-                        <p className="text-lg md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug px-2 md:px-4">{error}</p>
-                        <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
-                          请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
-                          为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
-                        </p>
-                     </div>
-                      <button 
-                        onClick={() => { setError(null); setShowReportModal(true); setEvidenceFiles([]); }}
-                        className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-8 py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-all flex items-center justify-center gap-2 mx-auto tracking-[0.1em] mt-12 font-medium"
-                      >
+                <div className="flex flex-col items-center text-center py-10 gap-6">
+                  <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-10 w-auto mx-auto" unoptimized />
+                  <p className="text-lg md:text-[22px] text-[#2C2A29] font-bold tracking-wide leading-snug px-2 md:px-4">{error}</p>
+                  <p className="text-[13px] md:text-[15px] text-[#8B7355]/80 leading-relaxed max-w-xl mx-auto px-0 md:px-4">
+                    请核查您填写的检索信息是否准确无误。<br className="hidden md:block" />
+                    为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
+                  </p>
+                  <button 
+                    onClick={() => { setError(null); setShowReportModal(true); setEvidenceFiles([]); }}
+                    className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-8 py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-colors flex items-center justify-center gap-2 mx-auto tracking-[0.1em] font-medium"
+                  >
                         <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
                       </button>
-                  </div>
                 </div>
               ) : result ? (
                 <div className="relative w-full flex flex-col">
@@ -660,14 +585,14 @@ export default function HomeClient() {
                   <button 
                     onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
                     disabled={currentIndex === 0}
-                    className="absolute top-1/2 left-3 md:-left-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-all z-[60]"
+                    className="absolute top-1/2 left-3 md:-left-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-colors z-[60]"
                   >
                     <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 -ml-0.5" />
                   </button>
                   <button 
                     onClick={() => setCurrentIndex(Math.min(results.length - 1, currentIndex + 1))}
                     disabled={currentIndex === results.length - 1}
-                    className="absolute top-1/2 right-3 md:-right-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-all z-[60]"
+                    className="absolute top-1/2 right-3 md:-right-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-colors z-[60]"
                   >
                     <ChevronRight className="w-5 h-5 md:w-6 md:h-6 -mr-0.5" />
                   </button>
@@ -681,7 +606,12 @@ export default function HomeClient() {
       {/* 投诉举报模态框 */}
       <AnimatePresence>
         {showReportModal && (
-          <div className="fixed inset-0 z-[60] flex md:items-center md:justify-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="官方维权申诉"
+            className="fixed inset-0 z-[60] flex md:items-center md:justify-center"
+            onKeyDown={(e) => { if (e.key === "Escape") { setShowReportModal(false); resetReportForm(); } }}>
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={() => { setShowReportModal(false); resetReportForm(); }}
@@ -696,6 +626,7 @@ export default function HomeClient() {
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
                   onClick={() => { setShowReportModal(false); resetReportForm(); }}
+                  aria-label="关闭"
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
                   <X size={16} strokeWidth={2.5} />
@@ -703,45 +634,45 @@ export default function HomeClient() {
               </div>
 
               <div className="text-center mb-6 pt-2 md:mb-10">
-                 <img src="/NIHPLOD-logo.svg" alt="Auth" className="h-[34px] mx-auto mb-4 md:mb-7" />
-                 <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">官方维权申诉与核查</h2>
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-4 md:mb-7" unoptimized />
+                 <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">官方维权申诉与核查</h2>
               </div>
 
               <div className="space-y-6">
                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌侵权描述 <span className="text-red-400 normal-case">*</span></label>
+                    <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">涉嫌侵权描述 <span className="text-red-400">*</span></label>
                     <textarea 
                        value={reportDesc}
                        onChange={(e) => setReportDesc(e.target.value)}
                        placeholder="请简要描述您的维权申诉内容，我们将进行后台核查..."
-                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all h-24 md:h-32 resize-none"
+                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-[border-color,box-shadow] h-24 md:h-32 resize-none placeholder:text-slate-400"
                     />
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">涉嫌违规渠道/商铺 <span className="text-slate-300 normal-case">(选填)</span></label>
+                       <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">涉嫌违规渠道/商铺 <span className="text-slate-300">(选填)</span></label>
                        <input 
                           type="text" 
                           value={reportChannel}
                           onChange={(e) => setReportChannel(e.target.value)}
                           placeholder="如: 天猫 XXX 旗舰店"
-                          className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all"
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-[border-color,box-shadow] placeholder:text-slate-400"
                        />
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">联系方式 <span className="text-red-400 normal-case">*</span></label>
+                       <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">联系方式 <span className="text-red-400">*</span></label>
                        <input 
                           type="text" 
                           value={reportContact}
                           onChange={(e) => setReportContact(e.target.value)}
                           placeholder="手机号 / 邮箱 / 微信号"
-                          className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-all"
+                          className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-red-200 focus:ring-4 focus:ring-red-500/5 transition-[border-color,box-shadow] placeholder:text-slate-400"
                        />
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">证据图片 <span className="text-slate-300 normal-case">(可选，最多 5 张，每张限 5MB)</span></label>
-                    <label className="w-full h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden group">
+                    <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">证据图片 <span className="text-slate-300">(可选，最多 5 张，每张限 5MB)</span></label>
+                    <label className="w-full h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-[border-color,box-shadow] cursor-pointer relative overflow-hidden group">
                        <input 
                          type="file" 
                          accept="image/jpeg,image/png,image/gif,image/webp" 
@@ -799,10 +730,13 @@ export default function HomeClient() {
                           return (
                             <div key={idx} className="relative group">
                               <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
-                                <img 
+                                <Image 
                                   src={url} 
                                   alt={file.name}
+                                  width={64}
+                                  height={64}
                                   className="w-full h-full object-cover"
+                                  unoptimized
                                 />
                               </div>
                               <button
@@ -828,7 +762,7 @@ export default function HomeClient() {
                  <button 
                    onClick={handleReportSubmit}
                    disabled={isSubmittingReport || reportSuccess}
-                   className="w-full bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/40 rounded-xl py-3.5 font-bold tracking-widest text-[13px] hover:bg-[#8B7355]/20 hover:border-[#8B7355]/70 active:scale-[0.98] mt-6 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                   className="w-full bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/40 rounded-xl py-3.5 font-semibold tracking-[0.1em] text-[13px] hover:bg-[#8B7355]/20 hover:border-[#8B7355]/70 active:scale-[0.98] mt-6 flex items-center justify-center gap-2 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmittingReport ? (
                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                     ) : reportSuccess ? (
@@ -851,7 +785,7 @@ export default function HomeClient() {
             aria-modal="true"
             aria-label="扫码验证"
             tabIndex={-1}
-            className="fixed inset-0 z-[70] flex flex-col md:items-center md:justify-center md:p-6"
+            className="fixed inset-0 z-[70] flex md:items-center md:justify-center"
             onKeyDown={(e) => { if (e.key === "Escape") handleCloseScanner(); }}>
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -885,7 +819,7 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[32px] md:shadow-2xl p-6 md:p-8"
+               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[28px] shadow-2xl p-6 md:p-10 overflow-y-auto"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
@@ -897,10 +831,10 @@ export default function HomeClient() {
                 </button>
               </div>
 
-              <div className="text-center mb-6 pt-2">
-                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-4" unoptimized />
+              <div className="text-center mb-6 pt-2 md:mb-10">
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-4 md:mb-7" unoptimized />
                  <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">扫码验证</h2>
-                 <p className="text-xs text-slate-500 mt-1.5">将摄像头对准授权书上的二维码</p>
+                 <p className="text-sm text-slate-500 mt-1.5">将摄像头对准授权书上的二维码</p>
               </div>
 
               <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner max-w-[280px] md:max-w-xs mx-auto">

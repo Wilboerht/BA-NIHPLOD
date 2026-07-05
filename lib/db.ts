@@ -392,8 +392,9 @@ export async function checkActionRateLimit(
 
     return record.attempts < maxAttempts;
   } catch (err) {
-    console.error('[RateLimit] 数据库查询失败，拒绝请求以保障安全:', err);
-    return false;
+    console.error('[RateLimit] 数据库查询失败，限流降级放行:', err);
+    // 数据库不可用时放行，避免阻塞正常业务
+    return true;
   }
 }
 
