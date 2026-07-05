@@ -59,6 +59,15 @@ export default function HomeClient() {
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const evidencePreviewUrls = useRef<Map<string, string>>(new Map());
 
+  // 响应式 placeholder：手机端简短、PC 端完整
+  const [placeholderText, setPlaceholderText] = useState("输入证书编号、店铺或公司名称");
+  useEffect(() => {
+    const update = () => setPlaceholderText(window.innerWidth < 768 ? "请输入查询信息" : "输入证书编号、店铺或公司名称");
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   // 清理 blob URL 防止内存泄漏
   useEffect(() => {
     return () => {
@@ -167,7 +176,15 @@ export default function HomeClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scannerTrigger, setScannerTrigger] = useState(0);
 
-
+  // 监听侧边栏触发的维权申诉事件
+  useEffect(() => {
+    const handler = () => {
+      setShowReportModal(true);
+      setEvidenceFiles([]);
+    };
+    window.addEventListener('open-report-modal', handler);
+    return () => window.removeEventListener('open-report-modal', handler);
+  }, []);
 
   // 当产生扫描错误时，开启独立生命周期的 3 秒自动回收机制
   useEffect(() => {
@@ -427,8 +444,8 @@ export default function HomeClient() {
                 <input 
                   type="text" 
                   aria-label="搜索授权证书"
-                  placeholder="输入证书编号、店铺或公司名称" 
-                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
+                  placeholder={placeholderText} 
+                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -819,7 +836,7 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[28px] shadow-2xl p-6 md:p-10 overflow-y-auto"
+               className="relative w-full h-full md:h-auto md:max-w-md bg-white rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto"
             >
               <div className="absolute top-4 right-4 md:top-6 md:right-6">
                 <button 
@@ -831,13 +848,13 @@ export default function HomeClient() {
                 </button>
               </div>
 
-              <div className="text-center mb-6 pt-2 md:mb-10">
-                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-4 md:mb-7" unoptimized />
+              <div className="text-center mb-4 pt-2 md:mb-10">
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-3 md:mb-7" unoptimized />
                  <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">扫码验证</h2>
                  <p className="text-sm text-slate-500 mt-1.5">将摄像头对准授权书上的二维码</p>
               </div>
 
-              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner max-w-[280px] md:max-w-xs mx-auto">
+              <div className="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 border border-slate-100 shadow-inner w-full md:max-w-xs mx-auto">
                 {(!scannerReady || isScanning) && !scanError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/90 backdrop-blur-sm">
                     <RefreshCw className="w-8 h-8 animate-spin text-[#8B7355] mb-4" />
@@ -853,7 +870,7 @@ export default function HomeClient() {
                 <div className="text-center">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 text-[11px] text-[#8B7355] font-medium hover:text-[#6B5346] transition-colors group"
+                    className="inline-flex items-center gap-2 text-xs md:text-[11px] text-[#8B7355] font-medium hover:text-[#6B5346] transition-colors group px-4 py-3 md:px-0 md:py-0 rounded-full md:rounded-none bg-slate-50/80 hover:bg-slate-100/80 md:bg-transparent"
                   >
                     <Upload className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
                     <span>从相册选择图片扫描</span>
@@ -874,8 +891,8 @@ export default function HomeClient() {
 
       {/* 页脚 */}
       <footer className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-10 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 shrink-0 border-t border-slate-100/30">
-        <div className="flex flex-col items-center md:items-start gap-0 md:gap-0.5 order-1">
-          <p className="order-2 md:order-1 flex flex-col md:flex-row items-center md:items-start gap-1 md:gap-x-1.5 md:gap-y-0.5 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
+        <div className="flex flex-col items-center md:items-start gap-2 md:gap-0.5 order-1">
+          <p className="order-2 md:order-1 flex flex-col md:flex-row items-center md:items-start gap-y-2 md:gap-x-1.5 md:gap-y-0.5 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
             {/* 手机第一行：ICP + 电子营业执照；桌面作为独立 flex 项参与横向排列 */}
             <span className="inline-flex md:contents items-center gap-1 order-1">
               <a
@@ -917,7 +934,7 @@ export default function HomeClient() {
             &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-center md:justify-end gap-6 md:gap-x-4 md:gap-y-1 text-[11px] font-normal text-slate-400/80 order-2 w-full md:w-auto">
+        <div className="hidden md:flex flex-wrap items-center justify-center md:justify-end gap-6 md:gap-x-4 md:gap-y-1 text-[11px] font-normal text-slate-400/80 order-2 w-full md:w-auto">
           {/* 官方维权申诉 */}
           <button
             onClick={() => { setShowReportModal(true); setEvidenceFiles([]); }}

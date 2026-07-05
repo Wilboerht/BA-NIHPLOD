@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ExternalLink, User, LogOut, ShieldCheck } from "lucide-react";
+import { Menu, X, ExternalLink, User, LogOut, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND_NAME_CN } from "@/lib/config";
 
@@ -254,16 +254,39 @@ export function WebsiteNavbar() {
               </a>
             </nav>
 
-            {/* 底部品牌信息 */}
-            <div className="mt-auto pt-8">
-              <Image
-                src="/NIHPLOD-logo.svg"
-                alt="NIHPLOD"
-                width={0}
-                height={0}
-                className="h-5 w-auto opacity-40 mx-auto"
-                unoptimized
-              />
+            {/* 快捷操作 */}
+            <div className="mt-auto space-y-3 pb-6">
+              <button
+                onClick={() => {
+                  handleNavClick();
+                  window.dispatchEvent(new CustomEvent('open-report-modal'));
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-red-500/80 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                官方维权申诉
+              </button>
+              <a
+                href="https://nihplod.cn/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleNavClick}
+                className="flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                隐私声明
+                <ExternalLink className="w-3.5 h-3.5 opacity-40 ml-auto" />
+              </a>
+              {/* 底部品牌信息 */}
+              <div className="pt-4">
+                <Image
+                  src="/NIHPLOD-logo.svg"
+                  alt="NIHPLOD"
+                  width={0}
+                  height={0}
+                  className="h-5 w-auto opacity-40 mx-auto"
+                  unoptimized
+                />
+              </div>
             </div>
           </div>
         </div>
