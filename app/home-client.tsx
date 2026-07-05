@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink } from "lucide-react";
+import { Search, ShieldAlert, Globe, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -846,7 +846,12 @@ export default function HomeClient() {
       {/* 二维码扫描模态框 */}
       <AnimatePresence>
         {showScanner && (
-          <div className="fixed inset-0 z-[70] flex flex-col md:items-center md:justify-center md:p-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="扫码验证"
+            className="fixed inset-0 z-[70] flex flex-col md:items-center md:justify-center md:p-6"
+            onKeyDown={(e) => { if (e.key === "Escape") handleCloseScanner(); }}>
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={handleCloseScanner}
@@ -891,8 +896,8 @@ export default function HomeClient() {
               </div>
 
               <div className="text-center mb-6 pt-2">
-                 <img src="/NIHPLOD-logo.svg" alt="NIHPLOD" className="h-[34px] w-auto mx-auto mb-6" />
-                 <h2 className="text-xl font-extrabold text-slate-900 tracking-[0.1em]">扫码验证</h2>
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-6" unoptimized />
+                 <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">扫码验证</h2>
                  <p className="text-xs text-slate-500 mt-2">将摄像头对准授权书上的二维码</p>
               </div>
 
@@ -912,9 +917,9 @@ export default function HomeClient() {
                 <div className="text-center">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 text-[10px] md:text-[11px] text-[#8B7355] font-black tracking-widest uppercase hover:text-black transition-all group"
+                    className="inline-flex items-center gap-2 text-[11px] text-[#8B7355] font-medium hover:text-[#6B5346] transition-colors group"
                   >
-                    <Download className="w-3.5 h-3.5 rotate-180 group-hover:-translate-y-0.5 transition-transform" />
+                    <Upload className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
                     <span>从相册选择图片扫描</span>
                   </button>
                   <input 
