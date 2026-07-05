@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, ExternalLink, LogOut, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Menu, ExternalLink, LogOut, ShieldCheck, ShieldAlert, QrCode } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND_NAME_CN } from "@/lib/config";
 
@@ -218,37 +218,36 @@ export function WebsiteNavbar() {
               )}
             </div>
 
-            {/* 导航链接 + 快捷操作 */}
+            {/* 菜单项 */}
             <nav className="flex flex-col gap-1 mt-auto pb-6">
-              {!isHome && (
-                <Link
-                  href="/"
-                  onClick={handleNavClick}
-                  className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
-                >
-                  首页
-                </Link>
-              )}
-
-              {/* 分割线 */}
-              <div className="border-t border-slate-100 my-2" />
+              <button
+                onClick={() => {
+                  handleNavClick();
+                  window.dispatchEvent(new CustomEvent('open-scanner-modal'));
+                }}
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+              >
+                <QrCode className="w-4 h-4" />
+                扫码核验
+              </button>
 
               <button
                 onClick={() => {
                   handleNavClick();
                   window.dispatchEvent(new CustomEvent('open-report-modal'));
                 }}
-                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-red-500/80 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
               >
                 <ShieldAlert className="w-4 h-4" />
-                官方维权申诉
+                维权申诉
               </button>
+
               <a
                 href="https://nihplod.cn/privacy"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleNavClick}
-                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
               >
                 隐私声明
                 <ExternalLink className="w-3.5 h-3.5 opacity-40 ml-auto" />
@@ -260,7 +259,7 @@ export function WebsiteNavbar() {
                 rel="noopener noreferrer"
                 aria-label="前往旎柏中国官网（新窗口打开）"
                 onClick={handleNavClick}
-                className="group flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-[#8B7355]/80 hover:text-[#8B7355] rounded-xl transition-colors duration-500"
+                className="group flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
                 >
                 <Image
                   src="/watermark.png"

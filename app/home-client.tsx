@@ -178,12 +178,17 @@ export default function HomeClient() {
 
   // 监听侧边栏触发的维权申诉事件
   useEffect(() => {
-    const handler = () => {
+    const reportHandler = () => {
       setShowReportModal(true);
       setEvidenceFiles([]);
     };
-    window.addEventListener('open-report-modal', handler);
-    return () => window.removeEventListener('open-report-modal', handler);
+    const scannerHandler = () => setShowScanner(true);
+    window.addEventListener('open-report-modal', reportHandler);
+    window.addEventListener('open-scanner-modal', scannerHandler);
+    return () => {
+      window.removeEventListener('open-report-modal', reportHandler);
+      window.removeEventListener('open-scanner-modal', scannerHandler);
+    };
   }, []);
 
   // 当产生扫描错误时，开启独立生命周期的 3 秒自动回收机制
