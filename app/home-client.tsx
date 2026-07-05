@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Megaphone, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2 } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
@@ -476,10 +477,9 @@ export default function HomeClient() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-4 md:space-y-6 mb-6 md:mb-10"
+            className="text-center space-y-4 md:space-y-6 mb-5 md:mb-8"
           >
             <div className="space-y-4 md:space-y-6">
-              <img src="/NIHPLOD-logo.svg" alt="Logo" className="h-7 mx-auto md:hidden mb-4 opacity-90" />
               <h1 className="text-[26px] md:text-[44px] font-black tracking-[0.12em] text-[#2C2A29] leading-tight">
                 授权资质官方核查
               </h1>
@@ -497,12 +497,13 @@ export default function HomeClient() {
           >
             <form 
               onSubmit={handleSearch} 
-              className="group relative flex items-center bg-white/70 backdrop-blur-2xl border border-white/80 rounded-[28px] md:rounded-[32px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
+              className="group relative flex items-center bg-white/70 backdrop-blur-2xl border border-slate-200/60 rounded-[28px] md:rounded-[32px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
             >
               <div className="flex-1 flex items-center pl-4 py-2 md:pl-8 md:py-3 gap-2.5">
-                <Search className="w-4 h-4 md:w-[22px] md:h-[22px] flex-shrink-0 text-slate-400 group-focus-within:text-[#8B7355] transition-colors" />
+                <Search className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 text-slate-400 group-focus-within:text-[#8B7355] transition-colors" />
                 <input 
                   type="text" 
+                  aria-label="搜索授权证书"
                   placeholder="输入证书编号、店铺或公司名称" 
                   className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
                   value={query}
@@ -514,7 +515,7 @@ export default function HomeClient() {
               <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-3 py-2 flex-shrink-0">
                 <button 
                   disabled={isSearching || !query.trim()}
-                  className="relative flex items-center justify-center gap-1.5 h-10 md:h-[48px] px-5 md:px-7 rounded-full bg-[#8B7355] hover:bg-[#6B5346] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-md shadow-[#8B7355]/25 hover:shadow-lg hover:shadow-[#8B7355]/35 disabled:opacity-50 disabled:cursor-not-allowed font-semibold tracking-widest uppercase"
+                  className="relative flex items-center justify-center gap-1.5 h-10 md:h-[48px] px-5 md:px-7 rounded-full bg-[#8B7355] hover:bg-[#6B5346] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-sm shadow-[#8B7355]/15 hover:shadow-md hover:shadow-[#8B7355]/25 disabled:opacity-50 disabled:cursor-not-allowed font-semibold tracking-[0.1em]"
                 >
                   {isSearching ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -533,7 +534,7 @@ export default function HomeClient() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="mt-5 flex justify-center"
+              className="mt-4 flex justify-center"
             >
               <button
                 type="button"
@@ -546,23 +547,7 @@ export default function HomeClient() {
               </button>
             </motion.div>
             
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="md:hidden mt-6 flex justify-center"
-            >
-              <Link
-                href="https://nihplod.cn"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 hover:border-[#8B7355]/20 text-xs font-semibold tracking-[0.05em] text-[#8B7355]/70 hover:text-[#8B7355] transition-all"
-              >
-                <Building2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                {BRAND_NAME_CN}中国官网
-                <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
-              </Link>
-            </motion.div>
+
           </motion.div>
         </div>
       </div>
@@ -953,55 +938,52 @@ export default function HomeClient() {
 
       {/* 页脚 */}
       <footer className="w-full px-6 md:px-12 lg:px-20 py-4 md:py-10 flex flex-col md:flex-row justify-between items-center gap-3 md:gap-6 shrink-0 border-t border-slate-100/30">
-         <div className="flex flex-col items-center md:items-start gap-1 order-3 md:order-1">
-           <p className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 tracking-normal antialiased">
-             &copy; 2026 NIHPLOD. All rights reserved
-           </p>
-           <div className="flex items-center gap-2">
+         <div className="flex flex-col items-center md:items-start gap-0.5 order-1">
+           <p className="text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
              <a
                href="https://beian.miit.gov.cn/"
                target="_blank"
                rel="noopener noreferrer"
-               className="text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 hover:text-slate-500 transition-colors tracking-normal antialiased"
+               className="hover:text-slate-500 transition-colors"
              >
                沪ICP备2026014764号-1
              </a>
-             <span className="text-[10px] md:text-[11px] text-slate-300">|</span>
+             <span className="mx-1.5 text-slate-300/40">|</span>
              <a
-               href="http://www.beian.gov.cn/portal/registerSystemInfo"
+               href="https://www.beian.gov.cn/portal/registerSystemInfo"
                target="_blank"
                rel="noopener noreferrer"
-               className="flex items-center gap-1 text-[10px] md:text-[11px] font-normal text-slate-400 md:text-slate-300 hover:text-slate-500 transition-colors tracking-normal antialiased"
+               className="inline-flex items-center gap-0.5 hover:text-slate-500 transition-colors"
              >
-               <img src="/assets/beian.webp" alt="公安网备" className="w-3 h-3" />
+               <Image src="/assets/beian.webp" alt="公安网备" width={10} height={10} className="w-2.5 h-2.5 opacity-50" unoptimized />
                沪公网安备31010702010178号
              </a>
-           </div>
+           </p>
+           <p className="text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
+             &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
+           </p>
          </div>
-          <div className="flex flex-wrap gap-4 md:gap-12 text-[10px] md:text-[11px] font-bold text-slate-500 md:text-slate-400 uppercase tracking-[0.05em] md:tracking-[0.1em] justify-center md:justify-end order-1 md:order-3 w-full md:w-auto">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-normal text-slate-400/80 justify-center md:justify-end order-2 w-full md:w-auto">
              {/* 官方维权申诉 */}
              <button 
                onClick={() => { setShowReportModal(true); setEvidenceFiles([]); }} 
-               className="text-red-500/70 hover:text-red-600 active:text-red-700 cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap"
+               className="text-xs text-red-400/90 hover:text-red-500 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap"
              >
-               <Megaphone className="w-3.5 h-3.5" /> 官方维权申诉
+               <ShieldAlert className="w-3 h-3" /> 官方维权申诉
             </button>
 
-            {/* 服务条款 */}
-            <button 
-              onClick={() => setShowLegalModal({ isOpen: true, type: "service" })} 
-              className="hover:text-slate-900 active:text-slate-700 cursor-pointer transition-colors whitespace-nowrap"
-            >
-              服务协议
-            </button>
+            <span className="text-slate-300/60">|</span>
 
             {/* 隐私声明 */}
-            <button 
-              onClick={() => setShowLegalModal({ isOpen: true, type: "privacy" })} 
-              className="hover:text-slate-900 active:text-slate-700 cursor-pointer transition-colors whitespace-nowrap"
+            <a
+              href="https://nihplod.cn/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-500 hover:text-slate-600 hover:underline underline-offset-2 cursor-pointer transition-colors whitespace-nowrap inline-flex items-center gap-1"
             >
               隐私声明
-            </button>
+              <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+            </a>
          </div>
       </footer>
       <LoginModal 
