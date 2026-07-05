@@ -264,6 +264,18 @@ export function WebsiteNavbar() {
                 {BRAND_NAME_CN}中国官网
                 <ExternalLink className="w-3.5 h-3.5 opacity-50 ml-auto transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </a>
+
+              {/* 底部装饰 */}
+              <div className="flex justify-center pt-6">
+                <Image
+                  src="/watermark.png"
+                  alt=""
+                  width={36}
+                  height={36}
+                  className="w-9 h-9 object-contain opacity-30 animate-[soft-blink_3s_ease-in-out_infinite]"
+                  unoptimized
+                />
+              </div>
             </nav>
           </div>
         </div>
