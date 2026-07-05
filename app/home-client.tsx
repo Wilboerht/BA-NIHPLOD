@@ -514,6 +514,15 @@ export default function HomeClient() {
               {/* 按钮区 */}
               <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-3 py-2 flex-shrink-0">
                 <button 
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  disabled={isSearching}
+                  aria-label="扫描二维码验证"
+                  className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full text-[#8B7355] hover:bg-[#8B7355]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <QrCode className="w-5 h-5" />
+                </button>
+                <button 
                   disabled={isSearching || !query.trim()}
                   className="relative flex items-center justify-center h-10 md:h-[48px] px-5 md:px-7 rounded-full bg-[#8B7355] hover:bg-[#6B5346] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-sm shadow-[#8B7355]/15 hover:shadow-md hover:shadow-[#8B7355]/25 disabled:opacity-50 disabled:cursor-not-allowed font-semibold tracking-[0.1em]"
                 >
@@ -527,25 +536,6 @@ export default function HomeClient() {
                 </button>
               </div>
             </form>
-
-            {/* 扫码按钮 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="mt-4 flex justify-center"
-            >
-              <button
-                type="button"
-                onClick={() => setShowScanner(true)}
-                disabled={isSearching}
-                className="inline-flex items-center gap-2 text-[13px] text-[#8B7355] hover:text-[#6B5346] transition-colors tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <QrCode className="w-4 h-4" />
-                <span>扫描二维码验证</span>
-              </button>
-            </motion.div>
-            
 
           </motion.div>
         </div>
