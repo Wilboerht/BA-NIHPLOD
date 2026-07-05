@@ -261,14 +261,6 @@ export function WebsiteNavbar() {
                 onClick={handleNavClick}
                 className="group flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
                 >
-                <Image
-                  src="/watermark.png"
-                  alt=""
-                  width={28}
-                  height={28}
-                  className="w-7 h-7 object-contain drop-shadow-[0_1px_2px_rgba(0,38,62,0.2)] brightness-110 saturate-125 animate-[soft-blink_3s_ease-in-out_infinite]"
-                  unoptimized
-                />
                 {BRAND_NAME_CN}中国官网
                 <ExternalLink className="w-3.5 h-3.5 opacity-50 ml-auto transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </a>
