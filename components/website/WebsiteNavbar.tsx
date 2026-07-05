@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, ExternalLink, LogOut, ShieldCheck, ShieldAlert, QrCode } from "lucide-react";
+import { Menu, ExternalLink, LogOut, ShieldCheck, ShieldAlert, QrCode, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND_NAME_CN } from "@/lib/config";
 
 export function WebsiteNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [wechatExpanded, setWechatExpanded] = useState(false);
   const { user, logout } = useAuth();
   const touchStartX = useRef(0);
   const pathname = usePathname();
@@ -49,8 +50,8 @@ export function WebsiteNavbar() {
         aria-label="主导航"
         className={`fixed top-0 left-0 right-0 z-[100] grid place-items-center px-6 md:px-12 lg:px-20 py-8 md:py-7 transition-[background-color,border-color,box-shadow] duration-500 ${
           scrolled
-            ? "bg-[#EAE5DA]/70 backdrop-blur-md border-b border-black/[0.04]"
-            : "bg-[#EAE5DA] border-b border-transparent"
+            ? "bg-[#F2EDE3]/70 backdrop-blur-md border-b border-black/[0.04]"
+            : "bg-[#F2EDE3] border-b border-transparent"
         }`}
       >
         <div className="w-full flex items-center justify-center md:justify-between gap-4 relative">
@@ -157,7 +158,7 @@ export function WebsiteNavbar() {
               setMobileMenuOpen(false);
             }
           }}
-        className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl transform transition-transform duration-500 ease-out ${
+        className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl rounded-r-2xl transform transition-transform duration-500 ease-out ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -242,6 +243,8 @@ export function WebsiteNavbar() {
                 维权申诉
               </button>
 
+              <div className="border-t border-slate-100 my-2" />
+
               <a
                 href="https://nihplod.cn/privacy"
                 target="_blank"
@@ -264,6 +267,39 @@ export function WebsiteNavbar() {
                 {BRAND_NAME_CN}中国官网
                 <ExternalLink className="w-3.5 h-3.5 opacity-50 ml-auto transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </a>
+
+              {/* 社交媒体 */}
+              <a
+                href="https://www.xiaohongshu.com/user/profile/62c3a397000000001b026d43"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleNavClick}
+                aria-label="前往小红书"
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                小红书
+                <ExternalLink className="w-3.5 h-3.5 opacity-40 ml-auto" />
+              </a>
+              <button
+                onClick={() => setWechatExpanded(!wechatExpanded)}
+                aria-label="查看公众号二维码"
+                className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+              >
+                微信服务号
+                <ChevronDown className={`w-4 h-4 ml-auto transition-transform duration-300 ${wechatExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              <div className={`overflow-hidden transition-all duration-300 ease-out ${wechatExpanded ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="px-4 pb-4 pt-1 text-center">
+                  <Image
+                    src="/assets/wechat-qr.jpg"
+                    alt="微信公众号二维码"
+                    width={160}
+                    height={160}
+                    className="w-40 h-40 mx-auto rounded-xl border border-slate-100"
+                    unoptimized
+                  />
+                </div>
+              </div>
 
               {/* 底部装饰 */}
               <div className="flex justify-center pt-6">
