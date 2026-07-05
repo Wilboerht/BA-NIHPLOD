@@ -839,7 +839,7 @@ export default function HomeClient() {
                className="relative w-full h-full md:h-auto md:max-w-md bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col"
             >
               {/* 手机端顶部栏：Logo 居中 + 关闭 */}
-              <div className="flex md:hidden items-center justify-center relative mb-4">
+              <div className="flex md:hidden items-center justify-center relative mt-4 mb-4">
                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 w-auto" unoptimized />
                 <button 
                   onClick={handleCloseScanner}
@@ -901,6 +901,13 @@ export default function HomeClient() {
                 </div>
               </div>
 
+              </div>
+
+              {/* 手机端底部版权栏 */}
+              <div className="flex md:hidden items-center justify-center py-4 border-t border-[#E8E0D5]/30">
+                <p className="text-[10px] text-slate-400/50">
+                  &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
+                </p>
               </div>
             </motion.div>
           </div>

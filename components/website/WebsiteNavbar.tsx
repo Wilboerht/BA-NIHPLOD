@@ -48,13 +48,13 @@ export function WebsiteNavbar() {
       {/* ========== 桌面端 + 移动端导航栏 ========== */}
       <nav
         aria-label="主导航"
-        className={`fixed top-0 left-0 right-0 z-[100] grid place-items-center px-6 md:px-12 lg:px-20 py-5 md:py-7 transition-[background-color,border-color,box-shadow] duration-500 ${
+        className={`fixed top-0 left-0 right-0 z-[100] grid place-items-center px-6 md:px-12 lg:px-20 py-8 md:py-7 transition-[background-color,border-color,box-shadow] duration-500 ${
           scrolled
             ? "bg-[#EAE5DA]/70 backdrop-blur-md border-b border-black/[0.04]"
             : "bg-[#EAE5DA] border-b border-transparent"
         }`}
       >
-        <div className="w-full flex items-center justify-between gap-4">
+        <div className="w-full flex items-center justify-center md:justify-between gap-4 relative">
           {/* 左侧：Logo + 品牌名 */}
           <Link
             href="/"
@@ -76,8 +76,8 @@ export function WebsiteNavbar() {
             </span>
           </Link>
 
-          {/* 右侧操作区 */}
-          <div className="flex items-center gap-2 md:gap-4">
+          {/* 右侧操作区：PC 端可见 */}
+          <div className="hidden md:flex items-center gap-2 md:gap-4">
             {/* 旎柏中国官网 - 桌面端 */}
             <a
               href="https://nihplod.cn"
@@ -121,17 +121,17 @@ export function WebsiteNavbar() {
                 </div>
               </div>
             ) : null}
-
-            {/* 移动端汉堡菜单按钮 */}
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label="打开菜单"
-              aria-expanded={mobileMenuOpen}
-              className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100/80 transition-colors text-slate-600 cursor-pointer"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
           </div>
+
+          {/* 移动端汉堡菜单按钮：绝对定位右侧 */}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="打开菜单"
+            aria-expanded={mobileMenuOpen}
+            className="md:hidden absolute left-0 flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100/80 transition-colors text-slate-600 cursor-pointer"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
       </nav>
 
@@ -147,13 +147,13 @@ export function WebsiteNavbar() {
           onClick={() => setMobileMenuOpen(false)}
         />
 
-        {/* 右侧滑出面板 */}
+        {/* 左侧滑出面板 */}
         <div
           role="dialog"
         aria-modal="true"
         aria-label="导航菜单"
-        className={`absolute top-0 right-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl transform transition-transform duration-500 ease-out ${
-            mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+        className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl transform transition-transform duration-500 ease-out ${
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="flex flex-col h-full px-6 pt-6 pb-8">
