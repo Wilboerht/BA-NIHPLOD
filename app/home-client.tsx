@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, ArrowRight, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink } from "lucide-react";
+import { Search, ShieldAlert, Download, Globe, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -477,13 +477,13 @@ export default function HomeClient() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-4 md:space-y-6 mb-5 md:mb-8"
+            className="text-center space-y-4 md:space-y-6 mb-4 md:mb-6"
           >
             <div className="space-y-4 md:space-y-6">
-              <h1 className="text-[26px] md:text-[44px] font-black tracking-[0.12em] text-[#2C2A29] leading-tight">
+              <h1 className="text-[36px] sm:text-[44px] md:text-[52px] font-normal leading-[1.1] tracking-tight text-[#1A1A1A]">
                 授权资质官方核查
               </h1>
-              <p className="text-[#8B7355] text-[13px] md:text-base max-w-lg mx-auto leading-relaxed opacity-80 tracking-[0.05em] font-medium">
+              <p className="text-[#5C5855]/90 text-sm sm:text-base max-w-xl mx-auto leading-[1.9] tracking-wide font-light">
                 输入授权证书编号 (SN)、店铺名称或公司名称，<br className="hidden md:inline" /> 核实官方资质及合法经营区域。
               </p>
             </div>
@@ -497,10 +497,10 @@ export default function HomeClient() {
           >
             <form 
               onSubmit={handleSearch} 
-              className="group relative flex items-center bg-white/70 backdrop-blur-2xl border border-slate-200/60 rounded-[28px] md:rounded-[32px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.04)] focus-within:shadow-[0_45px_80px_-16px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
+              className="group relative flex items-center bg-white/80 border border-slate-200 rounded-[28px] md:rounded-[32px] shadow-[0_4px_16px_rgba(0,0,0,0.06)] focus-within:border-[#8B7355]/30 focus-within:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
             >
               <div className="flex-1 flex items-center pl-4 py-2 md:pl-8 md:py-3 gap-2.5">
-                <Search className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 text-slate-400 group-focus-within:text-[#8B7355] transition-colors" />
+                <Search className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 text-slate-500 group-focus-within:text-[#8B7355] transition-colors" />
                 <input 
                   type="text" 
                   aria-label="搜索授权证书"
@@ -515,14 +515,13 @@ export default function HomeClient() {
               <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-3 py-2 flex-shrink-0">
                 <button 
                   disabled={isSearching || !query.trim()}
-                  className="relative flex items-center justify-center gap-1.5 h-10 md:h-[48px] px-5 md:px-7 rounded-full bg-[#8B7355] hover:bg-[#6B5346] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-sm shadow-[#8B7355]/15 hover:shadow-md hover:shadow-[#8B7355]/25 disabled:opacity-50 disabled:cursor-not-allowed font-semibold tracking-[0.1em]"
+                  className="relative flex items-center justify-center h-10 md:h-[48px] px-5 md:px-7 rounded-full bg-[#8B7355] hover:bg-[#6B5346] text-white text-[13px] md:text-sm active:scale-[0.96] transition-all duration-200 shadow-sm shadow-[#8B7355]/15 hover:shadow-md hover:shadow-[#8B7355]/25 disabled:opacity-50 disabled:cursor-not-allowed font-semibold tracking-[0.1em]"
                 >
                   {isSearching ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
                        <span>查询</span>
-                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
