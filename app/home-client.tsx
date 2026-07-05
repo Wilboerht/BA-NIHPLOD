@@ -230,7 +230,7 @@ export default function HomeClient() {
           console.error("Failed to start scanner:", err);
           const errStr = err instanceof Error ? err.message : String(err);
           if (errStr.includes("NotAllowedError") || errStr.includes("PermissionDenied")) {
-            setScanError("请在浏览器设置中允许摄像头权限以进行扫描。");
+            setScanError("摄像头权限未开启");
           } else {
             setScanError("无法启动摄像头，请检查设备连接。");
           }
@@ -862,10 +862,16 @@ export default function HomeClient() {
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   className="absolute top-12 left-1/2 -translate-x-1/2 z-[100] bg-white text-slate-800 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 text-xs md:text-[13px] font-bold tracking-widest whitespace-nowrap"
                 >
-                  <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-[14px] h-[14px] text-red-500" />
+                  <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-[14px] h-[14px] text-amber-500" />
                   </div>
                   {scanError}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="ml-1 px-3 py-1 rounded-full bg-[#8B7355]/10 text-[#8B7355] text-[11px] font-semibold hover:bg-[#8B7355]/20 transition-colors cursor-pointer"
+                  >
+                    从相册选择
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
