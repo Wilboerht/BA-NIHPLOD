@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, ShieldAlert, Globe, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
@@ -179,6 +179,41 @@ export default function HomeClient() {
   const [scanError, setScanError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scannerTrigger, setScannerTrigger] = useState(0);
+  const scannerLockRef = useRef(false);
+
+  // 扫码器防抖：摄像头 start/stop 为异步操作，800ms 内屏蔽重复触发
+  const withScannerLock = useCallback((fn: () => void) => {
+    if (scannerLockRef.current) return;
+    scannerLockRef.current = true;
+    fn();
+    setTimeout(() => { scannerLockRef.current = false; }, 800);
+  }, []);
+
+  const openScanner = useCallback(() => {
+    withScannerLock(() => setShowScanner(true));
+  }, [withScannerLock]);
+
+  const closeScanner = useCallback(() => {
+    withScannerLock(() => {
+      // 异步清理摄像头，但锁已加上防止并发
+      if (scannerRef.current) {
+        const scanner = scannerRef.current;
+        if (scanner.isScanning) {
+          scanner.stop().catch(err => console.error("Failed to stop scanner:", err));
+        }
+        scannerRef.current = null;
+      }
+      setShowScanner(false);
+      setScannerReady(false);
+      setScanError(null);
+      setIsScanning(false);
+    });
+  }, [withScannerLock]);
+
+  // 扫描失败后重启摄像头（带防抖）
+  const retriggerScanner = useCallback(() => {
+    withScannerLock(() => setScannerTrigger(prev => prev + 1));
+  }, [withScannerLock]);
 
   // 从 URL 参数自动验证证书
   useEffect(() => {
@@ -209,7 +244,7 @@ export default function HomeClient() {
       setShowReportModal(true);
       setEvidenceFiles([]);
     };
-    const scannerHandler = () => setShowScanner(true);
+    const scannerHandler = openScanner;
     window.addEventListener('open-report-modal', reportHandler);
     window.addEventListener('open-scanner-modal', scannerHandler);
     return () => {
@@ -322,7 +357,7 @@ export default function HomeClient() {
       setError("系统查询出错，请稍后再试。");
     } finally {
       setIsSearching(false);
-      await handleCloseScanner();
+      closeScanner();
     }
   };
 
@@ -367,31 +402,11 @@ export default function HomeClient() {
       
       // 如果识别失败，重新启动摄像头（如果模态框还开着）
       if (showScanner) {
-        // 重新触发 useEffect 来启动扫描器
-        setScannerTrigger(prev => prev + 1);
+        retriggerScanner();
       }
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  };
-
-  // 关闭扫描器
-  const handleCloseScanner = async () => {
-    if (scannerRef.current) {
-      const scanner = scannerRef.current;
-      if (scanner.isScanning) {
-        try {
-          await scanner.stop();
-        } catch (err) {
-          console.error("Failed to stop scanner:", err);
-        }
-      }
-      scannerRef.current = null;
-    }
-    setShowScanner(false);
-    setScannerReady(false);
-    setScanError(null);
-    setIsScanning(false);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -487,7 +502,7 @@ export default function HomeClient() {
               <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-3 py-2 flex-shrink-0">
                 <button 
                   type="button"
-                  onClick={() => setShowScanner(true)}
+                  onClick={openScanner}
                   disabled={isSearching}
                   aria-label="扫描二维码验证"
                   className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full text-[#8B7355] hover:bg-[#8B7355]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
@@ -850,10 +865,10 @@ export default function HomeClient() {
             aria-label="扫码验证"
             tabIndex={-1}
             className="fixed inset-0 z-[110] flex md:items-center md:justify-center"
-            onKeyDown={(e) => { if (e.key === "Escape") handleCloseScanner(); }}>
+            onKeyDown={(e) => { if (e.key === "Escape") closeScanner(); }}>
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               onClick={handleCloseScanner}
+               onClick={closeScanner}
                className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl"
             />
 
@@ -889,7 +904,7 @@ export default function HomeClient() {
               <div className="flex md:hidden items-center justify-center relative mt-4 mb-4">
                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 w-auto" unoptimized />
                 <button 
-                  onClick={handleCloseScanner}
+                  onClick={closeScanner}
                   aria-label="关闭"
                   className="absolute right-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
@@ -900,7 +915,7 @@ export default function HomeClient() {
               {/* PC 端绝对定位关闭按钮 */}
               <div className="absolute top-4 right-4 md:top-6 md:right-6 hidden md:block">
                 <button 
-                  onClick={handleCloseScanner}
+                  onClick={closeScanner}
                   aria-label="关闭"
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
