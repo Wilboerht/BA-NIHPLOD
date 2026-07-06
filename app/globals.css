@@ -114,3 +114,11 @@ input[list]::-webkit-calendar-picker-indicator {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.08) transparent;
 }
+
+/* 扫码验证 — 防止 html5-qrcode 视频画面抖动 */
+#qr-scanner-container video {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 1rem;
+}

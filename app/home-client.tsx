@@ -926,7 +926,7 @@ export default function HomeClient() {
                     </p>
                   </div>
                 )}
-                <div id="qr-scanner-container" style={{ width: '100%', aspectRatio: '1/1' }}></div>
+                <div id="qr-scanner-container" className="w-full [&_video]:w-full [&_video]:h-auto [&_video]:rounded-2xl [&_video]:block"></div>
               </div>
 
               <div className="flex flex-col gap-4">
