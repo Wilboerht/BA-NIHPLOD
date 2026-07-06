@@ -85,6 +85,7 @@ export function WebsiteNavbar() {
               className="h-7 md:h-9 w-auto object-contain"
               style={{ display: "block" }}
               priority
+              loading="eager"
               unoptimized
             />
             <div className="hidden sm:block w-px h-4 md:h-5 bg-slate-300/60" />

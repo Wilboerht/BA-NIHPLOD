@@ -689,6 +689,7 @@ export default function HomeClient() {
             role="dialog"
             aria-modal="true"
             aria-label="官方维权申诉"
+            tabIndex={-1}
             className="fixed inset-0 z-[110] flex md:items-center md:justify-center"
             onKeyDown={(e) => { if (e.key === "Escape") { setShowReportModal(false); resetReportForm(); } }}>
             <motion.div 
@@ -700,9 +701,22 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-xl bg-white rounded-none md:rounded-[28px] shadow-2xl p-6 md:p-10 overflow-y-auto"
+               className="relative w-full h-full md:h-auto md:max-w-xl bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col"
             >
-              <div className="absolute top-4 right-4 md:top-6 md:right-6">
+              {/* 手机端顶部栏：Logo 居中 + 关闭 */}
+              <div className="flex md:hidden items-center justify-center relative mt-4 mb-4">
+                <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 w-auto" unoptimized />
+                <button 
+                  onClick={() => { setShowReportModal(false); resetReportForm(); }}
+                  aria-label="关闭"
+                  className="absolute right-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* PC 端绝对定位关闭按钮 */}
+              <div className="absolute top-4 right-4 md:top-6 md:right-6 hidden md:block">
                 <button 
                   onClick={() => { setShowReportModal(false); resetReportForm(); }}
                   aria-label="关闭"
@@ -712,8 +726,11 @@ export default function HomeClient() {
                 </button>
               </div>
 
-              <div className="text-center mb-6 pt-2 md:mb-10">
-                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-[34px] w-auto mx-auto mb-4 md:mb-7" unoptimized />
+              {/* 内容区：手机端在剩余空间居中 */}
+              <div className="flex-1 flex flex-col justify-center md:block">
+
+              <div className="text-center mb-6 md:mb-10">
+                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="hidden md:block h-[34px] w-auto mx-auto mb-3 md:mb-7" unoptimized />
                  <h2 className="text-xl font-bold text-slate-900 tracking-[0.1em]">官方维权申诉与核查</h2>
               </div>
 
@@ -850,6 +867,15 @@ export default function HomeClient() {
                       <><ShieldAlert className="w-4 h-4 opacity-80" /> 提交核查请求</>
                     )}
                  </button>
+              </div>
+
+              </div>
+
+              {/* 手机端底部版权栏 */}
+              <div className="flex md:hidden items-center justify-center py-4 border-t border-[#E8E0D5]/30">
+                <p className="text-[10px] text-slate-400/50">
+                  &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
+                </p>
               </div>
             </motion.div>
           </div>
