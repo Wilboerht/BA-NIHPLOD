@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "页面未找到 | NIHPLOD 授权核验",
+  title: {
+    absolute: "页面未找到 | NIHPLOD 授权核验",
+  },
   robots: { index: false, follow: false },
 };
 

@@ -21,6 +21,9 @@ export default function GlobalError({
 
   return (
     <html>
+      <head>
+        <title>NIHPLOD | 系统错误</title>
+      </head>
       <body>
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
           <p className="text-sm text-slate-500">系统错误，即将返回首页...</p>
