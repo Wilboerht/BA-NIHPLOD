@@ -674,7 +674,7 @@ export default function HomeClient() {
             role="dialog"
             aria-modal="true"
             aria-label="官方维权申诉"
-            className="fixed inset-0 z-[60] flex md:items-center md:justify-center"
+            className="fixed inset-0 z-[110] flex md:items-center md:justify-center"
             onKeyDown={(e) => { if (e.key === "Escape") { setShowReportModal(false); resetReportForm(); } }}>
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
