@@ -68,7 +68,7 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json({ error: '无权限执行此操作' }, { status: 403 });
       }
       if (pathname.startsWith('/workbench')) {
-        return NextResponse.redirect(new URL('/dealer', request.url));
+        return NextResponse.redirect(new URL('/', request.url));
       }
       return NextResponse.redirect(new URL('/', request.url));
     }
