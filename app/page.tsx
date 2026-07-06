@@ -7,7 +7,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://ba.nihplod.cn";
 
 export const metadata: Metadata = {
   title: {
-    absolute: `${BRAND_NAME} | 授权资质官方核查 — 品牌授权书真伪验证`,
+    absolute: `${BRAND_NAME} | 授权资质官方核查`,
   },
   description: `${BRAND_NAME}（${BRAND_NAME_CN}）官方授权资质核验平台。输入授权编号、店铺或公司名称，即可验证${BRAND_NAME}经销商授权书的真实性、有效期及授权范围。`,
   keywords: [
