@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -12,6 +12,7 @@ export function WebsiteNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wechatExpanded, setWechatExpanded] = useState(false);
   const touchStartX = useRef(0);
+  const actionLockRef = useRef(false);
   const pathname = usePathname();
   const isHome = pathname === "/";
 
@@ -36,7 +37,28 @@ export function WebsiteNavbar() {
     };
   }, [mobileMenuOpen]);
 
-  const handleNavClick = () => setMobileMenuOpen(false);
+  // 防抖锁定：菜单过渡动画 400ms + 余量，期间屏蔽重复操作
+  const withLock = useCallback((fn: () => void) => {
+    if (actionLockRef.current) return;
+    actionLockRef.current = true;
+    fn();
+    setTimeout(() => { actionLockRef.current = false; }, 420);
+  }, []);
+
+  const openMenu = useCallback(() => {
+    withLock(() => setMobileMenuOpen(true));
+  }, [withLock]);
+
+  const closeMenu = useCallback(() => {
+    withLock(() => setMobileMenuOpen(false));
+  }, [withLock]);
+
+  const handleMenuAction = useCallback((eventName: string) => {
+    withLock(() => {
+      setMobileMenuOpen(false);
+      window.dispatchEvent(new CustomEvent(eventName));
+    });
+  }, [withLock]);
 
   return (
     <>
@@ -99,7 +121,7 @@ export function WebsiteNavbar() {
 
           {/* 移动端汉堡菜单按钮：绝对定位右侧 */}
           <button
-            onClick={() => setMobileMenuOpen(true)}
+            onClick={openMenu}
             aria-label="打开菜单"
             aria-expanded={mobileMenuOpen}
             className="md:hidden absolute left-0 flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100/80 transition-colors text-slate-600 cursor-pointer"
@@ -118,7 +140,7 @@ export function WebsiteNavbar() {
         {/* 半透明遮罩 */}
         <div
           className="absolute inset-0 bg-black/15 backdrop-blur-sm"
-          onClick={() => setMobileMenuOpen(false)}
+          onClick={closeMenu}
         />
 
         {/* 左侧滑出面板 */}
@@ -129,7 +151,7 @@ export function WebsiteNavbar() {
           onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => {
             if (touchStartX.current - e.changedTouches[0].clientX > 60) {
-              setMobileMenuOpen(false);
+              closeMenu();
             }
           }}
         className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl rounded-r-2xl transform transition-transform duration-500 ease-out ${
@@ -158,10 +180,7 @@ export function WebsiteNavbar() {
             {/* 菜单项 */}
             <nav className="flex flex-col gap-1 mt-auto pb-6">
               <button
-                onClick={() => {
-                  handleNavClick();
-                  window.dispatchEvent(new CustomEvent('open-scanner-modal'));
-                }}
+                onClick={() => handleMenuAction('open-scanner-modal')}
                 className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
               >
                 <QrCode className="w-4 h-4" />
@@ -169,10 +188,7 @@ export function WebsiteNavbar() {
               </button>
 
               <button
-                onClick={() => {
-                  handleNavClick();
-                  window.dispatchEvent(new CustomEvent('open-report-modal'));
-                }}
+                onClick={() => handleMenuAction('open-report-modal')}
                 className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
               >
                 <ShieldAlert className="w-4 h-4" />
@@ -185,7 +201,7 @@ export function WebsiteNavbar() {
                 href="https://nihplod.cn/privacy"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={handleNavClick}
+                onClick={closeMenu}
                 className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
               >
                 隐私声明
@@ -197,7 +213,7 @@ export function WebsiteNavbar() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="前往旎柏中国官网（新窗口打开）"
-                onClick={handleNavClick}
+                onClick={closeMenu}
                 className="group flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
                 >
                 {BRAND_NAME_CN}中国官网
@@ -209,7 +225,7 @@ export function WebsiteNavbar() {
                 href="https://www.xiaohongshu.com/user/profile/62c3a397000000001b026d43"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={handleNavClick}
+                onClick={closeMenu}
                 aria-label="前往小红书"
                 className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
               >
