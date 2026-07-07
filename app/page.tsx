@@ -66,7 +66,7 @@ export default function HomePage() {
       </section>
 
       {/* 客户端交互层 */}
-      <Suspense fallback={<div className="h-screen bg-[#F2EDE3]" />}>
+      <Suspense fallback={<div className="h-screen bg-[#F6F4F0]" />}>
         <HomeClient />
       </Suspense>
     </>

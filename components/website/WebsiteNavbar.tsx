@@ -67,8 +67,8 @@ export function WebsiteNavbar() {
         aria-label="主导航"
         className={`fixed top-0 left-0 right-0 z-[100] grid place-items-center px-6 md:px-12 lg:px-20 py-8 md:py-7 transition-[background-color,border-color,box-shadow] duration-500 ${
           scrolled
-            ? "bg-[#F2EDE3]/70 backdrop-blur-md border-b border-black/[0.04]"
-            : "bg-[#F2EDE3] border-b border-transparent"
+            ? "bg-[#F6F4F0]/70 backdrop-blur-md border-b border-black/[0.04]"
+            : "bg-[#F6F4F0] border-b border-transparent"
         }`}
       >
         <div className="w-full flex items-center justify-center md:justify-between gap-4 relative">
