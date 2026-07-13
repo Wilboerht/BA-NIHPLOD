@@ -61,6 +61,12 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || "",
+    other: {
+      "baidu-site-verification": process.env.BAIDU_SITE_VERIFICATION || "",
+    },
+  },
   manifest: "/manifest.json",
 };
 

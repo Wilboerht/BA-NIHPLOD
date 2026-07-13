@@ -54,21 +54,8 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <>
-      {/* 搜索引擎友好：语义化隐藏描述 */}
-      <section aria-label="平台介绍" style={{ display: "none" }}>
-        <h1>{BRAND_NAME}（{BRAND_NAME_CN}）品牌授权资质官方核查平台</h1>
-        <p>
-          {BRAND_NAME} 由 {COMPANY_FULL_NAME} 运营。本平台提供品牌授权书的真伪验证服务，
-          支持按授权编号（SN）、店铺名称或公司名称查询经销商授权状态、有效期及经营范围。
-          消费者和合作伙伴可通过本平台确认经销商是否持有有效的 {BRAND_NAME} 品牌授权。
-        </p>
-      </section>
-
-      {/* 客户端交互层 */}
-      <Suspense fallback={<div className="h-screen bg-[#F6F4F0]" />}>
-        <HomeClient />
-      </Suspense>
-    </>
+    <Suspense fallback={<div className="h-screen bg-[#F6F4F0]" />}>
+      <HomeClient />
+    </Suspense>
   );
 }
