@@ -236,6 +236,9 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_dealers_company_name_trgm ON dealers USING gin (company_name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_certificates_auth_scope_company_trgm ON certificates USING gin (split_part(auth_scope, ' | ', 1) gin_trgm_ops);
 
+-- 2026-07-14: 搜索计数
+ALTER TABLE certificates ADD COLUMN IF NOT EXISTS search_count INT DEFAULT 0;
+
 -- 2026-05-26: profiles 表添加 email 字段，用于邮件提醒
 -- 注意：email 和 deleted_at 的 ALTER TABLE 已移至 profiles 表创建后
 

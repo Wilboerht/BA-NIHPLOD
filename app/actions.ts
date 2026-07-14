@@ -171,6 +171,14 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       return { success: false, error: "未检索到有效的官方授权记录" };
     }
 
+    // 搜索计数：批量 +1，失败不影响主流程
+    try {
+      const certNumbers = finalData.map((d) => d.id);
+      await sql`UPDATE certificates SET search_count = search_count + 1 WHERE cert_number = ANY(${certNumbers})`;
+    } catch (e) {
+      console.warn('[verifyCertificateAction] 搜索计数更新失败:', e instanceof Error ? e.message : String(e));
+    }
+
     return {
       success: true,
       data: finalData
