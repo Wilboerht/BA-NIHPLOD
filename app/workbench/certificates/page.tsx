@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight, Filter, Trash2 } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight, Filter, Trash2, Clock } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -350,28 +350,28 @@ export default function CertificatesPage() {
                       {(() => {
                         const displayStatus = getCertDisplayStatus(cert);
                         if (displayStatus === 'REVOKED') return (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-rose-50 text-rose-700 text-[11px] font-semibold tracking-wide uppercase">
-                            <ShieldOff className="w-3 h-3" /> 已吊销
+                          <span title="已吊销" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 text-rose-600 cursor-default">
+                            <ShieldOff className="w-3.5 h-3.5" />
                           </span>
                         );
                         if (displayStatus === 'REJECTED') return (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wide uppercase">
-                            <XCircle className="w-3 h-3" /> 已拒绝
+                          <span title="已拒绝" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-500 cursor-default">
+                            <XCircle className="w-3.5 h-3.5" />
                           </span>
                         );
                         if (displayStatus === 'EXPIRED') return (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wide uppercase">
-                            <XCircle className="w-3 h-3" /> 已失效
+                          <span title="已失效" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-500 cursor-default">
+                            <XCircle className="w-3.5 h-3.5" />
                           </span>
                         );
                         if (displayStatus === 'ISSUED') return (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide uppercase">
-                            <CheckCircle2 className="w-3 h-3" /> 生效中
+                          <span title="生效中" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 cursor-default">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
                           </span>
                         );
                         return (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold tracking-wide uppercase">
-                            待审核
+                          <span title="待审核" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-50 text-amber-600 cursor-default">
+                            <Clock className="w-3.5 h-3.5" />
                           </span>
                         );
                       })()}
