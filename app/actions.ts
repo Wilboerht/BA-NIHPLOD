@@ -122,24 +122,29 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     }
 
     if (!results || results.length === 0) {
-      return { success: false, error: "未检索到相关的官方授权记录" };
+      return { success: false, error: "未检索到有效的官方授权记录" };
     }
 
-    // 状态校验
-    const firstResult = results[0];
-    const rawStatus = String(firstResult.status || '').toUpperCase();
-
-    // 负面状态统一按"未查到"处理，不暴露具体原因
-    const endDateStr = typeof firstResult.end_date === 'string' ? firstResult.end_date : formatDateISO(firstResult.end_date);
-    const endDate = getEndOfDay(endDateStr || '1970-01-01');
-    const isExpired = rawStatus === 'EXPIRED' || new Date() > endDate;
-    if (rawStatus === 'REVOKED' || isExpired || rawStatus !== 'ISSUED') {
-      return { success: false, error: "未检索到相关的官方授权记录" };
-    }
-
+    const now = new Date();
     const finalData: CertificateVerifyResult[] = [];
 
     for (const data of results) {
+      const rawStatus = String(data.status || '').toUpperCase();
+
+      // 仅 ISSUED 且在有效期内的证书才对公众可见
+      if (rawStatus === 'REVOKED' || rawStatus === 'EXPIRED') {
+        continue;
+      }
+      if (rawStatus !== 'ISSUED') {
+        continue;
+      }
+
+      const endDateStr = typeof data.end_date === 'string' ? data.end_date : formatDateISO(data.end_date);
+      const endDate = getEndOfDay(endDateStr || '1970-01-01');
+      if (now > endDate) {
+        continue;
+      }
+
       let companyName = "未知经销商";
       if (data.dealers) {
         if (Array.isArray(data.dealers)) {
@@ -150,17 +155,20 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       }
 
       const startDate = typeof data.start_date === 'string' ? data.start_date : formatDateISO(data.start_date);
-      const endDate = typeof data.end_date === 'string' ? data.end_date : formatDateISO(data.end_date);
       const parsed = parseAuthScope(data.auth_scope);
       finalData.push({
         id: data.cert_number,
         dealerName: companyName,
         companyName: parsed.companyName || '',
-        duration: `${startDate.replace(/-/g, '.')} - ${endDate.replace(/-/g, '.')}`,
+        duration: `${startDate.replace(/-/g, '.')} - ${endDateStr.replace(/-/g, '.')}`,
         scope: parsed.scopeText || data.auth_scope || '-',
-        status: data.status?.toUpperCase() || '',
+        status: rawStatus,
         final_image_url: data.final_image_url || undefined
       });
+    }
+
+    if (finalData.length === 0) {
+      return { success: false, error: "未检索到有效的官方授权记录" };
     }
 
     return {
