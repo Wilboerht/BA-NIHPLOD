@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, Phone, X, Award, Edit, ChevronLeft, ChevronRight, Filter, Trash2, Clock } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, X, Award, Edit, ChevronLeft, ChevronRight, Filter, Trash2, Clock } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -311,7 +311,6 @@ export default function CertificatesPage() {
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">证书编号</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">店铺/平台名称</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">公司名称</th>
-                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">联系方式</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">有效期</th>
                 {statusFilter === 'PENDING' && (
                   <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提报人</th>
@@ -330,15 +329,6 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-6 py-6">
                        <span className="text-slate-600 text-[13px] tracking-tight">{parseAuthScope(cert.auth_scope).companyName || "-"}</span>
-                    </td>
-                    <td className="px-6 py-6">
-                      {cert.dealers?.phone ? (
-                        <span className="flex items-center gap-2 text-slate-400 font-mono tabular-nums text-[12px]">
-                          <Phone className="w-3 h-3 opacity-50" /> {cert.dealers.phone}
-                        </span>
-                      ) : (
-                        <span className="text-slate-200 text-xs">未录入</span>
-                      )}
                     </td>
                     <td className="px-6 py-6 text-[11px] text-slate-400 font-medium tabular-nums px-x uppercase tracking-wide">
                       {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
