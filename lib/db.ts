@@ -172,7 +172,7 @@ export async function getAllCertificates(
   statusFilter?: string
 ): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
   const baseSelect = sql`
-    SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
+    SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, c.search_count, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
     FROM certificates c
     LEFT JOIN dealers d ON c.dealer_id = d.id
     LEFT JOIN profiles p ON c.auditor_id = p.id

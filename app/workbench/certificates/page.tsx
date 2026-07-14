@@ -18,6 +18,7 @@ interface Certificate {
   start_date: string;
   end_date: string;
   auth_scope: string;
+  search_count?: number;
   seal_url?: string;
   templates?: { stamp_url?: string } | null;
   dealers?: { company_name?: string; phone?: string } | null;
@@ -316,6 +317,7 @@ export default function CertificatesPage() {
                   <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">提报人</th>
                 )}
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">当前状态</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md text-center">搜索次数</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
               </tr>
             </thead>
@@ -373,6 +375,9 @@ export default function CertificatesPage() {
                           </span>
                         );
                       })()}
+                    </td>
+                    <td className="px-6 py-6 text-center text-[13px] text-slate-500 font-mono tabular-nums">
+                      {cert.search_count ?? 0}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
                       <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
