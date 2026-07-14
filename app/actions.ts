@@ -225,11 +225,15 @@ export async function submitComplaintAction(formData: {
 }): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     // 限流检查：每个 IP 5 分钟内最多提交 3 次投诉
-    const clientIP = await getClientIP();
-    const rateKey = `complaint:${clientIP}`;
-    const allowed = await checkActionRateLimit(rateKey, 3, 5 * 60 * 1000);
-    if (!allowed) {
-      return { success: false, error: "提交过于频繁，请 5 分钟后再试" };
+    try {
+      const clientIP = await getClientIP();
+      const rateKey = `complaint:${clientIP}`;
+      const allowed = await checkActionRateLimit(rateKey, 3, 5 * 60 * 1000);
+      if (!allowed) {
+        return { success: false, error: "提交过于频繁，请 5 分钟后再试" };
+      }
+    } catch (rateLimitErr) {
+      console.warn('[submitComplaintAction] 限流检查失败，降级放行:', rateLimitErr instanceof Error ? rateLimitErr.message : String(rateLimitErr));
     }
 
     // 输入长度校验

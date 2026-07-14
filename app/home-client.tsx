@@ -16,9 +16,7 @@ import { BRAND_NAME_CN } from "@/lib/config";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { Html5Qrcode } from "html5-qrcode";
 
-const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
-  if (rawStatus === 'REVOKED' || rawStatus === '已撤销') return { text: '已撤销', style: 'bg-stone-50 text-stone-500 border-stone-200' };
-
+const getDurationStatus = (durationStr?: string) => {
   if (!durationStr) return null;
   try {
     const parts = durationStr.split('-');
@@ -30,7 +28,6 @@ const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
     
     const startDate = new Date(startStr);
     const endDate = new Date(endStr);
-    // 把结束日期的时间拨到当天的 23:59:59 保证精准包容整天
     endDate.setHours(23, 59, 59, 999);
     
     const now = new Date();
@@ -38,7 +35,6 @@ const getDurationStatus = (durationStr?: string, rawStatus?: string) => {
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
     
     if (now < startDate) return { text: '未生效', style: 'bg-amber-50 text-amber-600 border-amber-200' };
-    if (now > endDate || rawStatus === 'EXPIRED' || rawStatus === '已失效') return { text: '已过期', style: 'bg-red-50 text-red-600 border-red-200' };
     return { text: '生效中', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
   } catch {
     return null;
@@ -295,10 +291,9 @@ export default function HomeClient() {
               
               // 停止扫描并执行验证
               if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                  handleScanVerify(certNumber);
-                }).catch(err => {
+                html5QrCode.stop().then(() => {}).catch(err => {
                   console.error("Failed to stop scanner:", err);
+                }).finally(() => {
                   handleScanVerify(certNumber);
                 });
               } else {
@@ -638,7 +633,7 @@ export default function HomeClient() {
                           <div className="flex items-center gap-3">
                             <p className="text-sm md:text-[15px] text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
                             {(() => {
-                              const status = getDurationStatus(result.duration, result.status);
+                              const status = getDurationStatus(result.duration);
                               if (!status) return null;
                               return (
                                 <span className={`text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap ${status.style}`}>
