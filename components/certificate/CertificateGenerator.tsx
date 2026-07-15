@@ -175,30 +175,39 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const renderCertificate = async () => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      toast({ message: "无法获取画布元素", type: "error" });
-      return;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      toast({ message: "浏览器不支持 2D 画布渲染", type: "error" });
       return;
     }
 
     const currentId = ++renderRequestId.current;
     setIsGenerating(true);
 
+    try {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      toast({ message: "浏览器不支持 2D 画布渲染", type: "error" });
+      return;
+    }
+
     const scale = 2;
     const width = 800 * scale;
     const height = 1131 * scale;
 
-    const loadImage = (src: string | null | undefined): Promise<HTMLImageElement | null> => {
+    const loadImage = (src: string | null | undefined, timeoutMs = 15000): Promise<HTMLImageElement | null> => {
       if (!src || src.trim() === "" || src === "undefined") return Promise.resolve(null);
       return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        let settled = false;
+        const finish = (result: HTMLImageElement | null) => {
+          if (!settled) { settled = true; resolve(result); }
+        };
+        const timer = setTimeout(() => {
+          console.warn('[CertificateGenerator] 图片加载超时:', src);
+          finish(null);
+        }, timeoutMs);
+        img.onload = () => { clearTimeout(timer); finish(img); };
+        img.onerror = () => { clearTimeout(timer); finish(null); };
         img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
       });
     };
 
@@ -502,7 +511,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       canvas.height = height;
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(offCanvas, 0, 0);
-      setIsGenerating(false);
+    }
+    } catch (err) {
+      console.error('[CertificateGenerator] 证书渲染失败:', err instanceof Error ? err.message : String(err));
+      toast({ message: "证书预览生成失败，请重试", type: "error" });
+    } finally {
+      if (currentId === renderRequestId.current) {
+        setIsGenerating(false);
+      }
     }
   };
 
