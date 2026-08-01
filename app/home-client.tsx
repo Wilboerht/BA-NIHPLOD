@@ -1001,7 +1001,6 @@ export default function HomeClient() {
       <footer className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-10 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 shrink-0 border-t border-slate-100/30">
         <div className="flex flex-col items-center md:items-start gap-2 md:gap-0.5 order-1">
           <p className="order-2 md:order-1 flex flex-col md:flex-row items-center md:items-start gap-y-2 md:gap-x-1.5 md:gap-y-0.5 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
-            {/* 手机第一行：ICP + 电子营业执照；桌面作为独立 flex 项参与横向排列 */}
             <span className="inline-flex md:contents items-center gap-1 order-1">
               <a
                 href="https://beian.miit.gov.cn/"
@@ -1010,17 +1009,6 @@ export default function HomeClient() {
                 className="order-1 md:order-1 hover:text-slate-500 transition-colors"
               >
                 沪ICP备2026014764号-1
-              </a>
-              <span className="hidden md:inline text-slate-300/40 select-none order-2 md:order-2">|</span>
-              <span className="md:hidden text-slate-300/40 select-none order-2">|</span>
-              <a
-                href="https://wap.scjgj.sh.gov.cn/businessCheck/verifKey.do?showType=extShow&serial=YOUR_SERIAL&signData=YOUR_SIGN_DATA"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 order-3 md:order-5 hover:text-slate-500 transition-colors"
-              >
-                <Image src="/assets/aic_icon.png" alt="电子营业执照" width={14} height={14} className="w-3.5 h-3.5 opacity-50" unoptimized />
-                电子营业执照
               </a>
             </span>
 
@@ -1035,8 +1023,6 @@ export default function HomeClient() {
               沪公网安备31010702010178号
             </a>
 
-            {/* 桌面分隔符：沪公网安备 与 电子营业执照 之间 */}
-            <span className="hidden md:inline text-slate-300/40 select-none order-4">|</span>
           </p>
           <p className="order-1 md:order-2 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
             &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
