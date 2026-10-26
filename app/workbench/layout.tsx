@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/workbench/certificates': '授权核发中心',
   '/workbench/complaints': '打假投诉审核',
   '/workbench/users': '管理员管理',
+  '/workbench/audit-logs': '系统操作日志',
 };
 
 function getPageTitle(pathname: string): string {
@@ -57,6 +58,11 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
         if (res.ok) {
           const data = await res.json();
           if (data.user && ADMIN_ROLES.includes(data.user.role)) {
+            // 首次登录强制改密：未完成改密前不允许进入工作台
+            if (data.user.is_first_login) {
+              window.location.href = '/reset-password';
+              return;
+            }
             setUser(data.user);
             setUserType('admin');
             setIsAuthorized(true);

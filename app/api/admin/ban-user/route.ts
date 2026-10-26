@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { sql, getProfileById, checkActionRateLimit } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
+import { readJsonBody } from "@/lib/api-utils";
 
 /**
  * POST /api/admin/ban-user
  * Body: { profileId: string, action?: "ban" | "unban" }
- * 封禁或解封指定用户（仅管理员可调用）
+ * 封禁或解封指定用户（仅超级管理员可调用）
  */
 export async function POST(req: Request) {
   try {
-    const { profileId, action = "ban" } = await req.json();
+    const { data: body, response: bodyError } = await readJsonBody<{
+      profileId?: string;
+      action?: string;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { profileId, action = "ban" } = body!;
 
     if (!profileId || !["ban", "unban"].includes(action)) {
       return NextResponse.json(
@@ -18,8 +25,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // 权限检查：确保是管理员
-    const { user: adminUser, response } = await requireAdmin(req);
+    // 权限检查：仅超级管理员可封禁/解封
+    const { user: adminUser, response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }

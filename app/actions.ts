@@ -1,6 +1,5 @@
 "use server";
 
-import DOMPurify from 'isomorphic-dompurify';
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { parseAuthScope, formatDateISO, getEndOfDay } from '@/lib/utils';
 import { headers } from 'next/headers';
@@ -92,6 +91,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         WHERE (d.company_name ILIKE ${prefixPattern}
            OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern})
         ORDER BY c.end_date DESC
+        LIMIT 50
       `;
 
       // 2b. 前缀匹配无结果且关键词长度≥3时，回退到包含匹配（ILIKE '%关键词%'）
@@ -105,6 +105,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           WHERE (d.company_name ILIKE ${containPattern}
              OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern})
           ORDER BY c.end_date DESC
+          LIMIT 50
         `;
       }
 
@@ -193,31 +194,25 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
  * 提交维权申诉工单
  */
 function sanitizeInput(input: string): string {
-  // 使用 DOMPurify 白名单方式彻底消毒 HTML
-  return DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-    KEEP_CONTENT: true,
-  });
+  // 存储值仅作为纯文本渲染（React 自动转义），这里移除 HTML 标签与控制字符
+  return input
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .trim();
 }
 
 async function getClientIP(): Promise<string> {
   try {
     const h = await headers();
+    // x-real-ip 由可信反向代理设置，优先使用；x-forwarded-for 仅作降级
+    const realIp = h.get('x-real-ip');
+    if (realIp) return realIp.trim();
     const forwarded = h.get('x-forwarded-for');
     if (forwarded) return forwarded.split(',')[0].trim();
-    const realIp = h.get('x-real-ip');
-    if (realIp) return realIp;
   } catch {
     // headers() 在部分边缘环境可能异常
   }
   return 'unknown';
-}
-
-function isInternalUploadUrl(url?: string): boolean {
-  if (!url) return true;
-  // 只允许内部上传路径，防止传入恶意外链
-  return url.startsWith('/uploads/');
 }
 
 function isInternalUploadUrls(urls?: string[]): boolean {
@@ -279,7 +274,8 @@ export async function submitComplaintAction(formData: {
       throw err;
     }
   } catch (err: unknown) {
+    // 对外只返回通用文案，避免向匿名访客泄露内部错误细节
     console.error("[submitComplaintAction] 投诉提交失败:", err);
-    return { success: false, error: err instanceof Error ? err.message : "提交失败" };
+    return { success: false, error: "提交失败，请稍后重试" };
   }
 }

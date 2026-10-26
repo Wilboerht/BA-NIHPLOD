@@ -59,6 +59,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_key ON profiles(phone) WHERE ph
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
+-- 2026-09-25: 改密/重置后使旧 JWT 失效（版本号 +1，默认 0 不影响存量会话）
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+
 -- 为已删除用户过滤创建索引
 CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON profiles(deleted_at) WHERE deleted_at IS NULL;
 
@@ -136,7 +139,9 @@ CREATE TABLE IF NOT EXISTS complaints (
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
-    complaint_id UUID REFERENCES complaints(id) ON DELETE CASCADE,
+    -- 2026-09-25: 改为 SET NULL，删除工单后保留审计日志（complaint_ref 保存原工单 ID）
+    complaint_id UUID REFERENCES complaints(id) ON DELETE SET NULL,
+    complaint_ref TEXT,
     actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     comment TEXT,
@@ -226,6 +231,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_dealers_phone_company ON dealers(phone, co
 CREATE INDEX IF NOT EXISTS idx_audit_logs_certificate_id ON audit_logs(certificate_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_complaint_id ON audit_logs(complaint_id);
+-- 2026-09-26: 操作日志页按时间倒序分页
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
 
 -- action_rate_limits 表索引
 CREATE INDEX IF NOT EXISTS idx_action_rate_limits_window ON action_rate_limits(window_start);
@@ -238,6 +245,15 @@ CREATE INDEX IF NOT EXISTS idx_certificates_auth_scope_company_trgm ON certifica
 
 -- 2026-07-14: 搜索计数
 ALTER TABLE certificates ADD COLUMN IF NOT EXISTS search_count INT DEFAULT 0;
+
+-- ============================================================================
+-- 12. 迁移记录表（配合 scripts/apply-migrations.mjs 使用）
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    filename   TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- 2026-05-26: profiles 表添加 email 字段，用于邮件提醒
 -- 注意：email 和 deleted_at 的 ALTER TABLE 已移至 profiles 表创建后

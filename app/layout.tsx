@@ -142,7 +142,7 @@ export default function RootLayout({
                   name: `${BRAND_NAME}授权证书编号格式是什么？`,
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: `${BRAND_NAME} 授权证书编号格式为 BAVP-YYYY-XXXX，例如 BAVP-2026-A1B2。您可以在证书图片或授权书上找到此编号。`,
+                    text: `${BRAND_NAME} 授权证书编号格式为 BAVP-YYYY-XXXXXXXX，例如 BAVP-2026-A1B2C3D4。您可以在证书图片或授权书上找到此编号。`,
                   },
                 },
                 {

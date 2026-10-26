@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { readJsonBody } from '@/lib/api-utils';
 import { deletePublicUpload } from '@/lib/storage';
 
 // 合法的状态流转图
@@ -17,7 +18,13 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { status, review_note } = await req.json();
+    const { data: body, response: bodyError } = await readJsonBody<{
+      status?: string;
+      review_note?: string;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { status, review_note } = body!;
 
     if (!id || !status) {
       return NextResponse.json(
@@ -137,16 +144,18 @@ export async function DELETE(
       }
     }
 
-    // 删除工单和记录审计日志应在同一事务中
+    // 先写审计日志，再删除工单：
+    // complaint_id 外键为 ON DELETE SET NULL，删除后日志保留 complaint_ref 以便追溯
     await sql.begin(async (tx) => {
-      const delResult = await tx`DELETE FROM complaints WHERE id = ${id} RETURNING id`;
-      if (!delResult || delResult.length === 0) {
+      const exists = await tx`SELECT id FROM complaints WHERE id = ${id} LIMIT 1`;
+      if (!exists || exists.length === 0) {
         throw new Error('工单不存在或已被删除');
       }
       await tx`
-        INSERT INTO audit_logs (complaint_id, actor_id, action, comment, created_at)
-        VALUES (${id}, ${user!.id}, 'DELETED', '管理员删除工单', NOW())
+        INSERT INTO audit_logs (complaint_id, complaint_ref, actor_id, action, comment, created_at)
+        VALUES (${id}, ${id}, ${user!.id}, 'DELETED', '管理员删除工单', NOW())
       `;
+      await tx`DELETE FROM complaints WHERE id = ${id}`;
     });
 
     // 数据库删除成功后，清理关联的媒体文件

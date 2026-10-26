@@ -12,7 +12,10 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const limit = searchParams.get('limit');
-    const limitNum = limit ? Math.min(parseInt(limit, 10), 1000) : undefined;
+    const parsedLimit = limit ? parseInt(limit, 10) : NaN;
+    const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 1000)
+      : undefined;
 
     const { data, error } = await getPendingCertificates(limitNum);
 

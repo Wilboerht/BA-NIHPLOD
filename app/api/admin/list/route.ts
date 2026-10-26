@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
-    const { response } = await requireAdmin(req);
+    const { response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }

@@ -33,6 +33,7 @@ export interface TokenPayload {
   full_name?: string;
   role: string;
   is_banned?: boolean;
+  token_version?: number;
   jti?: string;
 }
 

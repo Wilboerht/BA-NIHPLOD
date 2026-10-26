@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, UserCog, Globe, AlertCircle } from "lucide-react";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, UserCog, Globe, AlertCircle, ScrollText } from "lucide-react";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { PLATFORM_NAME } from "@/lib/config";
@@ -92,6 +92,10 @@ export default function Sidebar({
             <Link href="/workbench/users" className={`${styles.menuLink} ${pathname === "/workbench/users" ? styles.active : ""}`}>
               <span className={styles.icon}><UserCog size={17} /></span>
               {!isCollapsed && "管理员管理"}
+            </Link>
+            <Link href="/workbench/audit-logs" className={`${styles.menuLink} ${pathname === "/workbench/audit-logs" ? styles.active : ""}`}>
+              <span className={styles.icon}><ScrollText size={17} /></span>
+              {!isCollapsed && "系统操作日志"}
             </Link>
           </div>
         )}

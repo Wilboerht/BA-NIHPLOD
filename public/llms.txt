@@ -17,7 +17,7 @@ NIHPLOD（旎柏）品牌授权资质官方核查平台，由旎柏（上海）�
 ## 查询方式
 
 - 网址：https://ba.nihplod.cn
-- 证书编号格式：BAVP-YYYY-XXXX（例：BAVP-2026-A1B2）
+- 证书编号格式：BAVP-YYYY-XXXXXXXX（例：BAVP-2026-A1B2C3D4）
 - 也支持按店铺名称或公司名称模糊搜索
 
 ## 技术说明

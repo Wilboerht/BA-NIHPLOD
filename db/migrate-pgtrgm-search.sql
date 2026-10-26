@@ -2,13 +2,16 @@
 -- 执行方式：sudo -u postgres psql -d ba_nihplod_db -f db/migrate-pgtrgm-search.sql
 -- 影响范围：仅元数据（扩展+索引），不触碰任何数据行，可在线执行
 
+-- 注意：原本使用 CREATE INDEX CONCURRENTLY（不锁写），但该语句无法在事务中执行，
+--       导致迁移执行器无法统一管理。生产库索引已存在（IF NOT EXISTS 为 no-op），
+--       如需在线建索引的大表场景，请手动用 psql 单独执行 CONCURRENTLY 版本。
 -- 1. 启用三角函数模糊匹配扩展（idempotent）
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- 2. 经销商公司名 trigram 索引（加速 ILIKE '%keyword%' 和 ILIKE 'keyword%'）
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dealers_company_name_trgm
+CREATE INDEX IF NOT EXISTS idx_dealers_company_name_trgm
   ON dealers USING gin (company_name gin_trgm_ops);
 
 -- 3. 证书授权范围公司名 trigram 索引（加速 split_part(auth_scope, ' | ', 1) ILIKE ...）
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_certificates_auth_scope_company_trgm
+CREATE INDEX IF NOT EXISTS idx_certificates_auth_scope_company_trgm
   ON certificates USING gin (split_part(auth_scope, ' | ', 1) gin_trgm_ops);

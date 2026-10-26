@@ -18,34 +18,13 @@
 | 审核员 (Auditor) | 初审经销商授权申请、提交待核发 |
 | 超级管理员 (Super Admin) | 终审核发证书、吊销证书、管理用户 |
 
-## 证书验证 API
+## 证书验证
 
-### POST /api/certificates/verify
+平台不提供公开查询 API，验证入口为官网首页（`/`）搜索框与证书二维码扫描：
 
-**请求体**：
-```json
-{ "certNumber": "BAVP-2026-A1B2" }
-```
-
-**成功响应**：
-```json
-{
-  "success": true,
-  "data": {
-    "cert_number": "BAVP-2026-A1B2",
-    "company_name": "经销商名称",
-    "start_date": "2026-01-01",
-    "end_date": "2026-12-31",
-    "auth_scope": "授权范围",
-    "status": "ISSUED"
-  }
-}
-```
-
-**失败响应**（证书不存在/已过期/已撤销）：
-```json
-{ "success": false, "error": "未检索到相关的官方授权记录" }
-```
+- 输入证书编号（BAVP-YYYY-XXXXXXXX）、店铺名称或公司名称进行查询
+- 仅 `ISSUED` 且未过期的证书对外展示有效结果，其余状态一律返回"未检索到有效的官方授权记录"
+- 扫码二维码会跳转 `/?cert=<证书编号>` 自动核验
 
 ### 证书状态枚举
 
@@ -62,11 +41,12 @@
 | 路径 | 说明 | 访问权限 |
 |------|------|----------|
 | / | 首页 — 授权查询 | 公开 |
-| /verify | 证书验证结果页 | 公开 |
+| /verify | 兼容入口（302 跳转首页，携带 cert 参数） | 公开 |
 | /workbench | 管理后台工作台 | 管理员 |
 | /workbench/certificates | 证书核发管理 | 管理员 |
 | /workbench/complaints | 投诉审核 | 管理员 |
-| /workbench/users | 用户管理 | 管理员 |
+| /workbench/users | 管理员管理 | 超级管理员 |
+| /workbench/audit-logs | 系统操作日志 | 超级管理员 |
 | /admin/login | 管理员登录 | 公开 |
 | /demo/certificate | 证书合成沙盘 | 管理员 |
 
@@ -76,7 +56,7 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| cert_number | TEXT UNIQUE | 证书编号 BAVP-YYYY-XXXX |
+| cert_number | TEXT UNIQUE | 证书编号 BAVP-YYYY-XXXXXXXX |
 | dealer_id | UUID → dealers | 经销商外键 |
 | start_date | DATE | 授权起始日期 |
 | end_date | DATE | 授权截止日期 |
@@ -87,10 +67,11 @@
 
 ## 安全机制
 
-- JWT Token 认证（8 小时有效期）
-- 登录限流（5 次/5 分钟/IP）
-- 通用行为限流
+- JWT Token 认证（HttpOnly Cookie，8 小时有效期）
+- 登录限流：仅统计失败次数、成功清零（5 次失败/5 分钟/IP）
+- 通用行为限流（查询、投诉提交、上传等）
+- 令牌版本号机制：修改/重置密码后旧 Token 立即失效
 - Token 黑名单（注销时失效）
-- 文件上传魔数校验
-- 路径遍历防护
-- CSP + HSTS + X-Frame-Options 安全头
+- 账号管理类接口仅限超级管理员
+- 文件上传魔数校验 + 路径遍历防护 + 签章来源白名单
+- CSP + HSTS + X-Frame-Options 等安全响应头

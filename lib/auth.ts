@@ -25,6 +25,7 @@ export interface AuthUser {
   full_name?: string;
   role: string;
   is_banned?: boolean;
+  token_version?: number;
 }
 
 export interface TokenPayload extends JWTPayload {
@@ -34,6 +35,7 @@ export interface TokenPayload extends JWTPayload {
   full_name?: string;
   role: string;
   is_banned?: boolean;
+  token_version?: number;
   jti?: string;
 }
 
@@ -50,6 +52,7 @@ export async function createToken(user: AuthUser): Promise<string> {
     full_name: user.full_name,
     role: user.role,
     is_banned: user.is_banned ?? false,
+    token_version: user.token_version ?? 0,
     jti,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -82,7 +85,10 @@ export async function verifyTokenBasic(request: NextRequest | Request): Promise<
 
     return payload as TokenPayload;
   } catch (err) {
-    console.error('[verifyTokenBasic] JWT 验证失败:', err instanceof Error ? err.message : String(err));
+    // 公网环境无效/过期 token 很常见，仅在开发环境输出，避免日志噪声
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[verifyTokenBasic] JWT 验证失败:', err instanceof Error ? err.message : String(err));
+    }
     return null;
   }
 }
@@ -132,7 +138,7 @@ export async function requireAuth(request: NextRequest | Request) {
   // 查询数据库确认用户存在、未被删除且未被禁用
   try {
     const rows = await sql`
-      SELECT id, username, full_name, phone, role, is_banned
+      SELECT id, username, full_name, phone, role, is_banned, token_version
       FROM profiles
       WHERE id = ${payload.id}
         AND deleted_at IS NULL
@@ -149,6 +155,15 @@ export async function requireAuth(request: NextRequest | Request) {
       return {
         user: null,
         response: NextResponse.json({ error: '账号已被封禁' }, { status: 403 }),
+      };
+    }
+    // 修改/重置密码后 token_version +1，旧版本 Token 立即失效
+    // （旧 Token 无该字段时按 0 处理，与数据库默认值一致，不影响存量会话）
+    const tokenVersion = Number(payload.token_version ?? 0);
+    if (tokenVersion !== Number(profile.token_version ?? 0)) {
+      return {
+        user: null,
+        response: NextResponse.json({ error: '登录状态已失效，请重新登录' }, { status: 401 }),
       };
     }
     return {
@@ -184,6 +199,26 @@ export async function requireAdmin(request: NextRequest | Request) {
     return {
       user: null,
       response: NextResponse.json({ error: '无权限执行此操作' }, { status: 403 }),
+    };
+  }
+
+  return { user, response: null };
+}
+
+/**
+ * 验证用户为超级管理员，返回用户信息
+ * 用于账号管理类高权限接口（创建/删除账号、重置密码、封禁、角色变更等）
+ */
+export async function requireSuperAdmin(request: NextRequest | Request) {
+  const { user, response } = await requireAdmin(request);
+  if (response) {
+    return { user: null, response };
+  }
+
+  if (user?.role !== 'SUPER_ADMIN') {
+    return {
+      user: null,
+      response: NextResponse.json({ error: '无权限执行此操作，仅超级管理员可操作' }, { status: 403 }),
     };
   }
 

@@ -3,9 +3,20 @@ import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { COMPANY_FULL_NAME } from '@/lib/config';
 import { sendPendingCertNotification } from '@/lib/mail';
-import { apiError } from '@/lib/api-utils';
+import { apiError, readJsonBody } from '@/lib/api-utils';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
+
+// 客户端提交的证书数据（字段均需由调用方在运行时校验）
+interface CertDataInput {
+  shopName: string;
+  companyName: string;
+  phone: string;
+  scopeText: string;
+  duration: string;
+  authorizer: string;
+  sealImage: string;
+}
 
 /**
  * 证书管理 API
@@ -21,11 +32,17 @@ class ValidationError extends Error {
 }
 
 // 辅助函数：生成唯一的证书编号
-// 格式：BAVP-YYYY-XXXX（4位十六进制），与前端验证正则保持一致
+// 格式：BAVP-YYYY-XXXXXXXX（8位十六进制，约 43 亿组合/年，降低枚举风险）
 function generateUniqueCertNumber(): string {
   const year = new Date().getFullYear();
-  const randomHex = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
+  const randomHex = crypto.randomUUID().replace(/-/g, '').substring(0, 8).toUpperCase();
   return `BAVP-${year}-${randomHex}`;
+}
+
+// 签章图片地址白名单：仅允许本地上传文件或系统默认公章，防止写入恶意外链
+function isAllowedSealUrl(url: string | undefined | null): boolean {
+  if (!url) return true;
+  return url.startsWith('/uploads/') || url === '/default-seal.png';
 }
 
 // 辅助函数：带重试的唯一证书编号生成
@@ -101,8 +118,14 @@ function requireSuperAdmin(role: string | undefined) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { action, certData, certId } = body;
+    const { data: body, response: bodyError } = await readJsonBody<{
+      action?: string;
+      certId?: string;
+      certData?: CertDataInput;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { action, certData, certId } = body!;
 
     // 验证管理员权限
     const { user: adminUser, response } = await requireAdmin(req);
@@ -118,6 +141,9 @@ export async function POST(req: Request) {
 
     // 字段长度校验
     if (certData) {
+      if (!certData.shopName || !certData.shopName.trim()) {
+        return NextResponse.json({ error: '缺少店铺/平台名称' }, { status: 400 });
+      }
       if (certData.shopName && certData.shopName.length > 200) {
         return NextResponse.json({ error: '授权主体名称过长，最多 200 个字符' }, { status: 400 });
       }
@@ -133,10 +159,14 @@ export async function POST(req: Request) {
       if (certData.authorizer && certData.authorizer.length > 200) {
         return NextResponse.json({ error: '授权方名称过长，最多 200 个字符' }, { status: 400 });
       }
+      if (!isAllowedSealUrl(certData.sealImage)) {
+        return NextResponse.json({ error: '签章图片来源不合法' }, { status: 400 });
+      }
     }
 
     // --- 流程 1: 审核员提报 ---
     if (action === 'create_pending') {
+      if (!certData) throw new ValidationError('缺少提报数据');
       let certNumber: string;
       let dealerId: string;
       await sql.begin(async (tx) => {
@@ -184,7 +214,7 @@ export async function POST(req: Request) {
         }
       })();
 
-      return NextResponse.json({ success: true, status: 'PENDING' });
+      return NextResponse.json({ success: true, status: 'PENDING', certNumber: certNumber! });
     }
 
     // --- 流程 2: 核发证书 ---
@@ -192,7 +222,7 @@ export async function POST(req: Request) {
       const forbidden = requireSuperAdmin(adminUser!.role);
       if (forbidden) return forbidden;
 
-      let certDataDb, dealerPhone, dealerShopName;
+      let certDataDb, dealerPhone;
       let certNumber = '';
 
       if (certId) {
@@ -204,11 +234,9 @@ export async function POST(req: Request) {
         if (!result || result.length === 0) throw new ValidationError(`未找到待审核证书 (ID: ${certId})`);
         certDataDb = result[0];
         dealerPhone = certDataDb.phone;
-        dealerShopName = certDataDb.company_name;
         certNumber = certDataDb.cert_number;
       } else if (certData) {
         dealerPhone = certData.phone;
-        dealerShopName = certData.shopName;
 
         await sql.begin(async (tx) => {
           certNumber = await generateCertNumberWithRetry(tx);
@@ -251,7 +279,7 @@ export async function POST(req: Request) {
         `;
       });
 
-      return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone });
+      return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, certNumber });
     }
 
     // --- 流程 3: 吊销证书 ---
@@ -377,7 +405,7 @@ export async function POST(req: Request) {
         `;
       });
 
-      return NextResponse.json({ success: true, status: 'UPDATED' });
+      return NextResponse.json({ success: true, status: 'UPDATED', certNumber });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

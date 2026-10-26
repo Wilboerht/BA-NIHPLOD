@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { sql, getProfileById, checkActionRateLimit } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
+import { readJsonBody } from '@/lib/api-utils';
 import { ALL_ROLES } from '@/types';
 
 export async function PUT(req: Request) {
   try {
-    const { userId, newRole } = await req.json();
+    const { data: body, response: bodyError } = await readJsonBody<{
+      userId?: string;
+      newRole?: string;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { userId, newRole } = body!;
 
     if (!userId || !newRole) {
       return NextResponse.json(
@@ -14,8 +21,8 @@ export async function PUT(req: Request) {
       );
     }
 
-    // 验证权限：只有管理员可以修改角色
-    const { user: adminUser, response } = await requireAdmin(req);
+    // 验证权限：仅超级管理员可以修改角色
+    const { user: adminUser, response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }

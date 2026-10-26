@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import { Menu, ExternalLink, ShieldAlert, QrCode, ChevronDown } from "lucide-react";
 import { BRAND_NAME_CN } from "@/lib/config";
 
@@ -13,9 +12,6 @@ export function WebsiteNavbar() {
   const [wechatExpanded, setWechatExpanded] = useState(false);
   const touchStartX = useRef(0);
   const actionLockRef = useRef(false);
-  const pathname = usePathname();
-  const isHome = pathname === "/";
-
   // 滚动检测：超过 10px 添加毛玻璃效果
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);

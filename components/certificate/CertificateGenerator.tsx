@@ -29,11 +29,58 @@ interface CertificateGeneratorProps {
   mode?: 'create' | 'view' | 'edit';
   isVoided?: boolean;
   isPending?: boolean;
+  previewOnly?: boolean;
   onSuccess?: () => void;
   onReject?: () => void;
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, onSuccess, onReject }: CertificateGeneratorProps) {
+// 预设渠道列表
+const CHANNELS = ['淘宝', '天猫', '京东', '小红书', '抖音', '微信', '线下门店', '其他'];
+
+// 从 scopeText 解析选中的预设渠道
+function getChannelsFromScopeText(text: string): string[] {
+  const lines = text.split('\n');
+  if (lines.length >= 2) {
+    const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
+    const presetSet = new Set(CHANNELS);
+    const result = CHANNELS.filter(ch => items.includes(ch));
+    // 若存在非预设渠道内容，视为"其他"被选中
+    if (items.some(item => !presetSet.has(item)) && !result.includes('其他')) {
+      result.push('其他');
+    }
+    return result;
+  }
+  return [];
+}
+
+// 从 scopeText 解析自定义渠道内容
+function getCustomChannel(text: string): string {
+  const lines = text.split('\n');
+  if (lines.length >= 2) {
+    const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
+    const presetSet = new Set(CHANNELS);
+    return items.find(item => !presetSet.has(item)) || '';
+  }
+  return '';
+}
+
+function updateScopeTextChannels(text: string, channels: string[], custom: string): string {
+  const lines = text.split('\n');
+  if (lines.length >= 2) {
+    const items = channels.filter(ch => ch !== '其他');
+    if (channels.includes('其他')) {
+      if (custom.trim()) {
+        items.push(custom.trim());
+      } else {
+        items.push('其他');
+      }
+    }
+    lines[1] = items.join(' | ');
+  }
+  return lines.join('\n');
+}
+
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, previewOnly = false, onSuccess, onReject }: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -70,7 +117,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEscapeKey(() => { setShowFullPreview(false); setZoomScale(1); }, showFullPreview);
 
   const renderRequestId = useRef(0);
-  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 4) : Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0')).toUpperCase()}`);
+  const submittedRef = useRef(false);
+  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 8) : Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0')).toUpperCase()}`);
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -106,54 +154,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
   }, [initialData, mode, initialVoided, isPending]);
 
-  // 预设渠道列表
-  const CHANNELS = ['淘宝', '天猫', '京东', '小红书', '抖音', '微信', '线下门店', '其他'];
-
   const [customChannel, setCustomChannel] = useState('');
-
-  // 从 scopeText 解析选中的预设渠道
-  const getChannelsFromScopeText = (text: string): string[] => {
-    const lines = text.split('\n');
-    if (lines.length >= 2) {
-      const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
-      const presetSet = new Set(CHANNELS);
-      const result = CHANNELS.filter(ch => items.includes(ch));
-      // 若存在非预设渠道内容，视为"其他"被选中
-      if (items.some(item => !presetSet.has(item)) && !result.includes('其他')) {
-        result.push('其他');
-      }
-      return result;
-    }
-    return [];
-  };
-
-  // 从 scopeText 解析自定义渠道内容
-  const getCustomChannel = (text: string): string => {
-    const lines = text.split('\n');
-    if (lines.length >= 2) {
-      const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
-      const presetSet = new Set(CHANNELS);
-      const custom = items.find(item => !presetSet.has(item));
-      return custom || '';
-    }
-    return '';
-  };
-
-  const updateScopeTextChannels = (text: string, channels: string[], custom: string): string => {
-    const lines = text.split('\n');
-    if (lines.length >= 2) {
-      const items = channels.filter(ch => ch !== '其他');
-      if (channels.includes('其他')) {
-        if (custom.trim()) {
-          items.push(custom.trim());
-        } else {
-          items.push('其他');
-        }
-      }
-      lines[1] = items.join(' | ');
-    }
-    return lines.join('\n');
-  };
 
   const toggleChannel = (channel: string) => {
     const current = getChannelsFromScopeText(data.scopeText);
@@ -169,7 +170,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (initialData?.scopeText) {
       setCustomChannel(getCustomChannel(initialData.scopeText));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
 
   const renderCertificate = async () => {
@@ -419,8 +419,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       height - 30 * scale
     );
 
-    // 证书编号
-    const certNumber = (initialData?.cert_number as string) || tempCertNumberRef.current;
+    // 证书编号：优先使用服务端返回的真实编号
+    const certNumber = data.cert_number || (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
       offCtx.textAlign = "right";
       offCtx.font = `400 ${12 * scale}px "Noto Serif SC", serif`;
@@ -580,7 +580,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   }, [data.shopName, data.companyName, data.duration, data.scopeText, mode]);
 
   const handleIssueSubmit = async () => {
-    if (!canSubmit) return;
+    if (previewOnly || !canSubmit || submittedRef.current) return;
     setIsSubmitting(true);
     try {
       const meRes = await fetchWithTimeout('/api/auth/me');
@@ -588,6 +588,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const meData = await meRes.json();
       const user = meData.user;
       const isManager = user?.role === 'SUPER_ADMIN';
+
+      // 服务端返回的真实证书编号（用于替换预览图中的临时编号）
+      let serverCertNumber: string | undefined;
 
       // 编辑模式且是待审核证书：先更新再核发
       if (mode === 'edit' && isPending) {
@@ -601,7 +604,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             managerId: user?.id
           })
         });
-        if (!updateRes.ok) throw new Error("更新失败");
+        const updateData = await updateRes.json().catch(() => ({}));
+        if (!updateRes.ok) throw new Error(updateData.error || "更新失败");
+        if (updateData.certNumber) serverCertNumber = updateData.certNumber;
 
         const approveRes = await fetchWithTimeout("/api/certificates", {
           method: "POST",
@@ -612,24 +617,42 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             managerId: user?.id
           })
         });
-        if (!approveRes.ok) throw new Error("核发失败");
+        const approveData = await approveRes.json().catch(() => ({}));
+        if (!approveRes.ok) throw new Error(approveData.error || "核发失败");
+        if (approveData.certNumber) serverCertNumber = approveData.certNumber;
         toast({ message: "授权信息已更新并核发成功", type: "success" });
       } else {
+        const action = mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending");
         const response = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending"),
+            action,
             certId: initialData?.id,
             certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
             managerId: user?.id
           })
         });
 
-        if (!response.ok) throw new Error("操作失败");
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "操作失败");
+        if (result.certNumber) serverCertNumber = result.certNumber;
         toast({ message: mode === 'edit' ? "授权信息已更新" : (userRole === 'SUPER_ADMIN' ? "证书已签发" : "提报成功，等待管理员核发"), type: "success" });
       }
-      setIsIssued(true);
+
+      // 用真实编号替换预览中的临时编号，再刷新画布
+      if (serverCertNumber && serverCertNumber !== data.cert_number) {
+        setData(prev => ({ ...prev, cert_number: serverCertNumber }));
+      }
+
+      // 仅「已签发」状态才去掉水印并允许下载；
+      // 审核员提报（create_pending）保持「审核中 · 未核发」水印
+      const nowIssued = mode !== 'create' || isManager;
+      if (nowIssued) {
+        setIsIssued(true);
+      }
+      // 提交成功后锁定，防止在弹窗关闭前重复提交产生重复工单
+      submittedRef.current = true;
       if (onSuccess) setTimeout(onSuccess, 800);
     } catch (err: unknown) {
       toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
@@ -907,7 +930,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>
             </>
           )}
-          {mode !== 'view' && (
+          {mode !== 'view' && !previewOnly && (
             <div className="flex items-center gap-3">
               {isPending && onReject && (
                 <button

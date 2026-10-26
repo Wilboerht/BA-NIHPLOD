@@ -1,18 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, ShieldAlert, Globe, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, Building2, Trash2, ExternalLink, Upload } from "lucide-react";
+import { Search, ShieldAlert, RefreshCw, CheckCircle2, X, Camera, AlertTriangle, QrCode, ChevronLeft, ChevronRight, ExternalLink, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
-import LoginModal from "@/components/LoginModal";
 import LegalModal from "@/components/LegalModal";
-import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { useToast } from "@/hooks/useToast";
-import { type UserSession } from "@/types";
-import { BRAND_NAME_CN } from "@/lib/config";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -53,11 +48,9 @@ export default function HomeClient() {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
-  const evidencePreviewUrls = useRef<Map<string, string>>(new Map());
+  const evidencePreviewUrls = useRef<Map<File, string>>(new Map());
 
   // 响应式 placeholder：手机端简短、PC 端完整
   const [placeholderText, setPlaceholderText] = useState("输入证书编号、店铺或公司名称");
@@ -70,9 +63,10 @@ export default function HomeClient() {
 
   // 清理 blob URL 防止内存泄漏
   useEffect(() => {
+    const previewUrls = evidencePreviewUrls.current;
     return () => {
-      evidencePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-      evidencePreviewUrls.current.clear();
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.clear();
     };
   }, []);
   
@@ -83,6 +77,9 @@ export default function HomeClient() {
   const [reportContact, setReportContact] = useState("");
 
   const resetReportForm = () => {
+    // 释放已生成的预览 blob，避免内存泄漏
+    evidencePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    evidencePreviewUrls.current.clear();
     setReportSuccess(false);
     setEvidenceFiles([]);
     setReportDesc("");
@@ -232,7 +229,7 @@ export default function HomeClient() {
       }
     };
     doAutoVerify();
-  }, [certParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [certParam]);
 
   // 监听侧边栏触发的维权申诉事件
   useEffect(() => {
@@ -247,7 +244,7 @@ export default function HomeClient() {
       window.removeEventListener('open-report-modal', reportHandler);
       window.removeEventListener('open-scanner-modal', scannerHandler);
     };
-  }, []);
+  }, [openScanner]);
 
   // 当产生扫描错误时，开启独立生命周期的 3 秒自动回收机制
   useEffect(() => {
@@ -285,7 +282,7 @@ export default function HomeClient() {
                 if (urlParams.has("cert")) {
                   certNumber = urlParams.get("cert") || decodedText;
                 }
-              } catch (_e) {
+              } catch {
                 // Not a URL, use raw text
               }
               
@@ -300,7 +297,7 @@ export default function HomeClient() {
                 handleScanVerify(certNumber);
               }
             },
-            (_error: unknown) => {
+            () => {
               // 扫描中的反馈，忽略
             }
           );
@@ -385,7 +382,7 @@ export default function HomeClient() {
         if (urlParams.has("cert")) {
           certNumber = urlParams.get("cert") || decodedText;
         }
-      } catch (_e) {
+      } catch {
         // 非 URL
       }
       
@@ -813,10 +810,10 @@ export default function HomeClient() {
                     {evidenceFiles.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {evidenceFiles.map((file, idx) => {
-                          let url = evidencePreviewUrls.current.get(file.name);
+                          let url = evidencePreviewUrls.current.get(file);
                           if (!url) {
                             url = URL.createObjectURL(file);
-                            evidencePreviewUrls.current.set(file.name, url);
+                            evidencePreviewUrls.current.set(file, url);
                           }
                           return (
                             <div key={idx} className="relative group">
@@ -832,10 +829,10 @@ export default function HomeClient() {
                               </div>
                               <button
                                 onClick={() => {
-                                  const revokeUrl = evidencePreviewUrls.current.get(file.name);
+                                  const revokeUrl = evidencePreviewUrls.current.get(file);
                                   if (revokeUrl) {
                                     URL.revokeObjectURL(revokeUrl);
-                                    evidencePreviewUrls.current.delete(file.name);
+                                    evidencePreviewUrls.current.delete(file);
                                   }
                                   setEvidenceFiles(prev => prev.filter((_, i) => i !== idx));
                                 }}
@@ -1051,19 +1048,7 @@ export default function HomeClient() {
           </a>
         </div>
       </footer>
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)} 
-        onShowResetPassword={() => {
-          setShowLoginModal(false);
-          setShowResetPasswordModal(true);
-        }}
-      />
       <LegalModal isOpen={showLegalModal.isOpen} type={showLegalModal.type} onClose={() => setShowLegalModal({ ...showLegalModal, isOpen: false })} />
-      <ResetPasswordModal
-        isOpen={showResetPasswordModal}
-        onClose={() => setShowResetPasswordModal(false)}
-      />
     </main>
   );
 }

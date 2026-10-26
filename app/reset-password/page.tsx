@@ -19,9 +19,15 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 从服务端获取当前用户信息
+    // 从服务端获取当前用户信息；Token 已失效则回到登录页
     fetch('/api/auth/me')
-      .then(res => res.ok ? res.json() : null)
+      .then(res => {
+        if (res.status === 401) {
+          window.location.href = '/admin/login';
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
       .then(data => {
         if (data?.user) {
           setUser(data.user);
@@ -228,12 +234,12 @@ export default function ResetPasswordPage() {
               <div className="space-y-4">
                 <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">安全更新成功</h2>
                 <p className="text-slate-500 font-medium leading-relaxed">
-                  您的密码已成功同步至品牌核心安全数据库。现在您可以开始管理您的业务授权了。
+                  您的密码已更新，为保障账号安全，原登录状态已失效，请使用新密码重新登录。
                 </p>
               </div>
               <div className="pt-6">
-                <Link href="/login" className="inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95">
-                  登入工作台
+                <Link href="/admin/login" className="inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95">
+                  使用新密码重新登录
                   <ArrowRight className="w-6 h-6" />
                 </Link>
               </div>

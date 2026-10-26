@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, UserCog, Key, Trash2, Info,
-  ChevronDown, X, Eye, EyeOff, Loader2, CheckCircle2, Plus
+  ChevronDown, X, Eye, EyeOff, Loader2, CheckCircle2, Plus, Ban, ShieldCheck
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -40,7 +40,9 @@ interface AdminUser {
   full_name: string;
   username: string;
   role: string;
-  updated_at: string;
+  is_banned?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface UserSession {
@@ -83,7 +85,6 @@ export default function AdminsManagementPage() {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 弹窗打开时聚焦第一个输入框
@@ -103,9 +104,12 @@ export default function AdminsManagementPage() {
       if (res.ok) {
         const data = await res.json();
         const user = data.user;
+        // 仅超级管理员可访问账号管理
+        if (user?.role !== 'SUPER_ADMIN') {
+          window.location.href = "/workbench";
+          return;
+        }
         setCurrentUser(user);
-        
-
       } else {
         // 未登录，跳回首页
         window.location.href = "/";
@@ -191,6 +195,33 @@ export default function AdminsManagementPage() {
       }
     } catch (err: unknown) {
       toast({ message: "更新出错: " + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    }
+  };
+
+  const toggleBanUser = async (user: AdminUser) => {
+    const nextAction = user.is_banned ? 'unban' : 'ban';
+    const ok = await confirm({
+      message: nextAction === 'ban'
+        ? `确定要封禁管理员 "${user.full_name}" 吗？\n封禁后该账号将无法登录。`
+        : `确定要解封管理员 "${user.full_name}" 吗？`,
+    });
+    if (!ok) return;
+
+    try {
+      const res = await fetchWithTimeout('/api/admin/ban-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: user.id, action: nextAction }),
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        toast({ message: nextAction === 'ban' ? '账号已封禁' : '账号已解封', type: 'success' });
+        fetchData();
+      } else {
+        toast({ message: result.error || '操作失败', type: 'error' });
+      }
+    } catch (err: unknown) {
+      toast({ message: `错误：${err instanceof Error ? err.message : '未知错误'}`, type: 'error' });
     }
   };
 
@@ -401,14 +432,23 @@ export default function AdminsManagementPage() {
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] text-slate-400 font-mono tracking-tighter uppercase tabular-nums">{user.id}</span>
-                      <span className="text-[10px] text-slate-300 font-medium">注册于 {new Date(user.updated_at).toLocaleDateString()}</span>
+                      <span className="text-[10px] text-slate-300 font-medium">
+                        创建于 {new Date(user.created_at || user.updated_at || Date.now()).toLocaleDateString()}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className="inline-flex items-center gap-2 text-emerald-600 text-[11px] font-bold tracking-tight">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                      正常活跃
-                    </span>
+                    {user.is_banned ? (
+                      <span className="inline-flex items-center gap-2 text-rose-600 text-[11px] font-bold tracking-tight">
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                        已封禁
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 text-emerald-600 text-[11px] font-bold tracking-tight">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        正常活跃
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -420,6 +460,19 @@ export default function AdminsManagementPage() {
                         <Key className="w-3.5 h-3.5" />
                         <span className="text-[11px] font-bold">重置密码</span>
                       </button>
+                      {user.id !== currentUser?.id && user.role !== 'SUPER_ADMIN' && (
+                        <button
+                          onClick={() => toggleBanUser(user)}
+                          className={`p-2 rounded-lg transition-all ${
+                            user.is_banned
+                              ? 'text-slate-300 hover:text-emerald-500 hover:bg-emerald-50'
+                              : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'
+                          }`}
+                          title={user.is_banned ? '解除封禁' : '封禁账号'}
+                        >
+                          {user.is_banned ? <ShieldCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        </button>
+                      )}
                       {user.id !== currentUser?.id && (
                         <button
                           onClick={() => deleteUser(user.id, user.full_name)}

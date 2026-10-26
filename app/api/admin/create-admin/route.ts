@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { sql, checkActionRateLimit } from "@/lib/db";
-import { requireAdmin, validatePassword } from "@/lib/auth";
+import { requireSuperAdmin, validatePassword } from "@/lib/auth";
+import { readJsonBody } from "@/lib/api-utils";
 import { ADMIN_ROLES } from "@/types";
 
 export async function POST(req: Request) {
   try {
-    // 权限检查：只有管理员可以创建新管理员
-    const { user: adminUser, response } = await requireAdmin(req);
+    // 权限检查：仅超级管理员可以创建管理账号
+    const { user: adminUser, response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }
@@ -18,7 +19,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '操作过于频繁，请稍后再试' }, { status: 429 });
     }
 
-    const { fullName, username, password, role } = await req.json();
+    const { data: body, response: bodyError } = await readJsonBody<{
+      fullName?: string;
+      username?: string;
+      password?: string;
+      role?: string;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { fullName, username, password, role } = body!;
 
     // 基本校验
     if (!fullName || !username || !password || !role) {

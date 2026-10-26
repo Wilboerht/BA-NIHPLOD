@@ -9,7 +9,9 @@ import { sql } from '@/lib/db';
  */
 export async function GET(request: Request) {
   try {
-    const secret = request.headers.get('x-cron-secret');
+    // 兼容两种调用方式：推荐请求头 x-cron-secret，同时支持 ?secret= 查询参数
+    const url = new URL(request.url);
+    const secret = request.headers.get('x-cron-secret') || url.searchParams.get('secret');
     const expectedSecret = process.env.CRON_SECRET;
 
     if (!expectedSecret) {
@@ -48,10 +50,11 @@ export async function GET(request: Request) {
     });
   } catch (err: unknown) {
     console.error('[cron] 更新过期证书失败:', err);
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return NextResponse.json(
-      { error: '定时任务执行失败', detail: errorMessage },
-      { status: 500 }
-    );
+    const isDev = process.env.NODE_ENV !== 'production';
+    const body: Record<string, unknown> = { error: '定时任务执行失败' };
+    if (isDev) {
+      body.detail = err instanceof Error ? err.message : String(err);
+    }
+    return NextResponse.json(body, { status: 500 });
   }
 }

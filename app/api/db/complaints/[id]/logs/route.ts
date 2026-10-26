@@ -22,10 +22,7 @@ export async function GET(
     const { data, error } = await getComplaintAuditLogs(id);
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message || '获取审计日志失败' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: '获取审计日志失败' }, { status: 500 });
     }
 
     return NextResponse.json({ data: data || [] });

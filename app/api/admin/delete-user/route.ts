@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { sql, checkActionRateLimit } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
+import { readJsonBody } from "@/lib/api-utils";
 
 /**
  * POST /api/admin/delete-user
  * 软删除用户：保留关联记录中的名字，标记删除时间
  * Body: { userId: string }
+ * 权限：仅超级管理员
  */
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
+    const { data: body, response: bodyError } = await readJsonBody<{ userId?: string }>(req);
+    if (bodyError) return bodyError;
+
+    const { userId } = body!;
 
     if (!userId) {
       return NextResponse.json(
@@ -18,8 +23,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. 权限检查 - 确保调用者是管理员
-    const { user: adminUser, response } = await requireAdmin(req);
+    // 1. 权限检查 - 仅超级管理员可删除账号
+    const { user: adminUser, response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }

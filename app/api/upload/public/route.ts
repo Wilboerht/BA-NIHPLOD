@@ -37,6 +37,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '今日上传次数已达上限，请明天再试' }, { status: 429 });
     }
 
+    // 先根据 Content-Length 做粗粒度拦截，避免解析超大 multipart 造成内存压力
+    const contentLength = Number(req.headers.get('content-length') || 0);
+    if (Number.isFinite(contentLength) && contentLength > MAX_FILE_SIZE + 1024 * 1024) {
+      return NextResponse.json({ error: '请求体过大' }, { status: 413 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
 

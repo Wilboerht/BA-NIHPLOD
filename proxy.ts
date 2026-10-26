@@ -8,10 +8,17 @@ const PROTECTED_PATHS = [
   '/workbench',
   '/admin',
   '/demo',
+  '/reset-password',
   '/api/admin',
   '/api/auth/change-password',
-  '/api/auth/complete-first-login',
   '/api/auth/me',
+];
+
+// 仅超级管理员可访问的路径前缀
+const SUPER_ADMIN_PATHS = [
+  '/workbench/users',
+  '/workbench/audit-logs',
+  '/api/admin',
 ];
 
 // 公开路径（即使匹配到上面的前缀，也放行）
@@ -74,10 +81,13 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // 对于 /api/admin 路由，强制要求管理员角色（兜底防线）
-  if (pathname.startsWith('/api/admin')) {
-    if (!ADMIN_ROLES.includes(payload.role as typeof ADMIN_ROLES[number])) {
-      return NextResponse.json({ error: '无权限执行此操作' }, { status: 403 });
+  // 账号管理类路径强制要求超级管理员（兜底防线）
+  if (SUPER_ADMIN_PATHS.some(path => pathname.startsWith(path))) {
+    if (payload.role !== 'SUPER_ADMIN') {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: '无权限执行此操作，仅超级管理员可操作' }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL('/workbench', request.url));
     }
   }
 
@@ -96,9 +106,9 @@ export const config = {
     '/workbench/:path*',
     '/admin/:path*',
     '/demo/:path*',
+    '/reset-password',
     '/api/admin/:path*',
     '/api/auth/change-password',
-    '/api/auth/complete-first-login',
     '/api/auth/me',
   ],
 };

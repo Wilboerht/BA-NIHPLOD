@@ -5,7 +5,7 @@ import { ADMIN_ROLES } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
-  XCircle, AlertCircle, ChevronRight, User, Calendar,
+  XCircle, AlertCircle, ChevronRight,
   Loader2, X
 } from "lucide-react";
 import Link from "next/link";
@@ -47,7 +47,6 @@ export default function WorkbenchPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [, setUserId] = useState<string | null>(null);
-  const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<CertData | undefined>(undefined);
@@ -348,9 +347,8 @@ export default function WorkbenchPage() {
                   </thead>
                   <tbody className="text-slate-700 font-medium">
                     {pendingCerts.map((cert) => {
-                      const isApproving = processingId === cert.id;
                       const isRejecting = rejectingId === cert.id;
-                      const isBusy = isApproving || isRejecting;
+                      const isBusy = isRejecting;
                       return (
                         <tr key={cert.id} className={`hover:bg-slate-50/60 transition-all group duration-200 ${isBusy ? 'opacity-50' : ''}`}>
                           <td className="px-4 py-3 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number.slice(-4)}</td>
@@ -366,7 +364,7 @@ export default function WorkbenchPage() {
                                   退回
                                 </button>
                                 <button onClick={() => handleApprove(cert)} disabled={isBusy} className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold">
-                                  {isApproving ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                                  <ShieldCheck className="w-3 h-3" />
                                   核发
                                 </button>
                               </div>

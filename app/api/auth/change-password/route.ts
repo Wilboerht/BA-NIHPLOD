@@ -2,11 +2,18 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { requireAuth, validatePassword } from '@/lib/auth';
+import { readJsonBody } from '@/lib/api-utils';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { userId, oldPassword, newPassword } = body;
+    const { data: body, response: bodyError } = await readJsonBody<{
+      userId?: string;
+      oldPassword?: string;
+      newPassword?: string;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { userId, oldPassword, newPassword } = body!;
 
     if (!userId || !oldPassword || !newPassword) {
       return NextResponse.json(
@@ -69,13 +76,14 @@ export async function POST(req: Request) {
         );
       }
 
-      // 3. 哈希新密码并更新数据库
+      // 3. 哈希新密码并更新数据库；token_version +1 使旧 Token 全部失效（需重新登录）
       const newPasswordHash = await bcrypt.hash(newPassword, 12);
       await sql`
         UPDATE profiles 
         SET password_hash = ${newPasswordHash},
             is_first_login = false,
-            updated_at = NOW()
+            updated_at = NOW(),
+            token_version = token_version + 1
         WHERE id = ${userId} AND deleted_at IS NULL
       `;
 

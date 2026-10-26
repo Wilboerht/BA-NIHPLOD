@@ -17,8 +17,11 @@ const envLines = envContent.split('\n');
 envLines.forEach(line => {
   const match = line.match(/^([^=]+)=(.*)$/);
   if (match) {
-    if (!process.env[match[1].trim()]) {
-      process.env[match[1].trim()] = match[2].trim();
+    const key = match[1].trim();
+    // 去除首尾引号，兼容 .env.local.example 中的带引号写法
+    const value = match[2].trim().replace(/^["']|["']$/g, '');
+    if (!process.env[key]) {
+      process.env[key] = value;
     }
   }
 });
@@ -73,10 +76,8 @@ async function main() {
 
     if (withHashes) {
       withHashes.forEach(user => {
-        const hasHash = !!user.password_hash;
-        const hashPreview = user.password_hash ? user.password_hash.substring(0, 20) + '...' : 'NULL';
-        const status = hasHash ? '✅ 有' : '❌ 无';
-        console.log(`${user.username}: ${status} - ${hashPreview}`);
+        const status = user.password_hash ? '✅ 已设置' : '❌ 未设置';
+        console.log(`${user.username}: ${status}`);
       });
     }
 

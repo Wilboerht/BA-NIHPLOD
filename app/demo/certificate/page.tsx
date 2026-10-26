@@ -1,7 +1,7 @@
 "use client";
 
 import CertificateGenerator from "@/components/certificate/CertificateGenerator";
-import { ArrowLeft, Share2, Printer, Layers } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Layers } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -51,9 +51,17 @@ export default function CertDemoPage() {
            </motion.div>
         </div>
 
-        {/* The Generator Component */}
+        {/* 只读提示 */}
+        <div className="px-8 mb-6">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-amber-100 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-700">
+            <AlertTriangle className="h-4 w-4" />
+            样式预览模式：仅用于预览证书渲染效果，不会写入任何证书或工单数据
+          </div>
+        </div>
+
+        {/* The Generator Component（只读预览，禁止提交） */}
         <div className="px-8">
-          <CertificateGenerator />
+          <CertificateGenerator previewOnly />
         </div>
       </div>
 

@@ -68,27 +68,30 @@ export default function ComplaintsPage() {
   const [, setIsLoadingLogs] = useState(false);
 
   useEffect(() => {
-    fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+    setPage(1);
+  }, [debouncedSearch, activeTab]);
 
   useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
+    fetchComplaints();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, page, debouncedSearch]);
 
   useEffect(() => {
     if (activeReviewId) {
       fetchAuditLogs(activeReviewId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeReviewId]);
 
-  const fetchComplaints = async (status?: string) => {
+  const fetchComplaints = async () => {
     setIsLoading(true);
     try {
-      let url = `/api/db/complaints?page=1&pageSize=10000`;
-      if (status) url += `&status=${status}`;
-      const response = await fetchWithTimeout(url);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      if (activeTab !== 'ALL') params.set('status', activeTab);
+      if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
+      const response = await fetchWithTimeout(`/api/db/complaints?${params.toString()}`);
       if (response.ok) {
         const result = await response.json();
         setComplaints(result.data || []);
@@ -133,7 +136,7 @@ export default function ComplaintsPage() {
         setActiveReviewId(null);
         setReviewNote("");
         setAuditLogs([]);
-        fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
+        fetchComplaints();
       } else if (response.status === 403) {
         toast({ message: "无权操作，需要管理员权限", type: "error" });
       } else {
@@ -155,7 +158,7 @@ export default function ComplaintsPage() {
       });
       if (response.ok) {
         toast({ message: "工单已删除", type: "success" });
-        fetchComplaints(activeTab === 'ALL' ? undefined : activeTab);
+        fetchComplaints();
       } else {
         const result = await response.json().catch(() => ({}));
         toast({ message: result.error || "删除失败", type: "error" });
@@ -202,19 +205,7 @@ export default function ComplaintsPage() {
 
   const activeComplaint = complaints.find(c => c.id === activeReviewId);
 
-  const filteredComplaints = complaints.filter(c => {
-    const q = debouncedSearch.toLowerCase();
-    if (!q) return true;
-    return (
-      c.id.toLowerCase().includes(q) ||
-      (c.channel || "").toLowerCase().includes(q) ||
-      (c.description || "").toLowerCase().includes(q) ||
-      (c.contact_info || "").toLowerCase().includes(q)
-    );
-  });
-
-  const totalPages = Math.ceil(filteredComplaints.length / pageSize);
-  const paginatedComplaints = filteredComplaints.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
@@ -274,7 +265,7 @@ export default function ComplaintsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {!isLoading && paginatedComplaints.map((complaint) => (
+              {!isLoading && complaints.map((complaint) => (
                   <tr key={complaint.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-[10px] text-slate-400" title={complaint.id}>{complaint.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{complaint.channel || "-"}</td>
@@ -336,7 +327,7 @@ export default function ComplaintsPage() {
             </tbody>
           </table>
 
-          {!isLoading && filteredComplaints.length === 0 && (
+          {!isLoading && complaints.length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <CheckCircle2 className="w-6 h-6" />

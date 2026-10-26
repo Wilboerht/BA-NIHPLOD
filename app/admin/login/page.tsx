@@ -64,10 +64,15 @@ function AdminLoginForm() {
     };
   }, [breadcrumbOpen]);
 
-  // Auto-redirect if already logged in
+  // Auto-redirect if already logged in（首次登录需先完成改密）
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((r) => r.ok && router.replace("/workbench"))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          router.replace(data.user.is_first_login ? "/reset-password" : "/workbench");
+        }
+      })
       .catch(() => {});
   }, [router]);
 

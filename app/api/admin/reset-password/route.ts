@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { sql, checkActionRateLimit } from "@/lib/db";
-import { requireAdmin, validatePassword } from "@/lib/auth";
+import { requireSuperAdmin, validatePassword } from "@/lib/auth";
+import { readJsonBody } from "@/lib/api-utils";
 
 export async function POST(req: Request) {
   try {
-    const { userId, newPassword } = await req.json();
+    const { data: body, response: bodyError } = await readJsonBody<{
+      userId?: string;
+      newPassword?: string;
+    }>(req);
+    if (bodyError) return bodyError;
+
+    const { userId, newPassword } = body!;
 
     if (!userId || !newPassword) {
       return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
@@ -17,8 +24,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
 
-    // 权限检查：只有管理员可以重置他人密码
-    const { user: adminUser, response } = await requireAdmin(req);
+    // 权限检查：仅超级管理员可以重置他人密码（防止审核员接管超管账号）
+    const { user: adminUser, response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }
@@ -42,7 +49,9 @@ export async function POST(req: Request) {
 
     const result = await sql`
       UPDATE profiles 
-      SET password_hash = ${passwordHash}, updated_at = NOW()
+      SET password_hash = ${passwordHash},
+          updated_at = NOW(),
+          token_version = token_version + 1
       WHERE id = ${userId} AND deleted_at IS NULL
       RETURNING id, username, full_name
     `;

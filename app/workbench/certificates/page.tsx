@@ -38,11 +38,14 @@ export default function CertificatesPage() {
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
-  // 前端分页
+  // 服务端分页
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [total, setTotal] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState<'ISSUED' | 'PENDING' | 'invalid'>('ISSUED');
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // 审核员不显示待审核选项
   const auditorFilterItems = [
@@ -75,13 +78,16 @@ export default function CertificatesPage() {
 
   useEffect(() => {
     fetchUserRole();
-    fetchCertificates();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
+
+  useEffect(() => {
+    fetchCertificates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, debouncedSearch]);
 
   const fetchUserRole = async () => {
     try {
@@ -95,16 +101,41 @@ export default function CertificatesPage() {
     }
   };
 
+  const fetchPendingCount = async () => {
+    try {
+      const res = await fetchWithTimeout('/api/db/certificates?status=PENDING&pageSize=1');
+      if (res.ok) {
+        const data = await res.json();
+        setPendingCount(data.total || 0);
+      }
+    } catch {
+      // 角标数量获取失败不影响主流程
+    }
+  };
+
   const fetchCertificates = async () => {
     setIsLoading(true);
     try {
-      const response = await fetchWithTimeout(`/api/db/certificates?limit=10000`);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        status: statusFilter,
+      });
+      if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
+
+      const response = await fetchWithTimeout(`/api/db/certificates?${params.toString()}`);
       const result = await response.json();
       
       if (!response.ok) throw new Error(result.error || '获取证书失败');
       
       setCertificates(result.data || []);
       setTotal(result.total || 0);
+
+      if (statusFilter === 'PENDING') {
+        setPendingCount(result.total || 0);
+      } else {
+        fetchPendingCount();
+      }
     } catch (err: unknown) {
       console.error('Failed to fetch certificates:', err);
       setCertificates([]);
@@ -185,8 +216,6 @@ export default function CertificatesPage() {
     }
   };
 
-  const debouncedSearch = useDebounce(searchQuery, 300);
-
   // 计算证书的实际展示状态（处理 ISSUED 但已过期的情况）
   const getCertDisplayStatus = (cert: Certificate): string => {
     if (cert.status === 'REVOKED') return 'REVOKED';
@@ -202,31 +231,7 @@ export default function CertificatesPage() {
     return 'PENDING';
   };
 
-  const pendingCount = certificates.filter(c => getCertDisplayStatus(c) === 'PENDING').length;
-
-  const filteredCerts = certificates.filter(c => {
-    const query = debouncedSearch.toLowerCase();
-    const matchesSearch = !query || 
-      c.cert_number.toLowerCase().includes(query) || 
-      (c.dealers?.company_name || "").toLowerCase().includes(query) ||
-      (parseAuthScope(c.auth_scope).companyName || "").toLowerCase().includes(query);
-    if (!matchesSearch) return false;
-
-    const displayStatus = getCertDisplayStatus(c);
-    switch (statusFilter) {
-      case 'ISSUED':
-        return displayStatus === 'ISSUED';
-      case 'PENDING':
-        return displayStatus === 'PENDING';
-      case 'invalid':
-        return displayStatus === 'EXPIRED' || displayStatus === 'REVOKED' || displayStatus === 'REJECTED';
-      default:
-        return true;
-    }
-  });
-
-  const totalPages = Math.ceil(filteredCerts.length / pageSize);
-  const paginatedCerts = filteredCerts.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
@@ -321,7 +326,7 @@ export default function CertificatesPage() {
               </tr>
             </thead>
             <tbody className="text-slate-700 font-medium">
-              {!isLoading && paginatedCerts.map((cert) => (
+              {!isLoading && certificates.map((cert) => (
                   <tr key={cert.id} className="hover:bg-slate-50/60 transition-all group duration-200">
                     <td className="px-6 py-6 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
                     <td className="px-6 py-6">
@@ -514,7 +519,7 @@ export default function CertificatesPage() {
             </tbody>
           </table>
 
-          {!isLoading && filteredCerts.length === 0 && (
+          {!isLoading && certificates.length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <Search className="w-6 h-6" />
