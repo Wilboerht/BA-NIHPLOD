@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { sql } from '@/lib/db';
+import { sql, checkActionRateLimit } from '@/lib/db';
 import { requireAuth, validatePassword } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 
 export async function POST(req: Request) {
   try {
@@ -15,15 +16,22 @@ export async function POST(req: Request) {
 
     const { userId, oldPassword, newPassword } = body!;
 
-    if (!userId || !oldPassword || !newPassword) {
+    if (
+      typeof userId !== 'string'
+      || typeof oldPassword !== 'string'
+      || typeof newPassword !== 'string'
+      || !userId
+      || !oldPassword
+      || !newPassword
+    ) {
       return NextResponse.json(
         { error: '缺少必要参数' },
         { status: 400 }
       );
     }
 
-    // 从 Cookie JWT 获取当前用户
-    const { user, response } = await requireAuth(req);
+    // 从 Cookie JWT 获取当前用户（首次登录也允许改密）
+    const { user, response } = await requireAuth(req, { allowFirstLogin: true });
     if (response) {
       return response;
     }
@@ -34,6 +42,12 @@ export async function POST(req: Request) {
         { error: '无权限修改他人密码' },
         { status: 403 }
       );
+    }
+
+    // 防止暴力尝试旧密码
+    const allowed = await checkActionRateLimit(`auth:change-password:${user!.id}`, 5, 5 * 60 * 1000);
+    if (!allowed) {
+      return NextResponse.json({ error: '操作过于频繁，请稍后再试' }, { status: 429 });
     }
 
     // 密码强度校验
@@ -78,17 +92,31 @@ export async function POST(req: Request) {
 
       // 3. 哈希新密码并更新数据库；token_version +1 使旧 Token 全部失效（需重新登录）
       const newPasswordHash = await bcrypt.hash(newPassword, 12);
-      await sql`
-        UPDATE profiles 
-        SET password_hash = ${newPasswordHash},
-            is_first_login = false,
-            updated_at = NOW(),
-            token_version = token_version + 1
-        WHERE id = ${userId} AND deleted_at IS NULL
-      `;
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE profiles
+          SET password_hash = ${newPasswordHash},
+              is_first_login = false,
+              updated_at = NOW(),
+              token_version = token_version + 1
+          WHERE id = ${userId} AND deleted_at IS NULL
+        `;
+        await writeAudit(tx, {
+          actor: actorFromUser(user),
+          action: 'CHANGE_PASSWORD',
+          targetType: 'profile',
+          targetId: userId,
+          comment: '用户修改密码，旧 Token 已失效',
+          reason: 'user_changed_password',
+          request: req,
+        });
+      });
 
       console.log('[change-password] 密码已修改');
-      return NextResponse.json({ success: true, message: '密码修改成功' });
+      return NextResponse.json(
+        { success: true, message: '密码修改成功' },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
     } catch (err: unknown) {
       console.error('[change-password] 数据库操作失败:', err);
       return NextResponse.json(

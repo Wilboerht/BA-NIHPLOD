@@ -35,6 +35,21 @@ FROM information_schema.columns
 WHERE (table_name = 'audit_logs' AND column_name = 'complaint_ref')
    OR (table_name = 'profiles' AND column_name = 'token_version');
 
+\echo '== 3b. 审计 v2 / 软删除列（迁移后应存在） =='
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE (table_name = 'audit_logs' AND column_name IN ('certificate_ref', 'target_type', 'target_id', 'target_ref', 'actor_role', 'actor_name', 'request_id', 'ip', 'user_agent', 'before', 'after', 'reason', 'event_hash'))
+   OR (table_name = 'certificates' AND column_name IN ('deleted_at', 'deleted_by'))
+   OR (table_name = 'complaints' AND column_name IN ('deleted_at', 'deleted_by'))
+ORDER BY table_name, column_name;
+
+\echo '== 3c. audit_logs append-only trigger（应为 1 行） =='
+SELECT tgname, tgenabled
+FROM pg_trigger
+WHERE tgrelid = 'audit_logs'::regclass
+  AND NOT tgisinternal
+  AND tgname = 'trg_audit_logs_no_mutation';
+
 \echo '== 4. 证书编号抽样（迁移前后应完全一致） =='
 (SELECT cert_number, status::text, start_date, end_date FROM certificates ORDER BY created_at ASC LIMIT 3)
 UNION ALL
@@ -47,6 +62,21 @@ GROUP BY phone, company_name
 HAVING COUNT(*) > 1
 ORDER BY cnt DESC
 LIMIT 20;
+
+\echo '== 5b. 重复 dealer 名下证书数（>0 时迁移会中止，请先重挂） =='
+SELECT d.phone, d.company_name, COUNT(c.id) AS certificate_count
+FROM dealers d
+JOIN (
+    SELECT phone, company_name
+    FROM dealers
+    GROUP BY phone, company_name
+    HAVING COUNT(*) > 1
+) dup
+  ON d.phone IS NOT DISTINCT FROM dup.phone
+ AND d.company_name = dup.company_name
+LEFT JOIN certificates c ON c.dealer_id = d.id
+GROUP BY d.phone, d.company_name
+ORDER BY certificate_count DESC;
 
 \echo '== 6. 必查索引（应全部存在） =='
 SELECT indexname FROM pg_indexes

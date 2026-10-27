@@ -165,7 +165,7 @@ export default function AdminsManagementPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
 
-      setCreateSuccess(`账户已创建！登录邮箱：${result.email}`);
+      setCreateSuccess(`账户已创建！登录邮箱：${result.email}（首次登录必须修改密码）`);
       await fetchData(); // 刷新列表
       // 2 秒后自动关闭弹窗
       setTimeout(() => {
@@ -291,7 +291,7 @@ export default function AdminsManagementPage() {
       });
       const result = await res.json();
       if (result.success) {
-        toast({ message: "密码重置成功！", type: "success" });
+        toast({ message: "密码重置成功！该用户下次登录必须先修改密码。", type: "success" });
         setShowResetPwd(false);
         setResetPwdTarget(null);
       } else {
@@ -452,14 +452,16 @@ export default function AdminsManagementPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openResetPassword(user)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-300 hover:text-slate-600 rounded-lg transition-all"
-                        title="重置登录密码"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                        <span className="text-[11px] font-bold">重置密码</span>
-                      </button>
+                      {user.id !== currentUser?.id && (
+                        <button
+                          onClick={() => openResetPassword(user)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-300 hover:text-slate-600 rounded-lg transition-all"
+                          title="重置登录密码"
+                        >
+                          <Key className="w-3.5 h-3.5" />
+                          <span className="text-[11px] font-bold">重置密码</span>
+                        </button>
+                      )}
                       {user.id !== currentUser?.id && user.role !== 'SUPER_ADMIN' && (
                         <button
                           onClick={() => toggleBanUser(user)}

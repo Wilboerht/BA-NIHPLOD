@@ -52,8 +52,16 @@ export default function ComplaintsPage() {
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  useEffect(() => {
+    fetchWithTimeout('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setUserRole(data?.user?.role ?? null))
+      .catch(() => setUserRole(null));
+  }, []);
 
   useEscapeKey(() => setSelectedImageUrls([]), selectedImageUrls.length > 0);
   useEscapeKey(() => setActiveReviewId(null), !!activeReviewId);
@@ -149,7 +157,7 @@ export default function ComplaintsPage() {
   };
 
   const handleDelete = async (complaint: Complaint) => {
-    const ok = await confirm({ message: `确定删除工单「${complaint.id.split('-')[0]}」吗？\n此操作不可恢复。` });
+    const ok = await confirm({ message: `确定移除工单「${complaint.id.split('-')[0]}」吗？\n将执行软删除：工单从列表移除，但证据与审计记录保留。` });
     if (!ok) return;
     setDeletingId(complaint.id);
     try {
@@ -157,7 +165,7 @@ export default function ComplaintsPage() {
         method: 'DELETE'
       });
       if (response.ok) {
-        toast({ message: "工单已删除", type: "success" });
+        toast({ message: "工单已移除（软删除，证据与审计保留）", type: "success" });
         fetchComplaints();
       } else {
         const result = await response.json().catch(() => ({}));
@@ -307,18 +315,20 @@ export default function ComplaintsPage() {
                              <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                              进入审核
                           </button>
-                          <button
-                            onClick={() => handleDelete(complaint)}
-                            disabled={deletingId === complaint.id}
-                            className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none disabled:opacity-50"
-                            title="删除工单"
-                          >
-                            {deletingId === complaint.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-3.5 h-3.5" />
-                            )}
-                          </button>
+                          {userRole === 'SUPER_ADMIN' && (
+                            <button
+                              onClick={() => handleDelete(complaint)}
+                              disabled={deletingId === complaint.id}
+                              className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none disabled:opacity-50"
+                              title="移除工单（软删除）"
+                            >
+                              {deletingId === complaint.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
                         </div>
                      </td>
                   </tr>

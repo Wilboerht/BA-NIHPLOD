@@ -16,7 +16,9 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:apply": "node scripts/apply-migrations.mjs",
     "test:e2e": "node scripts/e2e-smoke.mjs",
-    "cleanup:uploads": "node scripts/cleanupOrphanUploads.mjs"
+    "cleanup:uploads": "node scripts/cleanupOrphanUploads.mjs",
+    "backup:db": "bash scripts/backup-ba-db.sh",
+    "backup:uploads": "bash scripts/backup-ba-uploads.sh"
   },
   "overrides": {
     "postcss": ">=8.5.10"

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { clearAuthCookie, verifyToken } from '@/lib/auth';
 import { sql } from '@/lib/db';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 
 export async function POST(req: Request) {
   try {
@@ -14,12 +15,27 @@ export async function POST(req: Request) {
         VALUES (${payload.jti}, ${expAt})
         ON CONFLICT (jti) DO NOTHING
       `;
+      try {
+        await writeAudit(sql, {
+          actor: actorFromUser(payload),
+          action: 'LOGOUT',
+          targetType: 'profile',
+          targetId: payload.id,
+          comment: '用户退出登录',
+          request: req,
+        });
+      } catch (auditErr) {
+        console.error('[audit] LOGOUT 写入失败:', auditErr);
+      }
     }
   } catch {
     // 即使黑名单写入失败，也继续清除 Cookie
   }
 
-  const response = NextResponse.json({ success: true });
+  const response = NextResponse.json(
+    { success: true },
+    { headers: { 'Cache-Control': 'no-store' } }
+  );
   response.headers.set('Set-Cookie', clearAuthCookie());
   return response;
 }

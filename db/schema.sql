@@ -111,7 +111,10 @@ CREATE TABLE IF NOT EXISTS certificates (
     auditor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     manager_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    -- 2026-10-27: 软删除，保留证书与审计链
+    deleted_at TIMESTAMPTZ,
+    deleted_by UUID
 );
 
 -- ============================================================================
@@ -129,22 +132,42 @@ CREATE TABLE IF NOT EXISTS complaints (
     review_note TEXT,
     contact_info TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    -- 2026-10-27: 软删除，保留证据与审计链
+    deleted_at TIMESTAMPTZ,
+    deleted_by UUID
 );
 
 -- ============================================================================
--- 7. 审核日志表
+-- 7. 审核日志表（append-only）
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    certificate_id UUID REFERENCES certificates(id) ON DELETE CASCADE,
+    certificate_id UUID REFERENCES certificates(id) ON DELETE SET NULL,
+    certificate_ref TEXT,
     -- 2026-09-25: 改为 SET NULL，删除工单后保留审计日志（complaint_ref 保存原工单 ID）
     complaint_id UUID REFERENCES complaints(id) ON DELETE SET NULL,
     complaint_ref TEXT,
     actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     comment TEXT,
+    -- 2026-10-27: 审计上下文
+    target_type TEXT CHECK (
+        target_type IS NULL
+        OR target_type IN ('certificate', 'complaint', 'profile', 'file', 'system')
+    ),
+    target_id UUID,
+    target_ref TEXT,
+    actor_role TEXT,
+    actor_name TEXT,
+    request_id TEXT,
+    ip TEXT,
+    user_agent TEXT,
+    "before" JSONB,
+    "after" JSONB,
+    reason TEXT,
+    event_hash TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -206,6 +229,37 @@ CREATE TRIGGER trg_complaints_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_complaints_updated_at();
 
+-- 审计日志只允许追加：禁止 UPDATE/DELETE
+CREATE OR REPLACE FUNCTION prevent_audit_logs_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        RAISE EXCEPTION 'audit_logs is append-only; DELETE is not allowed';
+    END IF;
+
+    -- 允许 FK ON DELETE SET NULL 只把 certificate_id/complaint_id 置空
+    IF TG_OP = 'UPDATE'
+       AND (
+           (NEW.certificate_id IS NULL AND OLD.certificate_id IS NOT NULL)
+           OR (NEW.complaint_id IS NULL AND OLD.complaint_id IS NOT NULL)
+       )
+       AND (to_jsonb(NEW) - 'certificate_id' - 'complaint_id')
+           IS NOT DISTINCT FROM
+           (to_jsonb(OLD) - 'certificate_id' - 'complaint_id')
+    THEN
+        RETURN NEW;
+    END IF;
+
+    RAISE EXCEPTION 'audit_logs is append-only; % is not allowed', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_audit_logs_no_mutation ON audit_logs;
+CREATE TRIGGER trg_audit_logs_no_mutation
+    BEFORE UPDATE OR DELETE ON audit_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_audit_logs_mutation();
+
 -- ============================================================================
 -- 11. 常用查询索引（性能优化）
 -- ============================================================================
@@ -216,12 +270,18 @@ CREATE INDEX IF NOT EXISTS idx_certificates_dealer_id ON certificates(dealer_id)
 CREATE INDEX IF NOT EXISTS idx_certificates_end_date ON certificates(end_date);
 CREATE INDEX IF NOT EXISTS idx_certificates_cert_number ON certificates(cert_number);
 CREATE INDEX IF NOT EXISTS idx_certificates_status_end_date ON certificates(status, end_date);
+CREATE INDEX IF NOT EXISTS idx_certificates_active_status_created
+    ON certificates(status, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_certificates_deleted_at ON certificates(deleted_at);
 
 -- profiles 表索引
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
 
 -- complaints 表索引
 CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
+CREATE INDEX IF NOT EXISTS idx_complaints_active_status_created
+    ON complaints(status, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_complaints_deleted_at ON complaints(deleted_at);
 
 -- dealers 表索引
 CREATE INDEX IF NOT EXISTS idx_dealers_phone ON dealers(phone);
@@ -233,6 +293,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_complaint_id ON audit_logs(complaint_id);
 -- 2026-09-26: 操作日志页按时间倒序分页
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+-- 2026-10-27: 审计 v2 查询索引
+CREATE INDEX IF NOT EXISTS idx_audit_logs_target_created
+    ON audit_logs(target_type, target_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_created
+    ON audit_logs(actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action_created
+    ON audit_logs(action, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_request_id ON audit_logs(request_id);
 
 -- action_rate_limits 表索引
 CREATE INDEX IF NOT EXISTS idx_action_rate_limits_window ON action_rate_limits(window_start);

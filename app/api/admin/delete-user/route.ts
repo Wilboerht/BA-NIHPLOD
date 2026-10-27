@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql, checkActionRateLimit } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth";
 import { readJsonBody } from "@/lib/api-utils";
+import { actorFromUser, writeAudit } from "@/lib/audit";
 
 /**
  * POST /api/admin/delete-user
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
 
     const { userId } = body!;
 
-    if (!userId) {
+    if (typeof userId !== 'string' || !userId) {
       return NextResponse.json(
         { error: "缺少必要参数：userId" },
         { status: 400 }
@@ -59,17 +60,44 @@ export async function POST(req: Request) {
     }
 
     // 软删除用户：保留关联记录中的名字，仅标记删除时间
-    const updateResult = await sql`
-      UPDATE profiles
-      SET deleted_at = NOW(),
-          username = ${userToDelete.username + '.deleted.' + Date.now()},
-          phone = ${userToDelete.phone ? userToDelete.phone + '.deleted.' + Date.now() : null}
-      WHERE id = ${userId} AND deleted_at IS NULL
-      RETURNING id
-    `;
-    if (!updateResult || updateResult.length === 0) {
-      return NextResponse.json({ error: "用户不存在或已被移除" }, { status: 404 });
-    }
+    const suffix = `.deleted.${Date.now()}`;
+    const originalUsername = typeof userToDelete.username === 'string' && userToDelete.username
+      ? userToDelete.username
+      : null;
+    const originalPhone = typeof userToDelete.phone === 'string' && userToDelete.phone
+      ? userToDelete.phone
+      : null;
+
+    await sql.begin(async (tx) => {
+      const updateResult = await tx`
+        UPDATE profiles
+        SET deleted_at = NOW(),
+            username = ${originalUsername ? originalUsername + suffix : null},
+            phone = ${originalPhone ? originalPhone + suffix : null},
+            token_version = token_version + 1,
+            updated_at = NOW()
+        WHERE id = ${userId} AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (!updateResult || updateResult.length === 0) {
+        throw new Error('USER_NOT_FOUND_OR_REMOVED');
+      }
+      await writeAudit(tx, {
+        actor: actorFromUser(adminUser),
+        action: 'DELETE_USER',
+        targetType: 'profile',
+        targetId: userId,
+        before: {
+          username: originalUsername,
+          phone: originalPhone,
+          role: userToDelete.role,
+          full_name: userToDelete.full_name,
+        },
+        after: { deleted_at: new Date().toISOString(), username: originalUsername ? originalUsername + suffix : null },
+        comment: `软删除管理员 ${userToDelete.full_name || originalUsername || userId}`,
+        request: req,
+      });
+    });
 
     return NextResponse.json({
       success: true,
@@ -82,6 +110,9 @@ export async function POST(req: Request) {
     });
   } catch (err: unknown) {
     console.error("[delete-user] Error:", err);
+    if (err instanceof Error && err.message === 'USER_NOT_FOUND_OR_REMOVED') {
+      return NextResponse.json({ error: "用户不存在或已被移除" }, { status: 404 });
+    }
     return NextResponse.json(
       { error: '删除失败' },
       { status: 500 }

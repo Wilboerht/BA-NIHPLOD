@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { uploadFile, getPublicUrl } from '@/lib/storage';
-import { checkActionRateLimit } from '@/lib/db';
+import { checkActionRateLimit, sql } from '@/lib/db';
+import { writeAudit } from '@/lib/audit';
 import crypto from 'crypto';
 
 const ALLOWED_TYPES = [
@@ -86,6 +87,22 @@ export async function POST(req: Request) {
     }
 
     const publicUrl = getPublicUrl('public-uploads', path);
+
+    try {
+      await writeAudit(sql, {
+        action: 'UPLOAD_PUBLIC_FILE',
+        targetType: 'file',
+        targetRef: publicUrl,
+        comment: `匿名上传投诉证据 ${publicUrl}`,
+        after: {
+          size: file.size,
+          type: file.type,
+        },
+        request: req,
+      });
+    } catch (auditErr) {
+      console.error('[Public Upload] 审计写入失败:', auditErr);
+    }
 
     return NextResponse.json({ success: true, url: publicUrl, path });
   } catch (err: unknown) {

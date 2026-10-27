@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  ScrollText, Search, ChevronLeft, ChevronRight, Loader2, ShieldCheck, Megaphone
+  ScrollText, Search, ChevronLeft, ChevronRight, Loader2, ShieldCheck, Megaphone, FileImage
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -12,23 +12,54 @@ import { fetchWithTimeout } from "@/lib/fetch";
 interface AuditLog {
   id: string;
   certificate_id?: string | null;
+  certificate_ref?: string | null;
   complaint_id?: string | null;
   complaint_ref?: string | null;
   actor_id?: string | null;
+  actor_role?: string | null;
+  actor_name?: string | null;
+  actor_name_snapshot?: string | null;
   action: string;
   comment?: string | null;
+  reason?: string | null;
+  target_type?: string | null;
+  target_id?: string | null;
+  target_ref?: string | null;
+  request_id?: string | null;
+  ip?: string | null;
+  user_agent?: string | null;
+  before?: unknown;
+  after?: unknown;
+  event_hash?: string | null;
   created_at: string;
-  actor_name?: string | null;
   actor_username?: string | null;
   cert_number?: string | null;
 }
 
 const ACTION_LABELS: Record<string, string> = {
+  CREATE_CERTIFICATE_PENDING: "提报授权",
   ISSUE_CERTIFICATE: "核发证书",
   REVOKE_CERTIFICATE: "吊销证书",
   REJECT_CERTIFICATE: "退回申请",
   UPDATE_CERTIFICATE: "更新证书",
+  DELETE_CERTIFICATE: "移除证书（软删除）",
+  DELETE_COMPLAINT: "移除工单（软删除）",
   DELETED: "删除工单",
+  SUBMIT_COMPLAINT: "提交投诉",
+  CREATE_ADMIN: "创建管理员",
+  BAN_USER: "封禁账号",
+  UNBAN_USER: "解封账号",
+  DELETE_USER: "移除管理员",
+  RESET_PASSWORD: "重置密码",
+  UPDATE_USER_ROLE: "修改角色",
+  CHANGE_PASSWORD: "修改密码",
+  LOGIN_SUCCESS: "登录成功",
+  LOGIN_FAILED: "登录失败",
+  LOGIN_BLOCKED: "登录被拒",
+  LOGOUT: "退出登录",
+  UPLOAD_FILE: "上传文件",
+  UPLOAD_PUBLIC_FILE: "匿名上传文件",
+  CRON_EXPIRE_CERTIFICATES: "自动过期证书",
 };
 
 const COMPLAINT_STATUS_LABELS: Record<string, string> = {
@@ -52,6 +83,10 @@ const CATEGORY_TABS = [
   { key: "", label: "全部日志" },
   { key: "certificate", label: "证书操作" },
   { key: "complaint", label: "投诉处理" },
+  { key: "account", label: "账号管理" },
+  { key: "auth", label: "登录/口令" },
+  { key: "file", label: "文件" },
+  { key: "system", label: "系统" },
 ];
 
 export default function AuditLogsPage() {
@@ -121,7 +156,35 @@ export default function AuditLogsPage() {
   };
 
   const getCategoryBadge = (log: AuditLog) => {
-    if (log.certificate_id) {
+    if (log.action.startsWith('LOGIN') || log.action === 'LOGOUT' || log.action === 'CHANGE_PASSWORD') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-cyan-50 text-cyan-700 text-[11px] font-semibold tracking-wide whitespace-nowrap">
+          <ShieldCheck className="w-3 h-3" /> 登录/口令
+        </span>
+      );
+    }
+    if (log.target_type === 'profile' || log.action === 'CREATE_ADMIN') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-violet-50 text-violet-700 text-[11px] font-semibold tracking-wide whitespace-nowrap">
+          <ShieldCheck className="w-3 h-3" /> 账号管理
+        </span>
+      );
+    }
+    if (log.target_type === 'file' || log.action.startsWith('UPLOAD')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold tracking-wide whitespace-nowrap">
+          <FileImage className="w-3 h-3" /> 文件
+        </span>
+      );
+    }
+    if (log.target_type === 'system' || log.action.startsWith('CRON_')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wide whitespace-nowrap">
+          系统
+        </span>
+      );
+    }
+    if (log.certificate_id || log.certificate_ref) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 text-blue-700 text-[11px] font-semibold tracking-wide whitespace-nowrap">
           <ShieldCheck className="w-3 h-3" /> 证书操作
@@ -146,13 +209,23 @@ export default function AuditLogsPage() {
     if (log.cert_number) {
       return <span className="font-mono text-[11px] text-slate-500 tracking-tight">{log.cert_number}</span>;
     }
-    if (log.complaint_ref) {
-      const shortRef = log.complaint_ref.split('-')[0];
+    if (log.certificate_ref) {
+      return <span className="font-mono text-[11px] text-slate-500 tracking-tight">{log.certificate_ref.split('-')[0]}…</span>;
+    }
+    if (log.complaint_ref || log.complaint_id) {
+      const ref = log.complaint_ref || log.complaint_id || '';
       return (
         <span className="font-mono text-[11px] text-slate-500 tracking-tight">
-          {shortRef}…{!log.complaint_id && <span className="ml-1 text-slate-400">(工单已删除)</span>}
+          {ref.split('-')[0]}…
+          {!log.complaint_id && <span className="ml-1 text-slate-400">(工单已移除)</span>}
         </span>
       );
+    }
+    if (log.target_ref) {
+      return <span className="font-mono text-[11px] text-slate-500 tracking-tight break-all">{log.target_ref}</span>;
+    }
+    if (log.target_id) {
+      return <span className="font-mono text-[11px] text-slate-500 tracking-tight">{log.target_id.split('-')[0]}…</span>;
     }
     return <span className="text-slate-300 text-xs">-</span>;
   };
@@ -212,6 +285,7 @@ export default function AuditLogsPage() {
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">对象</th>
                 <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">备注</th>
+                <th className="px-6 py-4 border-b border-slate-50/0 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">详情</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
@@ -221,15 +295,34 @@ export default function AuditLogsPage() {
                     {log.created_at ? new Date(log.created_at).toLocaleString() : '-'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-bold text-slate-900">{log.actor_name || log.actor_username || '系统'}</span>
+                    <span className="font-bold text-slate-900">
+                      {log.actor_name_snapshot || log.actor_name || log.actor_username || '系统'}
+                    </span>
+                    {log.actor_role && <span className="ml-1 text-[10px] text-slate-400">{log.actor_role}</span>}
                   </td>
                   <td className="px-6 py-4">{getCategoryBadge(log)}</td>
                   <td className="px-6 py-4 text-slate-800">{formatAction(log.action)}</td>
                   <td className="px-6 py-4">{getTarget(log)}</td>
-                  <td className="px-6 py-4 text-slate-500 max-w-[260px] truncate" title={log.comment || ''}>
-                    {log.comment || '-'}
-                  </td>
-                </tr>
+                    <td className="px-6 py-4 text-slate-500 max-w-[260px] truncate" title={log.comment || log.reason || ''}>
+                      {log.comment || log.reason || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-slate-500">
+                      {(log.before || log.after || log.reason || log.request_id) ? (
+                        <details className="text-[11px]">
+                          <summary className="cursor-pointer text-slate-400 hover:text-slate-600">查看</summary>
+                          <pre className="mt-1 max-h-40 max-w-[360px] overflow-auto whitespace-pre-wrap break-all rounded bg-slate-50 p-2 text-[10px] text-slate-500">
+                            {JSON.stringify({
+                              before: log.before,
+                              after: log.after,
+                              reason: log.reason,
+                              request_id: log.request_id,
+                              ip: log.ip,
+                            }, null, 2)}
+                          </pre>
+                        </details>
+                      ) : '-'}
+                    </td>
+                  </tr>
               ))}
             </tbody>
           </table>

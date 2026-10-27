@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireAdmin, requireSuperAdmin } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
-import { deletePublicUpload } from '@/lib/storage';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 
 // 合法的状态流转图
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -26,9 +26,16 @@ export async function PUT(
 
     const { status, review_note } = body!;
 
-    if (!id || !status) {
+    if (!id || !status || typeof status !== 'string') {
       return NextResponse.json(
         { error: '缺少必要参数' },
+        { status: 400 }
+      );
+    }
+
+    if (review_note !== undefined && review_note !== null && typeof review_note !== 'string') {
+      return NextResponse.json(
+        { error: '审核备注格式无效' },
         { status: 400 }
       );
     }
@@ -47,12 +54,18 @@ export async function PUT(
       return response;
     }
 
-    // 查询当前状态
-    const currentRows = await sql`SELECT status FROM complaints WHERE id = ${id} LIMIT 1`;
+    // 查询当前状态（软删除工单不可再流转）
+    const currentRows = await sql`
+      SELECT status
+      FROM complaints
+      WHERE id = ${id}
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
     if (currentRows.length === 0) {
       return NextResponse.json({ error: '工单不存在' }, { status: 404 });
     }
-    const currentStatus = currentRows[0].status;
+    const currentStatus = String(currentRows[0].status);
 
     // 状态流转校验
     const allowedNextStatuses = VALID_STATUS_TRANSITIONS[currentStatus] || [];
@@ -73,16 +86,26 @@ export async function PUT(
               handler_id = ${user!.id},
               updated_at = NOW()
           WHERE id = ${id}
+            AND deleted_at IS NULL
           RETURNING id
         `;
         if (!updateResult || updateResult.length === 0) {
           throw new Error('工单不存在或已被删除');
         }
 
-        await tx`
-          INSERT INTO audit_logs (complaint_id, actor_id, action, comment, created_at)
-          VALUES (${id}, ${user!.id}, ${`STATUS_CHANGE:${currentStatus}->${status}`}, ${review_note || null}, NOW())
-        `;
+        await writeAudit(tx, {
+          actor: actorFromUser(user),
+          action: `STATUS_CHANGE:${currentStatus}->${status}`,
+          targetType: 'complaint',
+          targetId: id,
+          complaintId: id,
+          complaintRef: id,
+          before: { status: currentStatus },
+          after: { status, review_note: review_note || null },
+          comment: review_note || null,
+          reason: review_note || null,
+          request: req,
+        });
       });
 
       return NextResponse.json({ success: true });
@@ -108,7 +131,7 @@ export async function PUT(
 
 /**
  * DELETE /api/db/complaints/:id
- * 删除投诉工单（仅限管理员）
+ * 软删除投诉工单（仅限超级管理员；证据与审计保留）
  */
 export async function DELETE(
   req: Request,
@@ -121,56 +144,55 @@ export async function DELETE(
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
     }
 
-    const { user, response } = await requireAdmin(req);
+    const { user, response } = await requireSuperAdmin(req);
     if (response) {
       return response;
     }
 
-    // 先查询关联的媒体文件路径
-    const complaintRows = await sql`
-      SELECT evidence_image_url, evidence_image_urls
-      FROM complaints WHERE id = ${id} LIMIT 1
-    `;
-    const imageUrls: string[] = [];
-    if (complaintRows.length > 0) {
-      const row = complaintRows[0];
-      if (Array.isArray(row.evidence_image_urls)) {
-        imageUrls.push(...row.evidence_image_urls);
-      }
-      if (row.evidence_image_url && typeof row.evidence_image_url === 'string') {
-        if (!imageUrls.includes(row.evidence_image_url)) {
-          imageUrls.push(row.evidence_image_url);
-        }
-      }
-    }
-
-    // 先写审计日志，再删除工单：
-    // complaint_id 外键为 ON DELETE SET NULL，删除后日志保留 complaint_ref 以便追溯
     await sql.begin(async (tx) => {
-      const exists = await tx`SELECT id FROM complaints WHERE id = ${id} LIMIT 1`;
-      if (!exists || exists.length === 0) {
-        throw new Error('工单不存在或已被删除');
-      }
-      await tx`
-        INSERT INTO audit_logs (complaint_id, complaint_ref, actor_id, action, comment, created_at)
-        VALUES (${id}, ${id}, ${user!.id}, 'DELETED', '管理员删除工单', NOW())
+      const beforeRows = await tx`
+        SELECT id, status
+        FROM complaints
+        WHERE id = ${id}
+          AND deleted_at IS NULL
+        LIMIT 1
       `;
-      await tx`DELETE FROM complaints WHERE id = ${id}`;
+      if (!beforeRows || beforeRows.length === 0) {
+        throw new Error('COMPLAINT_NOT_FOUND');
+      }
+
+      const updateResult = await tx`
+        UPDATE complaints
+        SET deleted_at = NOW(), deleted_by = ${user!.id}, updated_at = NOW()
+        WHERE id = ${id}
+          AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (!updateResult || updateResult.length === 0) {
+        throw new Error('COMPLAINT_NOT_FOUND');
+      }
+
+      await writeAudit(tx, {
+        actor: actorFromUser(user),
+        action: 'DELETE_COMPLAINT',
+        targetType: 'complaint',
+        targetId: id,
+        complaintId: id,
+        complaintRef: id,
+        before: { status: beforeRows[0].status },
+        after: { deleted_at: new Date().toISOString(), deleted_by: user!.id },
+        comment: '管理员软删除投诉工单（证据与审计保留）',
+        reason: 'soft_delete',
+        request: req,
+      });
     });
 
-    // 数据库删除成功后，清理关联的媒体文件
-    if (imageUrls.length > 0) {
-      for (const url of imageUrls) {
-        const { error } = await deletePublicUpload(url);
-        if (error) {
-          console.error(`[complaints-delete] 删除媒体文件失败: ${url}`, error);
-        }
-      }
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: '工单已移除（软删除，证据与审计保留）' });
   } catch (err: unknown) {
     console.error('[complaints-delete] API 错误:', err);
+    if (err instanceof Error && err.message === 'COMPLAINT_NOT_FOUND') {
+      return NextResponse.json({ error: '工单不存在或已被移除' }, { status: 404 });
+    }
     return NextResponse.json({ error: '删除失败' }, { status: 500 });
   }
 }

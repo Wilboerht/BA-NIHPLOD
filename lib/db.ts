@@ -150,6 +150,15 @@ function formatDateFields(row: SqlRow): SqlRow {
   };
 }
 
+function parseJsonField(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 function buildDealersNested(row: SqlRow): SqlRow {
   return {
     ...formatDateFields(row),
@@ -174,6 +183,7 @@ export async function getPendingCertificates(limit?: number): Promise<{ data: Sq
     LEFT JOIN dealers d ON c.dealer_id = d.id
     LEFT JOIN profiles p ON c.auditor_id = p.id
     WHERE c.status = 'PENDING'
+      AND c.deleted_at IS NULL
     ORDER BY c.created_at ASC
     ${limit ? sql`LIMIT ${limit}` : sql``}
   `;
@@ -212,7 +222,7 @@ export async function getAllCertificates(
     ? sql` AND (c.cert_number ILIKE ${likePattern} OR d.company_name ILIKE ${likePattern} OR split_part(c.auth_scope, ' | ', 1) ILIKE ${likePattern})`
     : sql``;
 
-  const whereClause = sql`WHERE TRUE ${statusCondition} ${searchCondition}`;
+  const whereClause = sql`WHERE c.deleted_at IS NULL ${statusCondition} ${searchCondition}`;
 
   const countRes = await sql`
     SELECT COUNT(*) as count
@@ -257,7 +267,7 @@ export async function getAllComplaints(
     const searchCondition = likePattern
       ? sql` AND (channel ILIKE ${likePattern} OR description ILIKE ${likePattern} OR contact_info ILIKE ${likePattern} OR id::text ILIKE ${likePattern})`
       : sql``;
-    const whereClause = sql`WHERE TRUE ${statusCondition} ${searchCondition}`;
+    const whereClause = sql`WHERE deleted_at IS NULL ${statusCondition} ${searchCondition}`;
 
     const result = await sql`
       SELECT * FROM complaints
@@ -283,6 +293,7 @@ export async function getPendingComplaints(limit = 500): Promise<{ data: SqlRow[
   const result = await sql`
     SELECT * FROM complaints
     WHERE status IN ('PENDING', 'INVESTIGATING')
+      AND deleted_at IS NULL
     ORDER BY created_at DESC
     LIMIT ${limit}
   `;
@@ -297,6 +308,7 @@ export async function getPendingComplaintsCount(): Promise<{ data: { count: numb
     SELECT COUNT(*) as count
     FROM complaints
     WHERE status IN ('PENDING', 'INVESTIGATING')
+      AND deleted_at IS NULL
   `;
   return { data: { count: parseInt(String(result[0]?.count || 0), 10) }, error: null };
 }
@@ -310,9 +322,9 @@ export async function getPendingComplaintsCount(): Promise<{ data: { count: numb
  */
 export async function getDashboardStats(): Promise<{ data: Record<string, number>; error: Error | null }> {
   const [certCountRes, complaintCountRes, issuedCountRes] = await Promise.all([
-    sql`SELECT COUNT(*) as count FROM certificates`,
-    sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING')`,
-    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND end_date >= CURRENT_DATE`
+    sql`SELECT COUNT(*) as count FROM certificates WHERE deleted_at IS NULL`,
+    sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING') AND deleted_at IS NULL`,
+    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND end_date >= CURRENT_DATE AND deleted_at IS NULL`
   ]);
 
   return {
@@ -427,10 +439,18 @@ export async function getAuditLogs(
 
     const categoryCondition =
       category === 'certificate'
-        ? sql` AND a.certificate_id IS NOT NULL`
+        ? sql` AND (a.certificate_id IS NOT NULL OR a.certificate_ref IS NOT NULL OR a.target_type = 'certificate')`
         : category === 'complaint'
-          ? sql` AND (a.complaint_id IS NOT NULL OR a.complaint_ref IS NOT NULL)`
-          : sql``;
+          ? sql` AND (a.complaint_id IS NOT NULL OR a.complaint_ref IS NOT NULL OR a.target_type = 'complaint')`
+          : category === 'account'
+            ? sql` AND a.target_type = 'profile' AND a.action NOT LIKE 'LOGIN%' AND a.action NOT IN ('LOGOUT', 'CHANGE_PASSWORD')`
+            : category === 'auth'
+              ? sql` AND (a.action LIKE 'LOGIN%' OR a.action = 'LOGOUT' OR a.action = 'CHANGE_PASSWORD')`
+              : category === 'file'
+                ? sql` AND (a.target_type = 'file' OR a.action LIKE 'UPLOAD%')`
+                : category === 'system'
+                  ? sql` AND a.target_type = 'system'`
+                  : sql``;
 
     const likePattern = search?.trim() ? `%${search.trim()}%` : null;
     const searchCondition = likePattern
@@ -438,7 +458,10 @@ export async function getAuditLogs(
               OR p.username ILIKE ${likePattern}
               OR a.comment ILIKE ${likePattern}
               OR a.action ILIKE ${likePattern}
+              OR a.reason ILIKE ${likePattern}
+              OR a.target_ref ILIKE ${likePattern}
               OR c.cert_number ILIKE ${likePattern}
+              OR a.certificate_ref ILIKE ${likePattern}
               OR a.complaint_ref ILIKE ${likePattern})`
       : sql``;
 
@@ -450,8 +473,10 @@ export async function getAuditLogs(
     `;
 
     const result = await sql`
-      SELECT a.id, a.certificate_id, a.complaint_id, a.complaint_ref, a.actor_id,
-             a.action, a.comment, a.created_at,
+      SELECT a.id, a.certificate_id, a.certificate_ref, a.complaint_id, a.complaint_ref, a.actor_id,
+             a.actor_role, a.actor_name AS actor_name_snapshot, a.action, a.comment, a.reason,
+             a.target_type, a.target_id, a.target_ref, a.request_id, a.ip, a.user_agent,
+             a."before", a."after", a.event_hash, a.created_at,
              p.full_name AS actor_name, p.username AS actor_username,
              c.cert_number AS cert_number
       ${baseFrom}
@@ -462,7 +487,12 @@ export async function getAuditLogs(
     const countRes = await sql`SELECT COUNT(*) as count ${baseFrom} ${whereClause}`;
 
     const total = parseInt(String(countRes[0]?.count || 0), 10);
-    return { data: result || [], total, error: null };
+    const data = (result || []).map((row: SqlRow) => ({
+      ...row,
+      before: parseJsonField(row['before']),
+      after: parseJsonField(row['after']),
+    }));
+    return { data, total, error: null };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '查询审计日志失败';
     console.error('[getAuditLogs] 查询失败:', err);
@@ -482,7 +512,12 @@ export async function getComplaintAuditLogs(complaintId: string): Promise<{ data
       WHERE a.complaint_id = ${complaintId}
       ORDER BY a.created_at DESC
     `;
-    return { data: result || [], error: null };
+    const data = (result || []).map((row: SqlRow) => ({
+      ...row,
+      before: parseJsonField(row['before']),
+      after: parseJsonField(row['after']),
+    }));
+    return { data, error: null };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '查询审计日志失败';
     return { data: [], error: new Error(message) };

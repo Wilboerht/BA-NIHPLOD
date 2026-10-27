@@ -4,6 +4,7 @@ import { sql, checkActionRateLimit } from "@/lib/db";
 import { requireSuperAdmin, validatePassword } from "@/lib/auth";
 import { readJsonBody } from "@/lib/api-utils";
 import { ADMIN_ROLES } from "@/types";
+import { actorFromUser, writeAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -30,7 +31,16 @@ export async function POST(req: Request) {
     const { fullName, username, password, role } = body!;
 
     // 基本校验
-    if (!fullName || !username || !password || !role) {
+    if (
+      typeof fullName !== 'string'
+      || typeof username !== 'string'
+      || typeof password !== 'string'
+      || typeof role !== 'string'
+      || !fullName.trim()
+      || !username.trim()
+      || !password
+      || !role
+    ) {
       return NextResponse.json({ error: "请填写所有必填字段" }, { status: 400 });
     }
 
@@ -76,11 +86,23 @@ export async function POST(req: Request) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     try {
-      await sql`
-        INSERT INTO profiles (username, full_name, email, password_hash, role, is_first_login)
-        VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${email.trim().toLowerCase()}, ${passwordHash}, ${role}, false)
-        RETURNING id
-      `;
+      await sql.begin(async (tx) => {
+        const rows = await tx`
+          INSERT INTO profiles (username, full_name, email, password_hash, role, is_first_login)
+          VALUES (${email.trim().toLowerCase()}, ${fullName.trim()}, ${email.trim().toLowerCase()}, ${passwordHash}, ${role}, true)
+          RETURNING id
+        `;
+        const created = rows[0];
+        await writeAudit(tx, {
+          actor: actorFromUser(adminUser),
+          action: 'CREATE_ADMIN',
+          targetType: 'profile',
+          targetId: String(created.id),
+          comment: `创建管理员 ${email}（${role}）`,
+          after: { email: email.trim().toLowerCase(), fullName: fullName.trim(), role, is_first_login: true },
+          request: req,
+        });
+      });
       return NextResponse.json({ success: true, email });
     } catch (err: unknown) {
       console.error("[create-admin] DB insert error:", err);

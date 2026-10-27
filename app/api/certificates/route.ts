@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { sql, checkActionRateLimit } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { COMPANY_FULL_NAME } from '@/lib/config';
+import { parseAuthScope } from '@/lib/utils';
 import { sendPendingCertNotification } from '@/lib/mail';
 import { apiError, readJsonBody } from '@/lib/api-utils';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 
@@ -41,7 +43,8 @@ function generateUniqueCertNumber(): string {
 
 // 签章图片地址白名单：仅允许本地上传文件或系统默认公章，防止写入恶意外链
 function isAllowedSealUrl(url: string | undefined | null): boolean {
-  if (!url) return true;
+  if (url === undefined || url === null || url === '') return true;
+  if (typeof url !== 'string') return false;
   return url.startsWith('/uploads/') || url === '/default-seal.png';
 }
 
@@ -122,10 +125,21 @@ export async function POST(req: Request) {
       action?: string;
       certId?: string;
       certData?: CertDataInput;
+      reason?: string;
     }>(req);
     if (bodyError) return bodyError;
 
-    const { action, certData, certId } = body!;
+    const { action, certData, certId, reason } = body!;
+
+    if (action !== undefined && typeof action !== 'string') {
+      return NextResponse.json({ error: '操作类型无效' }, { status: 400 });
+    }
+    if (certId !== undefined && typeof certId !== 'string') {
+      return NextResponse.json({ error: '证书 ID 格式无效' }, { status: 400 });
+    }
+    if (reason !== undefined && typeof reason !== 'string') {
+      return NextResponse.json({ error: '原因格式无效' }, { status: 400 });
+    }
 
     // 验证管理员权限
     const { user: adminUser, response } = await requireAdmin(req);
@@ -133,18 +147,51 @@ export async function POST(req: Request) {
       return response;
     }
 
+    // 敏感证书操作限流（按操作者 + 动作）
+    const allowed = await checkActionRateLimit(
+      `cert:${action || 'unknown'}:${adminUser!.id}`,
+      20,
+      5 * 60 * 1000
+    );
+    if (!allowed) {
+      return NextResponse.json({ error: '操作过于频繁，请稍后再试' }, { status: 429 });
+    }
+
     // 操作者 ID：在不同流程中代表不同角色
     //   create_pending → 作为 auditor_id（审核员提报）
     //   approve_issue / reject_pending / update_certificate → 作为 manager_id（超级管理员操作）
     //   revoke_certificate / delete_certificate → 作为审计日志的 actor_id
     const operatorId = adminUser!.id;
+    const actor = actorFromUser(adminUser);
+
+    // 授权方由服务端固定，禁止客户端伪造；自定义印章仅超级管理员可用
+    const effectiveAuthorizer = COMPANY_FULL_NAME;
+    const requestedSeal = certData?.sealImage || null;
+    const effectiveSealImage = adminUser!.role === 'SUPER_ADMIN' && requestedSeal
+      ? requestedSeal
+      : null;
 
     // 字段长度校验
     if (certData) {
-      if (!certData.shopName || !certData.shopName.trim()) {
+      if (typeof certData.shopName !== 'string' || !certData.shopName.trim()) {
         return NextResponse.json({ error: '缺少店铺/平台名称' }, { status: 400 });
       }
-      if (certData.shopName && certData.shopName.length > 200) {
+      if (certData.phone !== undefined && typeof certData.phone !== 'string') {
+        return NextResponse.json({ error: '手机号格式无效' }, { status: 400 });
+      }
+      if (certData.scopeText !== undefined && typeof certData.scopeText !== 'string') {
+        return NextResponse.json({ error: '授权范围格式无效' }, { status: 400 });
+      }
+      if (certData.companyName !== undefined && typeof certData.companyName !== 'string') {
+        return NextResponse.json({ error: '公司名称格式无效' }, { status: 400 });
+      }
+      if (certData.authorizer !== undefined && typeof certData.authorizer !== 'string') {
+        return NextResponse.json({ error: '授权方名称格式无效' }, { status: 400 });
+      }
+      if (certData.sealImage !== undefined && typeof certData.sealImage !== 'string') {
+        return NextResponse.json({ error: '签章图片来源不合法' }, { status: 400 });
+      }
+      if (certData.shopName.length > 200) {
         return NextResponse.json({ error: '授权主体名称过长，最多 200 个字符' }, { status: 400 });
       }
       if (certData.phone && certData.phone.length > 20) {
@@ -167,26 +214,50 @@ export async function POST(req: Request) {
     // --- 流程 1: 审核员提报 ---
     if (action === 'create_pending') {
       if (!certData) throw new ValidationError('缺少提报数据');
-      let certNumber: string;
-      let dealerId: string;
+      const duration = parseDuration(certData.duration);
+      let certNumber = '';
+      let createdCertId = '';
+
       await sql.begin(async (tx) => {
         certNumber = await generateCertNumberWithRetry(tx);
-        dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
-        await tx`
+        const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
+        const rows = await tx`
           INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, auditor_id, manager_id)
           VALUES (
             ${certNumber},
             ${dealerId},
-            ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
-            ${parseDuration(certData.duration).start},
-            ${parseDuration(certData.duration).end},
+            ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(effectiveAuthorizer)},
+            ${duration.start},
+            ${duration.end},
             'PENDING',
             null,
-            ${certData.sealImage || null},
+            ${effectiveSealImage},
             ${operatorId},
             null
           )
+          RETURNING id
         `;
+        createdCertId = String(rows[0].id);
+        await writeAudit(tx, {
+          actor,
+          action: 'CREATE_CERTIFICATE_PENDING',
+          targetType: 'certificate',
+          targetId: createdCertId,
+          certificateId: createdCertId,
+          certificateRef: createdCertId,
+          comment: `提报待审核证书 ${certNumber}`,
+          after: {
+            certNumber,
+            shopName: certData.shopName,
+            companyName: certData.companyName,
+            phone: certData.phone,
+            scopeText: certData.scopeText,
+            duration: certData.duration,
+            authorizer: effectiveAuthorizer,
+            sealImage: effectiveSealImage,
+          },
+          request: req,
+        });
       });
 
       // 异步通知管理员（不阻塞响应）
@@ -222,62 +293,109 @@ export async function POST(req: Request) {
       const forbidden = requireSuperAdmin(adminUser!.role);
       if (forbidden) return forbidden;
 
-      let certDataDb, dealerPhone;
+      let certDataDb: Record<string, unknown> | undefined;
+      let dealerPhone: string | undefined;
       let certNumber = '';
+      let auditCertId = certId || '';
 
       if (certId) {
         const result = await sql`
           SELECT c.*, d.phone, d.company_name FROM certificates c
           LEFT JOIN dealers d ON c.dealer_id = d.id
-          WHERE c.id = ${certId} LIMIT 1
+          WHERE c.id = ${certId}
+            AND c.deleted_at IS NULL
+          LIMIT 1
         `;
         if (!result || result.length === 0) throw new ValidationError(`未找到待审核证书 (ID: ${certId})`);
-        certDataDb = result[0];
-        dealerPhone = certDataDb.phone;
-        certNumber = certDataDb.cert_number;
+        certDataDb = result[0] as Record<string, unknown>;
+        dealerPhone = typeof certDataDb.phone === 'string' ? certDataDb.phone : undefined;
+        certNumber = String(certDataDb.cert_number);
+        auditCertId = certId;
+
+        // 旧待审数据可能携带客户端伪造的授权方，核发前强制纠正
+        const parsedScope = parseAuthScope(
+          typeof certDataDb.auth_scope === 'string' ? certDataDb.auth_scope : ''
+        );
+        const correctedAuthScope = parsedScope.companyName
+          ? `${sanitizeForAuthScope(parsedScope.companyName)} | ${parsedScope.scopeText || ''} | ${sanitizeForAuthScope(effectiveAuthorizer)}`
+          : (typeof certDataDb.auth_scope === 'string' ? certDataDb.auth_scope : null);
+
+        await sql.begin(async (tx) => {
+          const updateResult = await tx`
+            UPDATE certificates
+            SET status = 'ISSUED',
+                auth_scope = ${correctedAuthScope},
+                manager_id = ${operatorId},
+                updated_at = NOW()
+            WHERE id = ${certId}
+              AND status = 'PENDING'
+              AND deleted_at IS NULL
+            RETURNING id
+          `;
+          if (!updateResult || updateResult.length === 0) {
+            throw new ValidationError('该证书不是待审核状态，无法核发');
+          }
+          await writeAudit(tx, {
+            actor,
+            action: 'ISSUE_CERTIFICATE',
+            targetType: 'certificate',
+            targetId: certId,
+            certificateId: certId,
+            certificateRef: certId,
+            before: { status: certDataDb?.status ?? 'PENDING', auth_scope: certDataDb?.auth_scope ?? null },
+            after: { status: 'ISSUED', auth_scope: correctedAuthScope, manager_id: operatorId },
+            comment: `核发证书 ${certNumber}，经销商：${dealerPhone || '未填写电话'}`,
+            request: req,
+          });
+        });
       } else if (certData) {
         dealerPhone = certData.phone;
+        const duration = parseDuration(certData.duration);
 
         await sql.begin(async (tx) => {
           certNumber = await generateCertNumberWithRetry(tx);
           const dealerId = await getOrCreateDealer(certData.phone, certData.shopName, tx);
-          await tx`
+          const rows = await tx`
             INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status, final_image_url, seal_url, manager_id)
             VALUES (
               ${certNumber},
               ${dealerId},
-              ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
-              ${parseDuration(certData.duration).start},
-              ${parseDuration(certData.duration).end},
+              ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(effectiveAuthorizer)},
+              ${duration.start},
+              ${duration.end},
               'ISSUED',
               null,
-              ${certData.sealImage || null},
+              ${effectiveSealImage},
               ${operatorId}
             )
+            RETURNING id
           `;
+          auditCertId = String(rows[0].id);
+          await writeAudit(tx, {
+            actor,
+            action: 'ISSUE_CERTIFICATE',
+            targetType: 'certificate',
+            targetId: auditCertId,
+            certificateId: auditCertId,
+            certificateRef: auditCertId,
+            comment: `直接核发证书 ${certNumber}，经销商：${dealerPhone || '未填写电话'}`,
+            after: {
+              certNumber,
+              shopName: certData.shopName,
+              companyName: certData.companyName,
+              phone: certData.phone,
+              scopeText: certData.scopeText,
+              duration: certData.duration,
+              authorizer: effectiveAuthorizer,
+              sealImage: effectiveSealImage,
+              status: 'ISSUED',
+            },
+            request: req,
+          });
         });
       } else {
         throw new ValidationError('缺少核发数据');
       }
-
-      await sql.begin(async (tx) => {
-        if (certId) {
-          const updateResult = await tx`UPDATE certificates SET status = 'ISSUED', manager_id = ${operatorId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
-          if (!updateResult || updateResult.length === 0) {
-            throw new ValidationError('该证书不是待审核状态，无法核发');
-          }
-        }
-        await tx`
-          INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
-          VALUES (
-            ${certId || null},
-            ${operatorId},
-            'ISSUE_CERTIFICATE',
-            ${`核发证书 ${certNumber}，经销商：${dealerPhone || '未填写电话'}`},
-            NOW()
-          )
-        `;
-      });
 
       return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, certNumber });
     }
@@ -290,7 +408,13 @@ export async function POST(req: Request) {
       if (!certId) throw new ValidationError('缺少证书 ID');
 
       await sql.begin(async (tx) => {
-        const result = await tx`SELECT id, status, cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
+        const result = await tx`
+          SELECT id, status, cert_number
+          FROM certificates
+          WHERE id = ${certId}
+            AND deleted_at IS NULL
+          LIMIT 1
+        `;
         if (!result || result.length === 0) throw new ValidationError('未找到对应证书');
         if (result[0].status === 'REVOKED') {
           throw new ValidationError('证书已是吊销状态，无需重复操作');
@@ -298,17 +422,30 @@ export async function POST(req: Request) {
         if (result[0].status !== 'ISSUED') {
           throw new ValidationError('只能吊销已核发的证书');
         }
-        await tx`UPDATE certificates SET status = 'REVOKED' WHERE id = ${certId}`;
-        await tx`
-          INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
-          VALUES (
-            ${certId},
-            ${operatorId},
-            'REVOKE_CERTIFICATE',
-            ${`吊销证书 ${result[0].cert_number}`},
-            NOW()
-          )
+        const revokeResult = await tx`
+          UPDATE certificates
+          SET status = 'REVOKED', updated_at = NOW()
+          WHERE id = ${certId}
+            AND status = 'ISSUED'
+            AND deleted_at IS NULL
+          RETURNING id
         `;
+        if (!revokeResult || revokeResult.length === 0) {
+          throw new ValidationError('该证书不是可吊销状态');
+        }
+        await writeAudit(tx, {
+          actor,
+          action: 'REVOKE_CERTIFICATE',
+          targetType: 'certificate',
+          targetId: certId,
+          certificateId: certId,
+          certificateRef: certId,
+          before: { status: result[0].status },
+          after: { status: 'REVOKED' },
+          comment: `吊销证书 ${result[0].cert_number}`,
+          reason: reason || null,
+          request: req,
+        });
       });
 
       return NextResponse.json({ success: true, status: 'REVOKED' });
@@ -322,45 +459,82 @@ export async function POST(req: Request) {
       if (!certId) throw new ValidationError('缺少证书 ID');
 
       await sql.begin(async (tx) => {
-        const certInfo = await tx`SELECT cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
-        const updateResult = await tx`UPDATE certificates SET status = 'REJECTED', manager_id = ${operatorId} WHERE id = ${certId} AND status = 'PENDING' RETURNING id`;
+        const certInfo = await tx`
+          SELECT cert_number, status
+          FROM certificates
+          WHERE id = ${certId}
+            AND deleted_at IS NULL
+          LIMIT 1
+        `;
+        const updateResult = await tx`
+          UPDATE certificates
+          SET status = 'REJECTED', manager_id = ${operatorId}, updated_at = NOW()
+          WHERE id = ${certId}
+            AND status = 'PENDING'
+            AND deleted_at IS NULL
+          RETURNING id
+        `;
         if (!updateResult || updateResult.length === 0) {
           throw new ValidationError('该证书不是待审核状态，无法拒绝');
         }
-        await tx`
-          INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
-          VALUES (
-            ${certId},
-            ${operatorId},
-            'REJECT_CERTIFICATE',
-            ${`退回证书申请 ${certInfo[0]?.cert_number || ''}`},
-            NOW()
-          )
-        `;
+        await writeAudit(tx, {
+          actor,
+          action: 'REJECT_CERTIFICATE',
+          targetType: 'certificate',
+          targetId: certId,
+          certificateId: certId,
+          certificateRef: certId,
+          before: { status: certInfo[0]?.status ?? 'PENDING' },
+          after: { status: 'REJECTED' },
+          comment: `退回证书申请 ${certInfo[0]?.cert_number || ''}`,
+          reason: reason || null,
+          request: req,
+        });
       });
 
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
-    // --- 流程 5: 彻底删除 ---
+    // --- 流程 5: 软删除 ---
     if (action === 'delete_certificate') {
       if (!certId) throw new ValidationError('缺少证书 ID');
 
       const forbidden = requireSuperAdmin(adminUser!.role);
       if (forbidden) return forbidden;
 
-      const result = await sql`
-        DELETE FROM certificates
-        WHERE id = ${certId}
-          AND status IN ('EXPIRED', 'REVOKED', 'REJECTED')
-        RETURNING cert_number
-      `;
+      let deletedCertNumber = '';
 
-      if (!result || result.length === 0) {
-        return NextResponse.json({ error: '删除失败：只能彻底删除已失效、已吊销或已拒绝的证书，且记录必须存在' }, { status: 400 });
-      }
+      await sql.begin(async (tx) => {
+        const result = await tx`
+          UPDATE certificates
+          SET deleted_at = NOW(), deleted_by = ${operatorId}, updated_at = NOW()
+          WHERE id = ${certId}
+            AND deleted_at IS NULL
+            AND status IN ('EXPIRED', 'REVOKED', 'REJECTED')
+          RETURNING cert_number, status
+        `;
 
-      return NextResponse.json({ success: true, message: `证书 ${result[0].cert_number} 已彻底删除` });
+        if (!result || result.length === 0) {
+          throw new ValidationError('删除失败：只能移除已失效、已吊销或已拒绝的证书，且记录必须存在');
+        }
+
+        deletedCertNumber = String(result[0].cert_number);
+        await writeAudit(tx, {
+          actor,
+          action: 'DELETE_CERTIFICATE',
+          targetType: 'certificate',
+          targetId: certId,
+          certificateId: certId,
+          certificateRef: certId,
+          before: { status: result[0].status, cert_number: deletedCertNumber },
+          after: { deleted_at: new Date().toISOString(), deleted_by: operatorId },
+          comment: `软删除证书 ${deletedCertNumber}（数据与审计保留）`,
+          reason: reason || 'soft_delete',
+          request: req,
+        });
+      });
+
+      return NextResponse.json({ success: true, message: `证书 ${deletedCertNumber} 已移除（软删除，数据与审计保留）` });
     }
 
     // --- 流程 6: 更新证书 ---
@@ -371,38 +545,96 @@ export async function POST(req: Request) {
       if (!certId) throw new ValidationError('缺少证书 ID');
       if (!certData) throw new ValidationError('缺少更新数据');
 
-      const statusCheck = await sql`SELECT status FROM certificates WHERE id = ${certId} LIMIT 1`;
-      if (statusCheck[0]?.status === 'REVOKED') {
-        return NextResponse.json({ error: '已吊销的证书不可编辑' }, { status: 400 });
+      const statusCheck = await sql`
+        SELECT status, dealer_id, cert_number, auth_scope, start_date, end_date, seal_url
+        FROM certificates
+        WHERE id = ${certId}
+          AND deleted_at IS NULL
+        LIMIT 1
+      `;
+      if (!statusCheck || statusCheck.length === 0) {
+        throw new ValidationError('未找到对应证书记录');
+      }
+      if (statusCheck[0].status !== 'PENDING') {
+        return NextResponse.json(
+          { error: '仅待审核证书可编辑；已签发证书请吊销后重新签发' },
+          { status: 400 }
+        );
       }
 
-      const result = await sql`SELECT dealer_id, cert_number FROM certificates WHERE id = ${certId} LIMIT 1`;
-      if (!result || result.length === 0) throw new ValidationError('未找到对应证书记录');
-      const dealerId = result[0].dealer_id;
-      const certNumber = result[0].cert_number;
+      const dealerId = String(statusCheck[0].dealer_id);
+      const certNumber = String(statusCheck[0].cert_number);
+      const duration = parseDuration(certData.duration);
 
       await sql.begin(async (tx) => {
-        await tx`UPDATE dealers SET company_name = ${certData.shopName}, phone = ${certData.phone?.trim() || null} WHERE id = ${dealerId}`;
-        // 注意：cert_number 为不可变字段，更新证书时绝不修改，确保已签发证书的二维码永久有效
-        await tx`
+        // 如果 dealer 被多张证书共享，编辑时拆出新 dealer，避免影响其他证书
+        const countRows = await tx`
+          SELECT COUNT(*)::int AS count
+          FROM certificates
+          WHERE dealer_id = ${dealerId}
+            AND deleted_at IS NULL
+        `;
+        const sharedCount = Number(countRows[0]?.count ?? 0);
+        let targetDealerId = dealerId;
+
+        if (sharedCount > 1) {
+          targetDealerId = String(await getOrCreateDealer(certData.phone, certData.shopName, tx));
+        } else {
+          await tx`
+            UPDATE dealers
+            SET company_name = ${certData.shopName},
+                phone = ${certData.phone?.trim() || null}
+            WHERE id = ${dealerId}
+          `;
+        }
+
+        // cert_number 为不可变字段：更新证书时绝不修改，确保二维码永久有效
+        const updateResult = await tx`
           UPDATE certificates
-          SET auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(certData.authorizer || COMPANY_FULL_NAME)},
-              start_date = ${parseDuration(certData.duration).start},
-              end_date = ${parseDuration(certData.duration).end},
-              seal_url = ${certData.sealImage || null},
-              manager_id = ${operatorId}
+          SET dealer_id = ${targetDealerId},
+              auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(effectiveAuthorizer)},
+              start_date = ${duration.start},
+              end_date = ${duration.end},
+              seal_url = ${effectiveSealImage},
+              manager_id = ${operatorId},
+              updated_at = NOW()
           WHERE id = ${certId}
+            AND status = 'PENDING'
+            AND deleted_at IS NULL
+          RETURNING id
         `;
-        await tx`
-          INSERT INTO audit_logs (certificate_id, actor_id, action, comment, created_at)
-          VALUES (
-            ${certId},
-            ${operatorId},
-            'UPDATE_CERTIFICATE',
-            ${`更新证书信息 ${certNumber}`},
-            NOW()
-          )
-        `;
+        if (!updateResult || updateResult.length === 0) {
+          throw new ValidationError('该证书不是待审核状态，无法更新');
+        }
+
+        await writeAudit(tx, {
+          actor,
+          action: 'UPDATE_CERTIFICATE',
+          targetType: 'certificate',
+          targetId: certId,
+          certificateId: certId,
+          certificateRef: certId,
+          before: {
+            status: statusCheck[0].status,
+            dealer_id: dealerId,
+            auth_scope: statusCheck[0].auth_scope,
+            start_date: statusCheck[0].start_date,
+            end_date: statusCheck[0].end_date,
+            seal_url: statusCheck[0].seal_url,
+          },
+          after: {
+            dealer_id: targetDealerId,
+            companyName: certData.companyName,
+            shopName: certData.shopName,
+            scopeText: certData.scopeText,
+            duration: certData.duration,
+            authorizer: effectiveAuthorizer,
+            sealImage: effectiveSealImage,
+          },
+          comment: `更新待审核证书 ${certNumber}`,
+          reason: reason || null,
+          request: req,
+        });
       });
 
       return NextResponse.json({ success: true, status: 'UPDATED', certNumber });

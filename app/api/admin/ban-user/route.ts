@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql, getProfileById, checkActionRateLimit } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth";
 import { readJsonBody } from "@/lib/api-utils";
+import { actorFromUser, writeAudit } from "@/lib/audit";
 
 /**
  * POST /api/admin/ban-user
@@ -18,7 +19,12 @@ export async function POST(req: Request) {
 
     const { profileId, action = "ban" } = body!;
 
-    if (!profileId || !["ban", "unban"].includes(action)) {
+    if (
+      typeof profileId !== 'string'
+      || typeof action !== 'string'
+      || !profileId
+      || !["ban", "unban"].includes(action)
+    ) {
       return NextResponse.json(
         { error: "参数无效: 需要 profileId, action" },
         { status: 400 }
@@ -63,7 +69,25 @@ export async function POST(req: Request) {
     // 执行封禁/解封操作
     try {
       const isBanned = action === "ban";
-      await sql`UPDATE profiles SET is_banned = ${isBanned} WHERE id = ${profileId} AND deleted_at IS NULL`;
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE profiles
+          SET is_banned = ${isBanned},
+              token_version = token_version + 1,
+              updated_at = NOW()
+          WHERE id = ${profileId} AND deleted_at IS NULL
+        `;
+        await writeAudit(tx, {
+          actor: actorFromUser(adminUser),
+          action: isBanned ? 'BAN_USER' : 'UNBAN_USER',
+          targetType: 'profile',
+          targetId: profileId,
+          before: { is_banned: Boolean(targetProfile.is_banned) },
+          after: { is_banned: isBanned },
+          comment: `${isBanned ? '封禁' : '解封'}管理员 ${targetProfile.full_name || targetProfile.username || profileId}`,
+          request: req,
+        });
+      });
       console.log(`[ban-user] ${action === "ban" ? "已封禁" : "已解封"} ${profileId}`);
       return NextResponse.json({
         success: true,

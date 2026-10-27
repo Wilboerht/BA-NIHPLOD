@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { writeAudit } from '@/lib/audit';
 
 /**
  * GET /api/cron/update-expired-certificates
@@ -29,17 +30,32 @@ export async function GET(request: Request) {
       );
     }
 
-    // 将 end_date < CURRENT_DATE 且 status = 'ISSUED' 的证书更新为 EXPIRED
-    const result = await sql`
-      UPDATE certificates
-      SET status = 'EXPIRED', updated_at = NOW()
-      WHERE status = 'ISSUED'
-        AND end_date < CURRENT_DATE
-      RETURNING id, cert_number
-    `;
+    let updatedIds: string[] = [];
 
-    const updatedCount = result.length;
-    const updatedIds = result.map((r: Record<string, unknown>) => String(r.cert_number));
+    await sql.begin(async (tx) => {
+      // 将 end_date < CURRENT_DATE 且 status = 'ISSUED' 的证书更新为 EXPIRED
+      const result = await tx`
+        UPDATE certificates
+        SET status = 'EXPIRED', updated_at = NOW()
+        WHERE status = 'ISSUED'
+          AND end_date < CURRENT_DATE
+          AND deleted_at IS NULL
+        RETURNING id, cert_number
+      `;
+
+      updatedIds = result.map((r: Record<string, unknown>) => String(r.cert_number));
+
+      await writeAudit(tx, {
+        action: 'CRON_EXPIRE_CERTIFICATES',
+        targetType: 'system',
+        targetRef: 'update-expired-certificates',
+        comment: `自动过期证书更新完成：${updatedIds.length} 张证书标记为 EXPIRED`,
+        after: { updatedCount: updatedIds.length, certNumbers: updatedIds },
+        request,
+      });
+    });
+
+    const updatedCount = updatedIds.length;
 
     console.log(`[cron] 自动过期证书更新完成：${updatedCount} 张证书已标记为 EXPIRED`);
 

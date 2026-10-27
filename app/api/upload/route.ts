@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { uploadFile, getPublicUrl } from '@/lib/storage';
 import { requireAuth } from '@/lib/auth';
+import { sql, checkActionRateLimit } from '@/lib/db';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 
 const ALLOWED_TYPES = [
   'image/jpeg',
@@ -21,9 +23,14 @@ function sanitizeFolder(folder: string): string {
 export async function POST(req: Request) {
   try {
     // 认证检查
-    const { response } = await requireAuth(req);
+    const { user, response } = await requireAuth(req);
     if (response) {
       return response;
+    }
+
+    const allowed = await checkActionRateLimit(`upload:auth:${user!.id}`, 50, 5 * 60 * 1000);
+    if (!allowed) {
+      return NextResponse.json({ error: '上传过于频繁，请稍后再试' }, { status: 429 });
     }
 
     // 先根据 Content-Length 做粗粒度拦截，避免解析超大 multipart 造成内存压力
@@ -77,6 +84,25 @@ export async function POST(req: Request) {
     }
 
     const publicUrl = getPublicUrl(bucket, path);
+
+    try {
+      await writeAudit(sql, {
+        actor: actorFromUser(user),
+        action: 'UPLOAD_FILE',
+        targetType: 'file',
+        targetRef: publicUrl,
+        comment: `上传文件 ${publicUrl}`,
+        after: {
+          bucket,
+          path,
+          size: file.size,
+          type: file.type,
+        },
+        request: req,
+      });
+    } catch (auditErr) {
+      console.error('[Upload] 审计写入失败:', auditErr);
+    }
 
     return NextResponse.json({ success: true, url: publicUrl, path });
   } catch (err: unknown) {

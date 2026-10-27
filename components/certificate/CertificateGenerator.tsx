@@ -212,7 +212,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     };
 
     const [bgImage, sealImg] = await Promise.all([
-      loadImage("/cert-template.svg"),
+      loadImage("/cert-template.webp"),
       data.sealImage ? loadImage(data.sealImage) : loadImage("/default-seal.png")
     ]);
 
@@ -282,7 +282,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const nameBaseY = currentY;
 
     // 店铺名称（大字加粗，仅显示输入值）
-    offCtx.font = `bold ${22 * scale}px "Noto Serif SC", serif`;
+    offCtx.font = `bold ${22 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
     offCtx.fillStyle = "#1e293b";
     let shopY = nameBaseY;
     if (hasShop && !hasCompany) {
@@ -315,7 +315,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     // CERT_DEBUG 已移除
 
     // 授权业务范围
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
     offCtx.fillStyle = textPrimary;
     const scopeLines = (data.scopeText || "").split('\n');
 
@@ -334,7 +334,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         if (parts.some(p => p.bold)) {
           let currentX = leftMargin;
           parts.forEach(part => {
-            offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+            offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif` : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
             offCtx.fillText(part.text, currentX, currentY);
             currentX += offCtx.measureText(part.text).width;
           });
@@ -351,7 +351,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         let curLine: typeof charList = [];
         let curWidth = 0;
         for (const item of charList) {
-          offCtx.font = item.bold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+          offCtx.font = item.bold ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif` : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
           const w = offCtx.measureText(item.text).width;
           if (curWidth + w > maxTextWidth && curLine.length > 0) {
             wrappedLines.push(curLine);
@@ -374,7 +374,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               segment += wl[i].text;
               i++;
             }
-            offCtx.font = isBold ? `bold ${15 * scale}px "Noto Serif SC", serif` : `400 ${15 * scale}px "Noto Serif SC", serif`;
+            offCtx.font = isBold ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif` : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
             offCtx.fillText(segment, currentX, currentY);
             currentX += offCtx.measureText(segment).width;
           }
@@ -395,7 +395,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     };
     const dateRange = data.duration.split(' - ');
     offCtx.textAlign = "left";
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", serif`;
+    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
     offCtx.fillText(`授权有效期：${formatDate(dateRange[0])} 至 ${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
     currentY += 46 * scale;
     // CERT_DEBUG 已移除
@@ -423,7 +423,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const certNumber = data.cert_number || (initialData?.cert_number as string) || tempCertNumberRef.current;
     if (certNumber) {
       offCtx.textAlign = "right";
-      offCtx.font = `400 ${12 * scale}px "Noto Serif SC", serif`;
+      offCtx.font = `400 ${12 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
       offCtx.fillStyle = "#666666";
       offCtx.fillText(`证书号：${certNumber}`, width - 40 * scale, height - 30 * scale);
     }
@@ -440,7 +440,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     // 授权方文字（压印在公章下方偏下位置）
     offCtx.textAlign = "center";
-    offCtx.font = `500 ${14 * scale}px "Noto Serif SC", serif`;
+    offCtx.font = `500 ${14 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
     offCtx.fillStyle = textPrimary;
     const authorizerY = bottomAlignY - sealDrawHeight / 2 + 28 * scale + 20 * scale;
     // CERT_DEBUG 已移除
@@ -461,7 +461,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const qrImg = await loadImage(qrDataUrl);
       if (qrImg) {
         offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-        offCtx.font = `500 ${11 * scale}px "Noto Serif SC", serif`;
+        offCtx.font = `500 ${11 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
         offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
@@ -474,7 +474,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       offCtx.save();
       offCtx.rotate(-Math.PI / 4);
       offCtx.textAlign = "center";
-      offCtx.font = `bold ${18 * scale}px "Noto Serif SC", serif`;
+      offCtx.font = `bold ${18 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
       if (isVoided) {
         offCtx.fillStyle = "rgba(220, 38, 38, 0.25)";
         const stepX = 220 * scale;

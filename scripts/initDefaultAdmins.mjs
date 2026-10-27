@@ -93,7 +93,9 @@ async function createOrUpdateAdmin(admin, password) {
         SET password_hash = ${passwordHash},
             full_name = ${fullName},
             role = ${role},
-            is_first_login = false
+            is_first_login = true,
+            token_version = token_version + 1,
+            updated_at = NOW()
         WHERE username = ${username} AND deleted_at IS NULL
       `;
       console.log(`✅ 更新: ${fullName} (${username}) - Role: ${role}`);
@@ -101,7 +103,7 @@ async function createOrUpdateAdmin(admin, password) {
       // 创建新用户
       await sql`
         INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
-        VALUES (${username}, ${fullName}, ${passwordHash}, ${role}, false)
+        VALUES (${username}, ${fullName}, ${passwordHash}, ${role}, true)
       `;
       console.log(`✅ 创建: ${fullName} (${username}) - Role: ${role}`);
     }

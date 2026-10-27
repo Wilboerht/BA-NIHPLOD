@@ -121,6 +121,8 @@ model Certificate {
   created_at      DateTime          @default(now()) @db.Timestamptz(6)
   updated_at      DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
   search_count    Int               @default(0)
+  deleted_at      DateTime?         @db.Timestamptz(6)
+  deleted_by      String?           @db.Uuid
 
   // 关系
   dealer    Dealer     @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
@@ -135,6 +137,8 @@ model Certificate {
   @@index([end_date])
   @@index([cert_number])
   @@index([status, end_date])
+  @@index([status, created_at])
+  @@index([deleted_at])
 }
 
 // ============================================================================
@@ -153,6 +157,8 @@ model Complaint {
   contact_info       String?
   created_at         DateTime        @default(now()) @db.Timestamptz(6)
   updated_at         DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at         DateTime?       @db.Timestamptz(6)
+  deleted_by         String?         @db.Uuid
 
   // 关系
   handler    Profile?   @relation(fields: [handler_id], references: [id])
@@ -160,6 +166,8 @@ model Complaint {
 
   @@map("complaints")
   @@index([status])
+  @@index([status, created_at])
+  @@index([deleted_at])
 }
 
 // ============================================================================
@@ -169,15 +177,28 @@ model Complaint {
 model AuditLog {
   id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   certificate_id String?     @db.Uuid
+  certificate_ref String?
   complaint_id   String?     @db.Uuid
   complaint_ref  String?
   actor_id       String?     @db.Uuid
+  actor_role     String?
+  actor_name     String?
   action         String
   comment        String?
+  target_type    String?
+  target_id      String?     @db.Uuid
+  target_ref     String?
+  request_id     String?
+  ip             String?
+  user_agent     String?
+  before         Json?
+  after          Json?
+  reason         String?
+  event_hash     String?
   created_at     DateTime    @default(now()) @db.Timestamptz(6)
 
   // 关系
-  certificate Certificate? @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+  certificate Certificate? @relation(fields: [certificate_id], references: [id], onDelete: SetNull)
   complaint   Complaint?   @relation(fields: [complaint_id], references: [id], onDelete: SetNull)
   actor       Profile?     @relation(fields: [actor_id], references: [id])
 
@@ -185,6 +206,10 @@ model AuditLog {
   @@index([certificate_id])
   @@index([actor_id])
   @@index([complaint_id])
+  @@index([target_type, target_id, created_at])
+  @@index([actor_id, created_at])
+  @@index([action, created_at])
+  @@index([request_id])
 }
 
 // ============================================================================

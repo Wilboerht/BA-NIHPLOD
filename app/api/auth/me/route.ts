@@ -4,7 +4,7 @@ import { getProfileById } from '@/lib/db';
 
 export async function GET(request: Request) {
   try {
-    const { user, response } = await requireAuth(request);
+    const { user, response } = await requireAuth(request, { allowFirstLogin: true });
     if (response) {
       return response;
     }
@@ -18,18 +18,21 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: profile.id,
-        phone: profile.phone,
-        username: profile.username,
-        full_name: profile.full_name,
-        role: profile.role,
-        is_first_login: profile.is_first_login,
-        is_banned: profile.is_banned,
-      }
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        user: {
+          id: profile.id,
+          phone: profile.phone,
+          username: profile.username,
+          full_name: profile.full_name,
+          role: profile.role,
+          is_first_login: profile.is_first_login,
+          is_banned: profile.is_banned,
+        }
+      },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   } catch (err: unknown) {
     console.error('[auth/me] Error:', err);
     const statusCode = (err as Error & { statusCode?: number }).statusCode;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, X, Award, Edit, ChevronLeft, ChevronRight, Filter, Trash2, Clock } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, X, Award, ChevronLeft, ChevronRight, Filter, Trash2, Clock } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -196,7 +196,7 @@ export default function CertificatesPage() {
   };
 
   const deleteCertificate = async (id: string) => {
-    const ok = await confirm({ message: "确定要彻底删除此证书记录吗？\n\n此操作不可恢复，关联的审计日志也将一并清除。" });
+    const ok = await confirm({ message: "确定要移除此证书吗？\n\n将执行软删除：证书从列表移除，但证书数据、证据与审计记录保留。" });
     if (!ok) return;
 
     try {
@@ -209,7 +209,7 @@ export default function CertificatesPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
 
-      toast({ message: result.message || "证书记录已彻底删除", type: "success" });
+      toast({ message: result.message || "证书已移除（软删除）", type: "success" });
       fetchCertificates();
     } catch (err: unknown) {
       toast({ message: "删除失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
@@ -433,34 +433,7 @@ export default function CertificatesPage() {
                             查看证书
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && (
-                          <button 
-                            onClick={() => {
-                              const parsed = parseAuthScope(cert.auth_scope);
-                              setSelectedCertData({
-                                id: cert.id,
-                                cert_number: cert.cert_number,
-                                companyName: parsed.companyName,
-                                companyLabel: "公司名称", 
-                                shopName: cert.dealers?.company_name || "",
-                                shopLabel: "店铺或平台名称",
-                                scopeText: parsed.scopeText || "品牌官方经销授权",
-                                duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
-                                authorizer: parsed.authorizer || COMPANY_FULL_NAME,
-                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
-                                phone: cert.dealers?.phone || ""
-                              });
-                              setIsViewVoided(false);
-                              setIsViewOnly(false);
-                              setIsEditMode(true);
-                              setShowIssueModal(true);
-                            }}
-                            className="text-[#8B7355] hover:bg-amber-50 h-8 w-8 flex items-center justify-center rounded-lg transition-all"
-                            title="修改授权信息"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+
                         {(cert.status === 'EXPIRED' || cert.status === 'REVOKED') && (
                           <button
                             onClick={() => {
@@ -492,12 +465,12 @@ export default function CertificatesPage() {
                           <button
                             onClick={() => deleteCertificate(cert.id)}
                             className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
-                            title="彻底删除"
+                            title="移除证书（软删除，数据与审计保留）"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
+                        {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
                           <button
                             onClick={() => revokeCertificate(cert.id, cert.status)}
                             disabled={revokingId === cert.id}

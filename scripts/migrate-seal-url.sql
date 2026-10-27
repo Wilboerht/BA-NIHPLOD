@@ -19,8 +19,10 @@
 -- ============================================================================
 
 -- 步骤 1: 添加 seal_url 列到 certificates 表（如果不存在）
-ALTER TABLE certificates 
-ADD COLUMN seal_url TEXT DEFAULT NULL;
+-- 注意：该脚本已由 db/migrate-20261027-04-seal-url.sql 纳管；
+--       保留本文件仅作历史参考，重复执行现在也是安全的。
+ALTER TABLE certificates
+ADD COLUMN IF NOT EXISTS seal_url TEXT DEFAULT NULL;
 
 -- 步骤 2: 添加表注释说明
 COMMENT ON COLUMN certificates.seal_url IS '用户上传的自定义印章 URL（核发时保存。下载时优先使用，若为空则使用 templates.stamp_url）';

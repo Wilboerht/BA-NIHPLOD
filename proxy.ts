@@ -68,6 +68,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // 首次登录只允许访问改密页和认证接口；服务端 requireAuth 仍会二次兜底
+  if (
+    payload.is_first_login === true
+    && !pathname.startsWith('/reset-password')
+    && !pathname.startsWith('/api/auth/')
+  ) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: '首次登录必须修改密码', code: 'PASSWORD_CHANGE_REQUIRED' },
+        { status: 403 }
+      );
+    }
+    return NextResponse.redirect(new URL('/reset-password', request.url));
+  }
+
   // 对于 /workbench 和 /admin 路由，检查是否为管理员
   if (pathname.startsWith('/workbench') || pathname.startsWith('/admin')) {
     if (!ADMIN_ROLES.includes(payload.role as typeof ADMIN_ROLES[number])) {

@@ -3,6 +3,7 @@ import { sql, getProfileById, checkActionRateLimit } from '@/lib/db';
 import { requireSuperAdmin } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { ALL_ROLES } from '@/types';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 
 export async function PUT(req: Request) {
   try {
@@ -14,7 +15,7 @@ export async function PUT(req: Request) {
 
     const { userId, newRole } = body!;
 
-    if (!userId || !newRole) {
+    if (typeof userId !== 'string' || typeof newRole !== 'string' || !userId || !newRole) {
       return NextResponse.json(
         { error: '缺少必要参数' },
         { status: 400 }
@@ -70,13 +71,32 @@ export async function PUT(req: Request) {
         );
       }
 
-      const updateResult = await sql`
-        UPDATE profiles 
-        SET role = ${newRole}, updated_at = NOW()
-        WHERE id = ${userId} AND deleted_at IS NULL
-        RETURNING id
-      `;
-      if (!updateResult || updateResult.length === 0) {
+      const updated = await sql.begin(async (tx) => {
+        const updateResult = await tx`
+          UPDATE profiles
+          SET role = ${newRole},
+              token_version = token_version + 1,
+              updated_at = NOW()
+          WHERE id = ${userId} AND deleted_at IS NULL
+          RETURNING id
+        `;
+        if (!updateResult || updateResult.length === 0) {
+          return false;
+        }
+        await writeAudit(tx, {
+          actor: actorFromUser(adminUser),
+          action: 'UPDATE_USER_ROLE',
+          targetType: 'profile',
+          targetId: userId,
+          before: { role: targetProfile?.role ?? null },
+          after: { role: newRole },
+          comment: `修改管理员角色为 ${newRole}`,
+          reason: 'admin_role_change',
+          request: req,
+        });
+        return true;
+      });
+      if (!updated) {
         return NextResponse.json({ error: '用户不存在' }, { status: 404 });
       }
       console.log('[update-user-role] 用户角色已更新');

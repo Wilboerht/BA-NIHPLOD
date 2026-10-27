@@ -47,12 +47,17 @@ function loadEnvLocal() {
 loadEnvLocal();
 
 const BASE = getArg('base', 'http://127.0.0.1:3999');
-const DB_URL = getArg('db', process.env.E2E_DATABASE_URL || process.env.DATABASE_URL || '');
+const DB_URL = getArg('db', process.env.E2E_DATABASE_URL || '');
 const CRON_SECRET = getArg('cron-secret', process.env.CRON_SECRET || 'test-cron-secret');
 const FORCE = process.argv.includes('--force');
 
 if (!DB_URL) {
-  console.error('❌ 需要 --db=<一次性数据库连接串>');
+  console.error('❌ 必须显式传入 --db=<一次性数据库连接串>；不再从 DATABASE_URL 回退，避免误清空本地/生产库');
+  process.exit(1);
+}
+
+if (process.env.DATABASE_URL && DB_URL === process.env.DATABASE_URL) {
+  console.error('❌ --db 不能与 DATABASE_URL 相同；请使用独立的一次性数据库');
   process.exit(1);
 }
 
@@ -104,6 +109,13 @@ async function login(identifier, password) {
 const superHash = await bcrypt.hash('SuperPass123', 10);
 const auditHash = await bcrypt.hash('AuditPass123', 10);
 
+// 审计日志是 append-only：仅在一次性数据库中临时禁用 trigger 以便清空
+try {
+  await db`ALTER TABLE audit_logs DISABLE TRIGGER trg_audit_logs_no_mutation`;
+} catch {
+  // 旧库可能还没有该 trigger
+}
+
 await db`DELETE FROM audit_logs`;
 await db`DELETE FROM certificates`;
 await db`DELETE FROM complaints`;
@@ -111,6 +123,12 @@ await db`DELETE FROM dealers`;
 await db`DELETE FROM profiles`;
 await db`DELETE FROM login_rate_limits`;
 await db`DELETE FROM action_rate_limits`;
+
+try {
+  await db`ALTER TABLE audit_logs ENABLE TRIGGER trg_audit_logs_no_mutation`;
+} catch {
+  // 旧库可能还没有该 trigger
+}
 
 const [superAdmin] = await db`
   INSERT INTO profiles (username, full_name, email, password_hash, role, is_first_login)
@@ -183,6 +201,14 @@ const meWithOldToken = await req('/api/auth/me', { token: newAuditorLogin1.token
 assert('被重置用户旧 token 立即失效', meWithOldToken.status === 401, `status=${meWithOldToken.status}`);
 const newAuditorLogin2 = await login('newauditor@test.local', 'ResetPass123');
 assert('重置后新密码可登录', newAuditorLogin2.status === 200);
+const firstLoginStats = await req('/api/db/stats', { token: newAuditorLogin2.token });
+assert(
+  '首登未改密访问业务接口 403',
+  firstLoginStats.status === 403 && firstLoginStats.json?.code === 'PASSWORD_CHANGE_REQUIRED',
+  `status=${firstLoginStats.status} code=${firstLoginStats.json?.code}`
+);
+const firstLoginMe = await req('/api/auth/me', { token: newAuditorLogin2.token });
+assert('首登仍可访问 /api/auth/me', firstLoginMe.status === 200, `status=${firstLoginMe.status}`);
 
 const changePwd = await req('/api/auth/change-password', {
   method: 'POST', token: auditorToken,
@@ -218,14 +244,21 @@ const createPending = await req('/api/certificates', {
     certData: {
       shopName: '集成测试旗舰店', companyName: '集成测试有限公司', phone: '13900000009',
       scopeText: '予以下渠道:\n\n淘宝 | 天猫', duration: '2026.10.01 - 2027.10.01',
-      authorizer: '旎柏（上海）商贸有限公司', sealImage: '',
+      authorizer: 'Fake Authorizer', sealImage: '',
     },
   },
 });
 const newCertNumber = createPending.json?.certNumber;
 assert('提报返回真实编号(8位)', createPending.status === 200 && /^BAVP-\d{4}-[0-9A-F]{8}$/.test(newCertNumber || ''), `status=${createPending.status} cert=${newCertNumber}`);
-const [pendingCertRow] = await db`SELECT id, status FROM certificates WHERE cert_number = ${newCertNumber}`;
+const [pendingCertRow] = await db`
+  SELECT id, status, auth_scope FROM certificates WHERE cert_number = ${newCertNumber}
+`;
 assert('提报入库为 PENDING', pendingCertRow?.status === 'PENDING');
+assert(
+  '授权方由服务端固定，忽略客户端伪造值',
+  pendingCertRow?.auth_scope && !pendingCertRow.auth_scope.includes('Fake Authorizer'),
+  String(pendingCertRow?.auth_scope)
+);
 const badSeal = await req('/api/certificates', {
   method: 'POST', token: auditorToken2,
   body: {
@@ -265,9 +298,20 @@ assert('投诉搜索命中 1 条', complaintSearch.json?.total === 1, `total=${c
 const complaintId = complaintsPage2.json.data[0].id;
 const delComplaint = await req(`/api/db/complaints/${complaintId}`, { method: 'DELETE', token: superToken });
 assert('删除投诉成功', delComplaint.status === 200, `status=${delComplaint.status}`);
-const [gone] = await db`SELECT count(*)::int AS n FROM complaints WHERE id = ${complaintId}`;
-const [deletedLog] = await db`SELECT complaint_ref, complaint_id, action FROM audit_logs WHERE complaint_ref = ${complaintId} AND action = 'DELETED'`;
-assert('删除留痕(complaint_id 置空)', gone.n === 0 && deletedLog && deletedLog.complaint_id === null, JSON.stringify(deletedLog));
+const [gone] = await db`
+  SELECT count(*)::int AS n, count(deleted_at)::int AS deleted
+  FROM complaints WHERE id = ${complaintId}
+`;
+const [deletedLog] = await db`
+  SELECT complaint_ref, complaint_id, action
+  FROM audit_logs
+  WHERE complaint_id = ${complaintId} AND action = 'DELETE_COMPLAINT'
+`;
+assert(
+  '删除投诉为软删除且留痕',
+  gone.n === 1 && gone.deleted === 1 && deletedLog && deletedLog.complaint_id === complaintId && deletedLog.complaint_ref === complaintId,
+  JSON.stringify({ gone, deletedLog })
+);
 
 const cronNoSecret = await req('/api/cron/update-expired-certificates');
 assert('cron 无密钥 401', cronNoSecret.status === 401, `status=${cronNoSecret.status}`);
@@ -278,12 +322,21 @@ assert('到期证书已置 EXPIRED', expiredRow?.status === 'EXPIRED');
 
 const auditAsAuditor = await req('/api/db/audit-logs', { token: auditorToken2 });
 assert('AUDITOR 访问操作日志 403', auditAsAuditor.status === 403, `status=${auditAsAuditor.status}`);
-const auditAll = await req('/api/db/audit-logs?pageSize=50', { token: superToken });
+const auditAll = await req('/api/db/audit-logs?pageSize=100', { token: superToken });
 assert('SUPER 查询操作日志', auditAll.status === 200 && auditAll.json?.total >= 2, `total=${auditAll.json?.total}`);
-const auditDeleted = (auditAll.json?.data || []).find((x) => x.action === 'DELETED');
-assert('操作日志含已删除工单留痕', auditDeleted && auditDeleted.complaint_id === null && auditDeleted.complaint_ref === complaintId);
+const auditDeleted = (auditAll.json?.data || []).find((x) => x.action === 'DELETE_COMPLAINT');
+assert(
+  '操作日志含软删除工单留痕',
+  auditDeleted && auditDeleted.complaint_id === complaintId && auditDeleted.complaint_ref === complaintId,
+  JSON.stringify(auditDeleted)
+);
 const auditCertOnly = await req('/api/db/audit-logs?category=certificate&pageSize=50', { token: superToken });
-assert('证书日志分类且带 cert_number', auditCertOnly.json?.data?.length > 0 && auditCertOnly.json.data.every((x) => x.certificate_id) && auditCertOnly.json.data.some((x) => x.cert_number));
+assert(
+  '证书日志分类且带 cert_number',
+  auditCertOnly.json?.data?.length > 0
+    && auditCertOnly.json.data.every((x) => x.certificate_id || x.certificate_ref)
+    && auditCertOnly.json.data.some((x) => x.cert_number)
+);
 
 console.log(`\n===== RESULT: ${failures === 0 ? 'ALL PASS' : failures + ' FAILURE(S)'} =====`);
 await db.end({ timeout: 3 });

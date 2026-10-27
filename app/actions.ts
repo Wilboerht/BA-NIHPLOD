@@ -3,6 +3,7 @@
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { parseAuthScope, formatDateISO, getEndOfDay } from '@/lib/utils';
 import { headers } from 'next/headers';
+import { writeAudit } from '@/lib/audit';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -65,6 +66,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       FROM certificates c
       LEFT JOIN dealers d ON c.dealer_id = d.id
       WHERE c.cert_number = ${cleanQuery.toUpperCase()}
+        AND c.deleted_at IS NULL
     `;
 
     if (dbResults && dbResults.length > 0) {
@@ -88,7 +90,8 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
                d.company_name
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
-        WHERE (d.company_name ILIKE ${prefixPattern}
+        WHERE c.deleted_at IS NULL
+          AND (d.company_name ILIKE ${prefixPattern}
            OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern})
         ORDER BY c.end_date DESC
         LIMIT 50
@@ -102,7 +105,8 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
                  d.company_name
           FROM certificates c
           LEFT JOIN dealers d ON c.dealer_id = d.id
-          WHERE (d.company_name ILIKE ${containPattern}
+          WHERE c.deleted_at IS NULL
+            AND (d.company_name ILIKE ${containPattern}
              OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern})
           ORDER BY c.end_date DESC
           LIMIT 50
@@ -175,7 +179,12 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     // 搜索计数：批量 +1，失败不影响主流程
     try {
       const certNumbers = finalData.map((d) => d.id);
-      await sql`UPDATE certificates SET search_count = search_count + 1 WHERE cert_number = ANY(${certNumbers})`;
+      await sql`
+        UPDATE certificates
+        SET search_count = search_count + 1
+        WHERE cert_number = ANY(${certNumbers})
+          AND deleted_at IS NULL
+      `;
     } catch (e) {
       console.warn('[verifyCertificateAction] 搜索计数更新失败:', e instanceof Error ? e.message : String(e));
     }
@@ -268,6 +277,25 @@ export async function submitComplaintAction(formData: {
         RETURNING id
       `;
       const insertedId = insertResult[0]?.id;
+      if (insertedId) {
+        try {
+          await writeAudit(sql, {
+            action: 'SUBMIT_COMPLAINT',
+            targetType: 'complaint',
+            targetId: String(insertedId),
+            complaintId: String(insertedId),
+            complaintRef: String(insertedId),
+            comment: '公网访客提交打假投诉',
+            reason: 'public_complaint_submission',
+            after: {
+              channel: cleanChannel,
+              evidence_count: formData.evidence_image_urls?.length ?? 0,
+            },
+          });
+        } catch (auditErr) {
+          console.error('[submitComplaintAction] 审计写入失败:', auditErr);
+        }
+      }
       return { success: true, id: insertedId };
     } catch (err: unknown) {
       console.error("[submitComplaintAction] 数据库插入失败:", err);

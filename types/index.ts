@@ -24,6 +24,8 @@ export interface AuthUser {
   full_name?: string;
   role: string;
   is_banned?: boolean;
+  is_first_login?: boolean;
+  token_version?: number;
 }
 
 export interface TokenPayload {
@@ -77,6 +79,8 @@ export interface Certificate {
   auditor_id?: string;
   manager_id?: string;
   created_at?: string;
+  deleted_at?: string;
+  deleted_by?: string;
 }
 
 export interface Complaint {
@@ -89,6 +93,8 @@ export interface Complaint {
   review_note?: string;
   created_at: string;
   updated_at?: string;
+  deleted_at?: string;
+  deleted_by?: string;
 }
 
 export interface Template {

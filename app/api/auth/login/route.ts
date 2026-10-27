@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { findProfileForLogin, sql } from '@/lib/db';
 import { createToken, setAuthCookie } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
+import { actorFromUser, writeAudit } from '@/lib/audit';
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
 
     const { phone, password } = body!;
 
-    if (!phone || !password) {
+    if (typeof phone !== 'string' || typeof password !== 'string' || !phone || !password) {
       return NextResponse.json(
         { error: '请输入手机号和密码' },
         { status: 400 }
@@ -116,14 +117,46 @@ export async function POST(req: Request) {
     
     if (profileErr || !profile) {
       await recordFailedAttempt(clientIP);
+      try {
+        await writeAudit(sql, {
+          action: 'LOGIN_FAILED',
+          targetType: 'profile',
+          targetRef: phone.slice(0, 100),
+          comment: '账号不存在',
+          reason: 'invalid_credentials',
+          request: req,
+        });
+      } catch (auditErr) {
+        console.error('[audit] LOGIN_FAILED 写入失败:', auditErr);
+      }
       return NextResponse.json(
         { error: '账号或密码错误' },
         { status: 401 }
       );
     }
 
+    const profileActor = actorFromUser({
+      id: String(profile.id),
+      role: typeof profile.role === 'string' ? profile.role : undefined,
+      full_name: typeof profile.full_name === 'string' ? profile.full_name : undefined,
+      username: typeof profile.username === 'string' ? profile.username : undefined,
+    });
+
     // 2. 检查是否被封禁
     if (profile.is_banned) {
+      try {
+        await writeAudit(sql, {
+          actor: profileActor,
+          action: 'LOGIN_BLOCKED',
+          targetType: 'profile',
+          targetId: String(profile.id),
+          comment: '账号已被封禁',
+          reason: 'account_banned',
+          request: req,
+        });
+      } catch (auditErr) {
+        console.error('[audit] LOGIN_BLOCKED 写入失败:', auditErr);
+      }
       return NextResponse.json(
         { error: '账号已被封禁，请联系管理员' },
         { status: 403 }
@@ -133,9 +166,21 @@ export async function POST(req: Request) {
     // 3. 验证密码
     const passwordHash = typeof profile.password_hash === 'string' ? profile.password_hash : '';
     const isPasswordValid = await bcrypt.compare(password, passwordHash);
-    
+
     if (!isPasswordValid) {
       await recordFailedAttempt(clientIP);
+      try {
+        await writeAudit(sql, {
+          action: 'LOGIN_FAILED',
+          targetType: 'profile',
+          targetId: String(profile.id),
+          comment: '密码错误',
+          reason: 'invalid_credentials',
+          request: req,
+        });
+      } catch (auditErr) {
+        console.error('[audit] LOGIN_FAILED 写入失败:', auditErr);
+      }
       return NextResponse.json(
         { error: '账号或密码错误' },
         { status: 401 }
@@ -153,8 +198,22 @@ export async function POST(req: Request) {
       full_name: typeof profile.full_name === 'string' ? profile.full_name : undefined,
       role: String(profile.role),
       is_banned: Boolean(profile.is_banned),
+      is_first_login: Boolean(profile.is_first_login),
       token_version: Number(profile.token_version ?? 0),
     });
+
+    try {
+      await writeAudit(sql, {
+        actor: profileActor,
+        action: 'LOGIN_SUCCESS',
+        targetType: 'profile',
+        targetId: String(profile.id),
+        comment: `登录成功（IP: ${clientIP}）`,
+        request: req,
+      });
+    } catch (auditErr) {
+      console.error('[audit] LOGIN_SUCCESS 写入失败:', auditErr);
+    }
 
     // 5. 返回用户信息和是否需要改密码
     const response = NextResponse.json({
@@ -170,6 +229,7 @@ export async function POST(req: Request) {
     });
 
     response.headers.set('Set-Cookie', setAuthCookie(token));
+    response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (err: unknown) {
     console.error('Login error:', err);

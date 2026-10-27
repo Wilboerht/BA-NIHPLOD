@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50', 10) || 1, 1), 100);
 
     const rawCategory = searchParams.get('category');
-    const ALLOWED_CATEGORIES = ['certificate', 'complaint'];
+    const ALLOWED_CATEGORIES = ['certificate', 'complaint', 'account', 'auth', 'file', 'system'];
     const category = rawCategory && ALLOWED_CATEGORIES.includes(rawCategory) ? rawCategory : undefined;
     const q = searchParams.get('q')?.trim() || undefined;
 

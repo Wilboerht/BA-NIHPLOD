@@ -7,7 +7,8 @@ import postgres from 'postgres';
  * 数据库迁移执行器
  * - 按文件名顺序执行 db/migrate-*.sql
  * - 已执行文件记录在 schema_migrations 表，重复运行自动跳过
- * - 迁移文件内部自带 BEGIN/COMMIT；失败即整体回滚且不会记录
+ * - 新迁移文件带 BEGIN/COMMIT；旧文件依赖单次 simple query 的隐式事务。
+ *   失败即整体回滚且不会记录（手工 psql 执行时请使用 -1 或 ON_ERROR_STOP=1）
  *
  * 用法：
  *   node scripts/apply-migrations.mjs --dry-run                 # 只列出待执行

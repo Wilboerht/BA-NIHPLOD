@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_USER: nihplod
       POSTGRES_PASSWORD: devpassword
-      POSTGRES_DB: nihplod_bavp
+      POSTGRES_DB: ba_nihplod_db
       POSTGRES_HOST_AUTH_METHOD: md5
       TZ: Asia/Shanghai
       PGTZ: Asia/Shanghai

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { sql, checkActionRateLimit } from "@/lib/db";
 import { requireSuperAdmin, validatePassword } from "@/lib/auth";
 import { readJsonBody } from "@/lib/api-utils";
+import { actorFromUser, writeAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
 
     const { userId, newPassword } = body!;
 
-    if (!userId || !newPassword) {
+    if (typeof userId !== 'string' || typeof newPassword !== 'string' || !userId || !newPassword) {
       return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
     }
 
@@ -47,18 +48,33 @@ export async function POST(req: Request) {
     // 生成新密码哈希
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    const result = await sql`
-      UPDATE profiles 
-      SET password_hash = ${passwordHash},
-          updated_at = NOW(),
-          token_version = token_version + 1
-      WHERE id = ${userId} AND deleted_at IS NULL
-      RETURNING id, username, full_name
-    `;
-    if (!result || result.length === 0) {
+    const profile = await sql.begin(async (tx) => {
+      const result = await tx`
+        UPDATE profiles
+        SET password_hash = ${passwordHash},
+            is_first_login = true,
+            updated_at = NOW(),
+            token_version = token_version + 1
+        WHERE id = ${userId} AND deleted_at IS NULL
+        RETURNING id, username, full_name
+      `;
+      if (!result || result.length === 0) {
+        return null;
+      }
+      await writeAudit(tx, {
+        actor: actorFromUser(adminUser),
+        action: 'RESET_PASSWORD',
+        targetType: 'profile',
+        targetId: userId,
+        comment: `管理员重置 ${result[0].full_name || result[0].username || userId} 的密码，并要求首次登录改密`,
+        reason: 'admin_reset_password',
+        request: req,
+      });
+      return result[0];
+    });
+    if (!profile) {
       return NextResponse.json({ error: "用户不存在" }, { status: 404 });
     }
-    const profile = result[0];
     return NextResponse.json({ 
       success: true, 
       message: "密码已重置",

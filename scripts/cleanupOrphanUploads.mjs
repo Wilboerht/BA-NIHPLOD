@@ -71,12 +71,19 @@ try {
 
   const refs = new Set();
   const sealRows = await sql`SELECT seal_url AS url FROM certificates WHERE seal_url IS NOT NULL`;
+  const finalImageRows = await sql`SELECT final_image_url AS url FROM certificates WHERE final_image_url IS NOT NULL`;
   const complaintRows = await sql`
     SELECT evidence_image_url AS url FROM complaints WHERE evidence_image_url IS NOT NULL
     UNION ALL
     SELECT unnest(evidence_image_urls) AS url FROM complaints
   `;
-  for (const row of [...sealRows, ...complaintRows]) {
+  // 模板资产也可能位于 /uploads/，避免未来启用模板后误删
+  const templateRows = await sql`
+    SELECT background_url AS url FROM templates WHERE background_url IS NOT NULL
+    UNION ALL
+    SELECT stamp_url AS url FROM templates WHERE stamp_url IS NOT NULL
+  `;
+  for (const row of [...sealRows, ...finalImageRows, ...complaintRows, ...templateRows]) {
     if (typeof row.url === 'string' && row.url.startsWith('/uploads/')) {
       refs.add(row.url);
     }

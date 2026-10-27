@@ -35,6 +35,7 @@ interface PendingCert {
   end_date: string;
   status: string;
   created_at: string;
+  seal_url?: string | null;
   dealers: { company_name: string; phone: string } | null;
   auditor_profile: { full_name: string; username: string } | null;
 }
@@ -148,7 +149,7 @@ export default function WorkbenchPage() {
       scopeText: parsed.scopeText || "品牌官方经销授权",
       duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
       authorizer: parsed.authorizer || COMPANY_FULL_NAME,
-      sealImage: "",
+      sealImage: cert.seal_url || "/default-seal.png",
       phone: cert.dealers?.phone || ""
     });
     setPendingApproveId(cert.id);

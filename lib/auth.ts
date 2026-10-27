@@ -10,6 +10,15 @@ const AUTH_SECRET = process.env.AUTH_SECRET;
 
 function getSecret(): Uint8Array {
   if (AUTH_SECRET) {
+    if (AUTH_SECRET.length < 32) {
+      const message =
+        '[auth] AUTH_SECRET must be at least 32 characters. ' +
+        'Generate one with: openssl rand -base64 32';
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(message);
+      }
+      console.warn(message);
+    }
     return new TextEncoder().encode(AUTH_SECRET);
   }
   throw new Error(
@@ -25,6 +34,7 @@ export interface AuthUser {
   full_name?: string;
   role: string;
   is_banned?: boolean;
+  is_first_login?: boolean;
   token_version?: number;
 }
 
@@ -35,6 +45,7 @@ export interface TokenPayload extends JWTPayload {
   full_name?: string;
   role: string;
   is_banned?: boolean;
+  is_first_login?: boolean;
   token_version?: number;
   jti?: string;
 }
@@ -52,6 +63,7 @@ export async function createToken(user: AuthUser): Promise<string> {
     full_name: user.full_name,
     role: user.role,
     is_banned: user.is_banned ?? false,
+    is_first_login: user.is_first_login ?? false,
     token_version: user.token_version ?? 0,
     jti,
   })
@@ -126,7 +138,10 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
  * 若未登录则返回 401 响应
  * 同时查询数据库确认用户存在且未被禁用
  */
-export async function requireAuth(request: NextRequest | Request) {
+export async function requireAuth(
+  request: NextRequest | Request,
+  options: { allowFirstLogin?: boolean } = {}
+) {
   const payload = await verifyToken(request);
   if (!payload || !payload.id) {
     return {
@@ -138,7 +153,7 @@ export async function requireAuth(request: NextRequest | Request) {
   // 查询数据库确认用户存在、未被删除且未被禁用
   try {
     const rows = await sql`
-      SELECT id, username, full_name, phone, role, is_banned, token_version
+      SELECT id, username, full_name, phone, role, is_banned, is_first_login, token_version
       FROM profiles
       WHERE id = ${payload.id}
         AND deleted_at IS NULL
@@ -166,6 +181,16 @@ export async function requireAuth(request: NextRequest | Request) {
         response: NextResponse.json({ error: '登录状态已失效，请重新登录' }, { status: 401 }),
       };
     }
+    // 首次登录必须改密：只放行 /api/auth/me 与 /api/auth/change-password
+    if (profile.is_first_login === true && !options.allowFirstLogin) {
+      return {
+        user: null,
+        response: NextResponse.json(
+          { error: '首次登录必须修改密码', code: 'PASSWORD_CHANGE_REQUIRED' },
+          { status: 403 }
+        ),
+      };
+    }
     return {
       user: {
         id: String(profile.id),
@@ -173,6 +198,7 @@ export async function requireAuth(request: NextRequest | Request) {
         full_name: profile.full_name ?? undefined,
         phone: profile.phone ?? undefined,
         role: String(profile.role),
+        is_first_login: Boolean(profile.is_first_login),
       } as AuthUser,
       response: null,
     };
@@ -235,7 +261,6 @@ export function setAuthCookie(token: string): string {
     'HttpOnly',
     isSecure ? 'Secure' : '',
     'SameSite=Lax',
-    isSecure ? 'Partitioned' : '',
     'Path=/',
     'Max-Age=28800',
   ].filter(Boolean);
@@ -252,7 +277,6 @@ export function clearAuthCookie(): string {
     'HttpOnly',
     isSecure ? 'Secure' : '',
     'SameSite=Lax',
-    isSecure ? 'Partitioned' : '',
     'Path=/',
     'Max-Age=0',
     'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
@@ -267,6 +291,9 @@ export function clearAuthCookie(): string {
 export function validatePassword(password: string): { valid: boolean; error?: string } {
   if (!password || password.length < 8) {
     return { valid: false, error: '密码长度不得少于 8 位' };
+  }
+  if (new TextEncoder().encode(password).length > 72) {
+    return { valid: false, error: '密码过长，UTF-8 编码后不能超过 72 字节' };
   }
   if (!/[A-Z]/.test(password)) {
     return { valid: false, error: '密码必须包含至少一个大写字母' };
