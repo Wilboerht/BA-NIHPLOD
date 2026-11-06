@@ -23,6 +23,7 @@ interface Certificate {
   seal_url?: string;
   templates?: { stamp_url?: string } | null;
   dealers?: { company_name?: string; phone?: string } | null;
+  auditor_id?: string | null;
   auditor_name?: string;
 }
 
@@ -32,12 +33,14 @@ export default function CertificatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<CertData | undefined>(undefined);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'approve' | 'update'>('approve');
   const [revokingId, setRevokingId] = useState<string | null>(null);
   // 服务端分页
   const [page, setPage] = useState(1);
@@ -52,6 +55,7 @@ export default function CertificatesPage() {
   const auditorFilterItems = [
     { key: 'ISSUED' as const, label: '生效中', desc: '生效中' },
     { key: 'UPCOMING' as const, label: '待生效', desc: '已签发但尚未到生效日期' },
+    { key: 'PENDING' as const, label: '我的待审核', desc: '本人提交、等待超级管理员审核的申请' },
     { key: 'invalid' as const, label: '无效', desc: '已失效、已吊销、已拒绝' },
   ];
   const adminFilterItems = [
@@ -62,12 +66,6 @@ export default function CertificatesPage() {
   ];
   const filterItems = userRole === 'AUDITOR' ? auditorFilterItems : adminFilterItems;
 
-  useEffect(() => {
-    if (userRole === 'AUDITOR' && statusFilter === 'PENDING') {
-      setStatusFilter('ISSUED');
-    }
-  }, [userRole, statusFilter]);
-
   const closeIssueModal = () => {
     setShowIssueModal(false);
     setSelectedCertData(undefined);
@@ -75,6 +73,7 @@ export default function CertificatesPage() {
     setIsEditMode(false);
     setIsViewVoided(false);
     setPendingApproveId(null);
+    setPendingAction('approve');
   };
 
   useEscapeKey(closeIssueModal, showIssueModal);
@@ -98,6 +97,7 @@ export default function CertificatesPage() {
       if (res.ok) {
         const data = await res.json();
         setUserRole(data.user?.role ?? null);
+        setUserId(data.user?.id ?? null);
       }
     } catch (err) {
       console.warn("Failed to fetch user role:", err);
@@ -405,6 +405,7 @@ export default function CertificatesPage() {
                                 phone: cert.dealers?.phone || ""
                               });
                               setPendingApproveId(cert.id);
+                              setPendingAction('approve');
                               setIsViewVoided(false);
                               setIsViewOnly(false);
                               setIsEditMode(true);
@@ -414,6 +415,36 @@ export default function CertificatesPage() {
                           >
                             <ShieldCheck className="w-3 h-3" />
                             核查准入
+                          </button>
+                        )}
+                        {cert.status === 'PENDING' && userRole === 'AUDITOR' && cert.auditor_id === userId && (
+                          <button
+                            onClick={() => {
+                              const parsed = parseAuthScope(cert.auth_scope);
+                              setSelectedCertData({
+                                id: cert.id,
+                                cert_number: cert.cert_number,
+                                companyName: parsed.companyName,
+                                companyLabel: "公司名称",
+                                shopName: cert.dealers?.company_name || "",
+                                shopLabel: "店铺或平台名称",
+                                scopeText: parsed.scopeText || "品牌官方经销授权",
+                                duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+                                authorizer: parsed.authorizer || COMPANY_FULL_NAME,
+                                sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
+                                phone: cert.dealers?.phone || ""
+                              });
+                              setPendingApproveId(cert.id);
+                              setPendingAction('update');
+                              setIsViewVoided(false);
+                              setIsViewOnly(false);
+                              setIsEditMode(true);
+                              setShowIssueModal(true);
+                            }}
+                            className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold"
+                          >
+                            <FileImage className="w-3 h-3" />
+                            修改
                           </button>
                         )}
                         {cert.status === 'ISSUED' && (
@@ -563,11 +594,15 @@ export default function CertificatesPage() {
               <div className="px-8 md:px-12 pt-8 pb-5 flex justify-between items-center bg-white shrink-0 border-b border-slate-100">
                   <div className="space-y-1">
                     <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
-                      {pendingApproveId ? "审核准入核查" : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (userRole === 'SUPER_ADMIN' ? "官方授权资质签发" : "授权资质审核提报")}
+                      {pendingApproveId
+                        ? (pendingAction === 'approve' ? "审核准入核查" : "修改待审核申请")
+                        : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (userRole === 'SUPER_ADMIN' ? "官方授权资质签发" : "授权资质审核提报")}
                     </h3>
                       <p className="text-[12px] text-slate-400 font-medium tracking-wide">
                         {pendingApproveId
-                          ? "核对经销商资质信息与授权证书预览，确认无误后核发"
+                          ? (pendingAction === 'approve'
+                            ? "核对经销商资质信息与授权证书预览，确认无误后核发"
+                            : "修改本人提交的待审核资料，保存后等待超级管理员审核")
                           : isEditMode
                           ? "正在修正现有授权证书中的录入误差，提交后将同步刷新查验图"
                           : (userRole === 'SUPER_ADMIN'
@@ -590,6 +625,7 @@ export default function CertificatesPage() {
                     mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'}
                     isVoided={isViewVoided}
                     isPending={!!pendingApproveId}
+                    pendingAction={pendingAction}
                     onSuccess={() => {
                       setShowIssueModal(false);
                       setSelectedCertData(undefined);
@@ -597,9 +633,10 @@ export default function CertificatesPage() {
                       setIsEditMode(false);
                       setIsViewVoided(false);
                       setPendingApproveId(null);
+                      setPendingAction('approve');
                       fetchCertificates(); // 重新加载证书列表
                     }}
-                    onReject={pendingApproveId ? () => rejectPendingCertificate(pendingApproveId) : undefined}
+                    onReject={pendingApproveId && pendingAction === 'approve' ? () => rejectPendingCertificate(pendingApproveId) : undefined}
                   />
 
 

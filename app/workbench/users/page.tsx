@@ -15,14 +15,14 @@ const ROLE_OPTIONS = [
   {
     value: "SUPER_ADMIN",
     label: "超级管理员",
-    desc: "最高权限，可核发证书与管理用户",
+    desc: "最高权限，可审批/直接签发证书并管理用户",
     color: "text-slate-900",
     dot: "bg-slate-900",
   },
   {
     value: "AUDITOR",
     label: "审核员",
-    desc: "可受理初审与提报，无法最终签发",
+    desc: "可提交授权申请、修改本人待审核申请，无法最终签发",
     color: "text-slate-400",
     dot: "bg-slate-300",
   },

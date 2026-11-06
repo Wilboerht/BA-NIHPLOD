@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/auth';
 export async function GET(req: Request) {
   try {
     // 权限检查：只有管理员可以查看待核发证书
-    const { response } = await requireAdmin(req);
+    const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
     }
@@ -17,7 +17,10 @@ export async function GET(req: Request) {
       ? Math.min(parsedLimit, 1000)
       : undefined;
 
-    const { data, error } = await getPendingCertificates(limitNum);
+    const { data, error } = await getPendingCertificates(
+      limitNum,
+      user?.role === 'AUDITOR' ? user.id : undefined
+    );
 
     if (error) {
       return NextResponse.json(

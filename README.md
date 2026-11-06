@@ -1,6 +1,6 @@
 # NIHPLOD Brand Authorization & Verification Platform
 
-品牌授权及验证平台：经销商授权管理、两级审核流、证书合成与公开防伪查询。
+品牌授权及验证平台：经销商授权管理、提报与终审流程、证书合成与公开防伪查询。
 
 ## 技术栈
 
@@ -202,6 +202,7 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 - 账号管理类接口仅限 `SUPER_ADMIN`（`lib/auth.ts#requireSuperAdmin`）
 - 证书/投诉删除为软删除：列表移除，业务数据、证据与审计链保留
 - 投诉删除（软删除）仅 `SUPER_ADMIN`；审核员只能流转状态
+- 待审核证书：审核员可修改本人提交的待审核申请且只能看到本人待审记录；`SUPER_ADMIN` 可修改任意待审核证书并终审/直接签发
 - 已签发证书内容不可编辑；修正必须吊销后重新签发
 - 证书授权方由服务端固定为 `COMPANY_FULL_NAME`；自定义印章仅 `SUPER_ADMIN` 可提交
 - `audit_logs` 为 append-only：数据库 trigger 禁止 UPDATE/DELETE；删除证书改为 `SET NULL` + `certificate_ref`

@@ -278,7 +278,8 @@ const createPending = await req('/api/certificates', {
 const newCertNumber = createPending.json?.certNumber;
 assert('提报返回真实编号(8位)', createPending.status === 200 && /^BAVP-\d{4}-[0-9A-F]{8}$/.test(newCertNumber || ''), `status=${createPending.status} cert=${newCertNumber}`);
 const [pendingCertRow] = await db`
-  SELECT id, status, auth_scope FROM certificates WHERE cert_number = ${newCertNumber}
+  SELECT id, status, auth_scope, auditor_id, manager_id, seal_url
+  FROM certificates WHERE cert_number = ${newCertNumber}
 `;
 assert('提报入库为 PENDING', pendingCertRow?.status === 'PENDING');
 assert(
@@ -286,6 +287,145 @@ assert(
   pendingCertRow?.auth_scope && !pendingCertRow.auth_scope.includes('Fake Authorizer'),
   String(pendingCertRow?.auth_scope)
 );
+assert('提报记录 auditor 为本人', pendingCertRow?.auditor_id === auditor.id);
+assert('提报记录 manager 为空', pendingCertRow?.manager_id === null);
+
+const selfUpdate = await req('/api/certificates', {
+  method: 'POST', token: auditorToken2,
+  body: {
+    action: 'update_certificate',
+    certId: pendingCertRow.id,
+    certData: {
+      shopName: '集成测试旗舰店（修改）',
+      companyName: '集成测试有限公司（修改）',
+      phone: '13900000010',
+      scopeText: '仅限抖音渠道',
+      duration: '2026.10.02 - 2027.10.02',
+      authorizer: 'Fake Authorizer',
+      sealImage: '/uploads/certificates/evil.png',
+    },
+  },
+});
+assert('审核员可修改本人待审核证书', selfUpdate.status === 200 && selfUpdate.json?.status === 'UPDATED', `status=${selfUpdate.status}`);
+const [selfUpdatedRow] = await db`
+  SELECT c.status, c.auditor_id, c.manager_id, c.seal_url, c.auth_scope,
+         d.company_name AS dealer_name, d.phone AS dealer_phone
+  FROM certificates c
+  LEFT JOIN dealers d ON c.dealer_id = d.id
+  WHERE c.id = ${pendingCertRow.id}
+`;
+assert(
+  '本人修改后仍为 PENDING',
+  selfUpdatedRow?.status === 'PENDING',
+  String(selfUpdatedRow?.status)
+);
+assert(
+  '本人修改不改变 auditor/manager',
+  selfUpdatedRow?.auditor_id === auditor.id && selfUpdatedRow?.manager_id === null,
+  `auditor=${selfUpdatedRow?.auditor_id} manager=${selfUpdatedRow?.manager_id}`
+);
+assert(
+  '本人修改不会写入自定义签章',
+  selfUpdatedRow?.seal_url === null,
+  String(selfUpdatedRow?.seal_url)
+);
+assert(
+  '本人修改更新主体与授权范围',
+  selfUpdatedRow?.dealer_name === '集成测试旗舰店（修改）'
+    && selfUpdatedRow?.dealer_phone === '13900000010'
+    && String(selfUpdatedRow?.auth_scope).includes('集成测试有限公司（修改）')
+    && String(selfUpdatedRow?.auth_scope).includes('仅限抖音渠道'),
+  `${selfUpdatedRow?.dealer_name} / ${selfUpdatedRow?.dealer_phone} / ${selfUpdatedRow?.auth_scope}`
+);
+assert(
+  '审核员修改时授权方仍由服务端固定',
+  selfUpdatedRow?.auth_scope && !selfUpdatedRow.auth_scope.includes('Fake Authorizer'),
+  String(selfUpdatedRow?.auth_scope)
+);
+
+const superPendingCreate = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: {
+    action: 'create_pending',
+    certData: {
+      shopName: '超管提报测试店', companyName: '超管提报测试有限公司', phone: '13900000011',
+      scopeText: '仅供测试', duration: '2026.10.01 - 2027.10.01',
+      authorizer: 'ignored', sealImage: '',
+    },
+  },
+});
+const superPendingNumber = superPendingCreate.json?.certNumber;
+const [superPendingRow] = await db`
+  SELECT id, auditor_id FROM certificates WHERE cert_number = ${superPendingNumber}
+`;
+assert('超管可创建待审申请', superPendingCreate.status === 200 && superPendingRow?.auditor_id === superAdmin.id);
+
+const auditorPendingList = await req('/api/db/certificates?status=PENDING&pageSize=50', { token: auditorToken2 });
+assert(
+  '审核员 PENDING 列表只含本人记录',
+  auditorPendingList.status === 200
+    && auditorPendingList.json?.total === 2
+    && auditorPendingList.json?.data?.every((row) => row.auditor_id === auditor.id),
+  `status=${auditorPendingList.status} total=${auditorPendingList.json?.total}`
+);
+const superPendingList = await req('/api/db/certificates?status=PENDING&pageSize=50', { token: superToken });
+assert('超管 PENDING 列表包含全部记录', superPendingList.status === 200 && superPendingList.json?.total === 3, `total=${superPendingList.json?.total}`);
+const auditorPendingEndpoint = await req('/api/db/certificates/pending', { token: auditorToken2 });
+assert(
+  '审核员 pending 接口只含本人记录',
+  auditorPendingEndpoint.status === 200
+    && auditorPendingEndpoint.json?.data?.length === 2
+    && auditorPendingEndpoint.json?.data?.every((row) => row.auditor_id === auditor.id),
+  `status=${auditorPendingEndpoint.status} length=${auditorPendingEndpoint.json?.data?.length}`
+);
+
+const updateOthersPending = await req('/api/certificates', {
+  method: 'POST', token: auditorToken2,
+  body: {
+    action: 'update_certificate',
+    certId: superPendingRow.id,
+    certData: {
+      shopName: '越权修改店', companyName: '越权修改公司', phone: '13900000012',
+      scopeText: '越权', duration: '2026.10.02 - 2027.10.02',
+      authorizer: 'ignored', sealImage: '',
+    },
+  },
+});
+assert('审核员不能修改他人待审证书', updateOthersPending.status === 403, `status=${updateOthersPending.status}`);
+
+const superUpdate = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: {
+    action: 'update_certificate',
+    certId: pendingCertRow.id,
+    certData: {
+      shopName: '超管复核修改店', companyName: '超管复核修改公司', phone: '13900000014',
+      scopeText: '超管复核修改范围', duration: '2026.10.02 - 2027.10.02',
+      authorizer: 'ignored', sealImage: '',
+    },
+  },
+});
+assert('超级管理员可修改审核员待审证书', superUpdate.status === 200, `status=${superUpdate.status}`);
+const [superUpdatedRow] = await db`
+  SELECT status, auditor_id, manager_id FROM certificates WHERE id = ${pendingCertRow.id}
+`;
+assert(
+  '超管修改待审证书仍保持 auditor 与 PENDING',
+  superUpdatedRow?.status === 'PENDING'
+    && superUpdatedRow?.auditor_id === auditor.id
+    && superUpdatedRow?.manager_id === superAdmin.id,
+  `${superUpdatedRow?.status} / ${superUpdatedRow?.auditor_id} / ${superUpdatedRow?.manager_id}`
+);
+
+const rejectSuperPending = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: { action: 'reject_pending', certId: superPendingRow.id },
+});
+const deleteSuperPending = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: { action: 'delete_certificate', certId: superPendingRow.id },
+});
+assert('清理超管测试待审记录', rejectSuperPending.status === 200 && deleteSuperPending.status === 200);
 const badSeal = await req('/api/certificates', {
   method: 'POST', token: auditorToken2,
   body: {
@@ -304,6 +444,20 @@ const approve = await req('/api/certificates', {
 assert('核发返回同编号', approve.status === 200 && approve.json?.certNumber === newCertNumber);
 const [approvedRow] = await db`SELECT status, manager_id FROM certificates WHERE id = ${pendingCertRow.id}`;
 assert('核发后 ISSUED 且记录 manager', approvedRow?.status === 'ISSUED' && approvedRow?.manager_id === superAdmin.id);
+
+const updateAfterApprove = await req('/api/certificates', {
+  method: 'POST', token: auditorToken2,
+  body: {
+    action: 'update_certificate',
+    certId: pendingCertRow.id,
+    certData: {
+      shopName: '核发后修改店', companyName: '核发后修改公司', phone: '13900000013',
+      scopeText: '核发后修改', duration: '2026.10.02 - 2027.10.02',
+      authorizer: 'ignored', sealImage: '',
+    },
+  },
+});
+assert('审核员不能修改已核发证书', updateAfterApprove.status === 400, `status=${updateAfterApprove.status}`);
 
 const pendingList = await req('/api/db/certificates?status=PENDING&pageSize=1', { token: superToken });
 assert('PENDING 过滤 total=1', pendingList.json?.total === 1, `total=${pendingList.json?.total}`);

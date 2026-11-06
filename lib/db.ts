@@ -170,7 +170,10 @@ function buildDealersNested(row: SqlRow): SqlRow {
 /**
  * 获取待核发证书列表（用于管理面板）
  */
-export async function getPendingCertificates(limit?: number): Promise<{ data: SqlRow[]; error: Error | null }> {
+export async function getPendingCertificates(
+  limit?: number,
+  auditorId?: string
+): Promise<{ data: SqlRow[]; error: Error | null }> {
   const result = await sql`
     SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
     FROM certificates c
@@ -178,6 +181,7 @@ export async function getPendingCertificates(limit?: number): Promise<{ data: Sq
     LEFT JOIN profiles p ON c.auditor_id = p.id
     WHERE c.status = 'PENDING'
       AND c.deleted_at IS NULL
+      ${auditorId ? sql`AND c.auditor_id = ${auditorId}` : sql``}
     ORDER BY c.created_at ASC
     ${limit ? sql`LIMIT ${limit}` : sql``}
   `;
@@ -192,7 +196,8 @@ export async function getAllCertificates(
   limit?: number,
   offset?: number,
   statusFilter?: string,
-  search?: string
+  search?: string,
+  auditorId?: string
 ): Promise<{ data: SqlRow[]; total: number; error: Error | null }> {
   const baseSelect = sql`
     SELECT c.id, c.cert_number, c.dealer_id, c.template_id, c.auth_scope, c.start_date, c.end_date, c.status, c.final_image_url, c.seal_url, c.auditor_id, c.manager_id, c.created_at, c.updated_at, c.search_count, d.company_name, d.phone, p.id as profile_id, p.full_name as auditor_name
@@ -217,8 +222,11 @@ export async function getAllCertificates(
   const searchCondition = likePattern
     ? sql` AND (c.cert_number ILIKE ${likePattern} OR d.company_name ILIKE ${likePattern} OR split_part(c.auth_scope, ' | ', 1) ILIKE ${likePattern})`
     : sql``;
+  const auditorCondition = auditorId
+    ? sql` AND (c.status <> 'PENDING' OR c.auditor_id = ${auditorId})`
+    : sql``;
 
-  const whereClause = sql`WHERE c.deleted_at IS NULL ${statusCondition} ${searchCondition}`;
+  const whereClause = sql`WHERE c.deleted_at IS NULL ${statusCondition} ${auditorCondition} ${searchCondition}`;
 
   const countRes = await sql`
     SELECT COUNT(*) as count

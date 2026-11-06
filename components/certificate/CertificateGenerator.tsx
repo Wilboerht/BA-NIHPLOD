@@ -29,6 +29,7 @@ interface CertificateGeneratorProps {
   mode?: 'create' | 'view' | 'edit';
   isVoided?: boolean;
   isPending?: boolean;
+  pendingAction?: 'approve' | 'update';
   previewOnly?: boolean;
   onSuccess?: () => void;
   onReject?: () => void;
@@ -79,7 +80,7 @@ function updateScopeTextChannels(text: string, channels: string[], custom: strin
   return lines.join('\n');
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, previewOnly = false, onSuccess, onReject }: CertificateGeneratorProps) {
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, pendingAction = 'approve', previewOnly = false, onSuccess, onReject }: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -592,8 +593,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
       // 服务端返回的真实证书编号（用于替换预览图中的临时编号）
       let serverCertNumber: string | undefined;
+      const shouldApprove = mode === 'edit' && isPending && pendingAction === 'approve' && isManager;
 
-      // 编辑模式且是待审核证书：先更新再核发
       if (mode === 'edit' && isPending) {
         const updateRes = await fetchWithTimeout("/api/certificates", {
           method: "POST",
@@ -609,19 +610,23 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         if (!updateRes.ok) throw new Error(updateData.error || "更新失败");
         if (updateData.certNumber) serverCertNumber = updateData.certNumber;
 
-        const approveRes = await fetchWithTimeout("/api/certificates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "approve_issue",
-            certId: initialData?.id,
-            managerId: user?.id
-          })
-        });
-        const approveData = await approveRes.json().catch(() => ({}));
-        if (!approveRes.ok) throw new Error(approveData.error || "核发失败");
-        if (approveData.certNumber) serverCertNumber = approveData.certNumber;
-        toast({ message: "授权信息已更新并核发成功", type: "success" });
+        if (shouldApprove) {
+          const approveRes = await fetchWithTimeout("/api/certificates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "approve_issue",
+              certId: initialData?.id,
+              managerId: user?.id
+            })
+          });
+          const approveData = await approveRes.json().catch(() => ({}));
+          if (!approveRes.ok) throw new Error(approveData.error || "核发失败");
+          if (approveData.certNumber) serverCertNumber = approveData.certNumber;
+          toast({ message: "授权信息已更新并核发成功", type: "success" });
+        } else {
+          toast({ message: "修改已保存，等待超级管理员审核", type: "success" });
+        }
       } else {
         const action = mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending");
         const response = await fetchWithTimeout("/api/certificates", {
@@ -651,7 +656,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       if (mode === 'create' && !isManager) {
         setPendingSubmitted(true);
       }
-      const nowIssued = mode !== 'create' || isManager;
+      const nowIssued = mode === 'create'
+        ? isManager
+        : !(mode === 'edit' && isPending && !shouldApprove);
       if (nowIssued) {
         setIsIssued(true);
       }
@@ -964,7 +971,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                 ) : (
                   <>
                     <CheckCircle2 size={15} />
-                    {isPending ? "确认修改并核发" : mode === 'edit' ? "确认修改" : userRole === 'SUPER_ADMIN' ? "签发授权" : "提报授权"}
+                    {isPending
+                      ? (pendingAction === 'approve' ? "确认修改并核发" : "保存修改")
+                      : mode === 'edit' ? "确认修改" : userRole === 'SUPER_ADMIN' ? "签发授权" : "提报授权"}
                   </>
                 )}
               </button>

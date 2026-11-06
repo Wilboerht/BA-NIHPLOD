@@ -4,10 +4,11 @@ import { requireAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const { response } = await requireAdmin(request);
+    const { user, response } = await requireAdmin(request);
     if (response) {
       return response;
     }
+    const auditorId = user?.role === 'AUDITOR' ? user.id : undefined;
 
     const limit = request.nextUrl.searchParams.get('limit');
     const page = request.nextUrl.searchParams.get('page');
@@ -28,12 +29,12 @@ export async function GET(request: NextRequest) {
 
     if (pageNum && pageSizeNum) {
       const offset = (pageNum - 1) * pageSizeNum;
-      const result = await getAllCertificates(pageSizeNum, offset, status, q);
+      const result = await getAllCertificates(pageSizeNum, offset, status, q, auditorId);
       data = result.data;
       total = result.total;
     } else {
       // 未显式传 limit 时给出默认上限，避免意外全表返回
-      const result = await getAllCertificates(limitNum ?? 100, undefined, status, q);
+      const result = await getAllCertificates(limitNum ?? 100, undefined, status, q, auditorId);
       data = result.data;
       total = result.total;
     }

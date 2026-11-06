@@ -5,7 +5,7 @@ import { ADMIN_ROLES } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
-  XCircle, AlertCircle, ChevronRight,
+  XCircle, AlertCircle, ChevronRight, Pencil,
   Loader2, X
 } from "lucide-react";
 import Link from "next/link";
@@ -37,7 +37,8 @@ interface PendingCert {
   created_at: string;
   seal_url?: string | null;
   dealers: { company_name: string; phone: string } | null;
-  auditor_profile: { full_name: string; username: string } | null;
+  auditor_id?: string | null;
+  auditor_name?: string | null;
 }
 
 export default function WorkbenchPage() {
@@ -47,11 +48,12 @@ export default function WorkbenchPage() {
   const [pendingCerts, setPendingCerts] = useState<PendingCert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<CertData | undefined>(undefined);
   const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'approve' | 'update'>('approve');
   const [isViewVoided, setIsViewVoided] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -130,6 +132,7 @@ export default function WorkbenchPage() {
     setShowIssueModal(false);
     setSelectedCertData(undefined);
     setPendingApproveId(null);
+    setPendingAction('approve');
     setIsViewVoided(false);
     setIsViewOnly(false);
     setIsEditMode(false);
@@ -153,6 +156,30 @@ export default function WorkbenchPage() {
       phone: cert.dealers?.phone || ""
     });
     setPendingApproveId(cert.id);
+    setPendingAction('approve');
+    setIsViewVoided(false);
+    setIsViewOnly(false);
+    setIsEditMode(true);
+    setShowIssueModal(true);
+  };
+
+  const handleEditPending = (cert: PendingCert) => {
+    const parsed = parseAuthScope(cert.auth_scope);
+    setSelectedCertData({
+      id: cert.id,
+      cert_number: cert.cert_number,
+      companyName: parsed.companyName,
+      companyLabel: "公司名称",
+      shopName: cert.dealers?.company_name || "",
+      shopLabel: "店铺或平台名称",
+      scopeText: parsed.scopeText || "品牌官方经销授权",
+      duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
+      authorizer: parsed.authorizer || COMPANY_FULL_NAME,
+      sealImage: cert.seal_url || "/default-seal.png",
+      phone: cert.dealers?.phone || ""
+    });
+    setPendingApproveId(cert.id);
+    setPendingAction('update');
     setIsViewVoided(false);
     setIsViewOnly(false);
     setIsEditMode(true);
@@ -308,7 +335,7 @@ export default function WorkbenchPage() {
                     {isAdmin ? "审核员提交 · 待核发授权" : "我提交的授权申请"}
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5 font-medium tracking-tight">
-                    {isAdmin ? "以下申请由审核员初审提报" : "实时跟踪您的提报与审核进度"}
+                    {isAdmin ? "以下申请由审核员提报，等待终审" : "实时跟踪您的提报与审核进度"}
                   </p>
                 </div>
               </div>
@@ -332,8 +359,8 @@ export default function WorkbenchPage() {
                     <CheckCircle2 className="w-7 h-7 text-slate-200" />
                   </div>
                   <div className="text-center">
-                    <p className="text-[13px] font-bold text-slate-600">审核队列已清空</p>
-                    <p className="text-[11px] text-slate-400 mt-1">目前没有等待核发的授权申请。</p>
+                    <p className="text-[13px] font-bold text-slate-600">{isAdmin ? "审核队列已清空" : "暂无待审核申请"}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">{isAdmin ? "目前没有等待核发的授权申请。" : "您提交的授权申请均已完成审核。"}</p>
                   </div>
                 </div>
               ) : (
@@ -369,6 +396,11 @@ export default function WorkbenchPage() {
                                   核发
                                 </button>
                               </div>
+                            ) : cert.auditor_id === userId ? (
+                              <button onClick={() => handleEditPending(cert)} disabled={isBusy} className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md px-2 py-1 transition-all active:scale-90 text-[11px] font-bold">
+                                <Pencil className="w-3 h-3" />
+                                修改
+                              </button>
                             ) : (
                               <span className="inline-flex items-center px-2 py-0.5 rounded bg-white text-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-200">
                                 待审核
@@ -473,11 +505,15 @@ export default function WorkbenchPage() {
               <div className="px-8 md:px-12 pt-8 pb-5 flex justify-between items-center bg-white shrink-0 border-b border-slate-100">
                 <div className="space-y-1">
                   <h3 className="text-xl font-black text-slate-900 tracking-[0.05em]">
-                    {pendingApproveId ? "审核准入核查" : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (userRole === 'SUPER_ADMIN' ? "官方授权资质签发" : "授权资质审核提报")}
+                    {pendingApproveId
+                      ? (pendingAction === 'approve' ? "审核准入核查" : "修改待审核申请")
+                      : isViewVoided ? "审阅历史授信档案" : isViewOnly ? "核对并调取授权证书" : isEditMode ? "修正官方授权资质信息" : (userRole === 'SUPER_ADMIN' ? "官方授权资质签发" : "授权资质审核提报")}
                   </h3>
                   <p className="text-[12px] text-slate-400 font-medium tracking-wide">
                     {pendingApproveId
-                      ? "核对经销商资质信息与授权证书预览，确认无误后核发"
+                      ? (pendingAction === 'approve'
+                        ? "核对经销商资质信息与授权证书预览，确认无误后核发"
+                        : "修改本人提交的待审核资料，保存后等待超级管理员审核")
                       : isEditMode
                       ? "正在修正现有授权证书中的录入误差，提交后将同步刷新查验图"
                       : (userRole === 'SUPER_ADMIN'
@@ -500,11 +536,12 @@ export default function WorkbenchPage() {
                     mode={isViewOnly ? 'view' : isEditMode ? 'edit' : 'create'}
                     isVoided={isViewVoided}
                     isPending={!!pendingApproveId}
+                    pendingAction={pendingAction}
                     onSuccess={() => {
                       closeIssueModal();
                       loadDashboard(userRole ?? undefined);
                     }}
-                    onReject={handleRejectFromModal}
+                    onReject={isAdmin && pendingAction === 'approve' ? handleRejectFromModal : undefined}
                   />
                 </div>
               </div>

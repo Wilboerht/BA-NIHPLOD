@@ -165,7 +165,8 @@ export async function POST(req: Request) {
 
     // 操作者 ID：在不同流程中代表不同角色
     //   create_pending → 作为 auditor_id（审核员提报）
-    //   approve_issue / reject_pending / update_certificate → 作为 manager_id（超级管理员操作）
+    //   approve_issue / reject_pending / update_certificate（超级管理员）→ 作为 manager_id
+    //   update_certificate（审核员本人）→ 保留原 auditor_id / manager_id
     //   revoke_certificate / delete_certificate → 作为审计日志的 actor_id
     const operatorId = adminUser!.id;
     const actor = actorFromUser(adminUser);
@@ -545,17 +546,16 @@ export async function POST(req: Request) {
 
     // --- 流程 6: 更新证书 ---
     if (action === 'update_certificate') {
-      const forbidden = requireSuperAdmin(adminUser!.role);
-      if (forbidden) return forbidden;
-
       if (!certId) throw new ValidationError('缺少证书 ID');
       if (!certData) throw new ValidationError('缺少更新数据');
 
       const statusCheck = await sql`
-        SELECT status, dealer_id, cert_number, auth_scope, start_date, end_date, seal_url
-        FROM certificates
-        WHERE id = ${certId}
-          AND deleted_at IS NULL
+        SELECT c.status, c.dealer_id, c.cert_number, c.auth_scope, c.start_date, c.end_date,
+               c.seal_url, c.auditor_id, c.manager_id, d.phone AS dealer_phone
+        FROM certificates c
+        LEFT JOIN dealers d ON c.dealer_id = d.id
+        WHERE c.id = ${certId}
+          AND c.deleted_at IS NULL
         LIMIT 1
       `;
       if (!statusCheck || statusCheck.length === 0) {
@@ -568,9 +568,35 @@ export async function POST(req: Request) {
         );
       }
 
+      const isSuperAdmin = adminUser!.role === 'SUPER_ADMIN';
+      const ownerId = statusCheck[0].auditor_id == null ? '' : String(statusCheck[0].auditor_id);
+      if (!isSuperAdmin && ownerId !== operatorId) {
+        return NextResponse.json(
+          { error: '只能修改自己提交的待审核证书' },
+          { status: 403 }
+        );
+      }
+
+      const hasField = (field: keyof CertDataInput) => (
+        Object.prototype.hasOwnProperty.call(certData, field)
+      );
       const dealerId = String(statusCheck[0].dealer_id);
       const certNumber = String(statusCheck[0].cert_number);
       const duration = parseDuration(certData.duration);
+      const existingSealUrl = statusCheck[0].seal_url == null ? null : String(statusCheck[0].seal_url);
+      const existingManagerId = statusCheck[0].manager_id == null ? null : String(statusCheck[0].manager_id);
+      const existingDealerPhone = statusCheck[0].dealer_phone == null ? null : String(statusCheck[0].dealer_phone);
+      const existingScope = parseAuthScope(
+        typeof statusCheck[0].auth_scope === 'string' ? statusCheck[0].auth_scope : ''
+      );
+      const nextCompanyName = hasField('companyName') ? certData.companyName : existingScope.companyName;
+      const nextScopeText = hasField('scopeText') ? certData.scopeText : existingScope.scopeText;
+      const nextPhone = hasField('phone') ? (certData.phone?.trim() || null) : existingDealerPhone;
+      const nextSealUrl = isSuperAdmin
+        ? (hasField('sealImage') ? (certData.sealImage || null) : existingSealUrl)
+        : existingSealUrl;
+      const nextManagerId = isSuperAdmin ? operatorId : existingManagerId;
+      const nextAuthScope = `${sanitizeForAuthScope(nextCompanyName)} | ${nextScopeText || ''} | ${sanitizeForAuthScope(effectiveAuthorizer)}`;
 
       await sql.begin(async (tx) => {
         // 如果 dealer 被多张证书共享，编辑时拆出新 dealer，避免影响其他证书
@@ -584,12 +610,12 @@ export async function POST(req: Request) {
         let targetDealerId = dealerId;
 
         if (sharedCount > 1) {
-          targetDealerId = String(await getOrCreateDealer(certData.phone, certData.shopName, tx));
+          targetDealerId = String(await getOrCreateDealer(nextPhone, certData.shopName, tx));
         } else {
           await tx`
             UPDATE dealers
             SET company_name = ${certData.shopName},
-                phone = ${certData.phone?.trim() || null}
+                phone = ${nextPhone}
             WHERE id = ${dealerId}
           `;
         }
@@ -598,11 +624,11 @@ export async function POST(req: Request) {
         const updateResult = await tx`
           UPDATE certificates
           SET dealer_id = ${targetDealerId},
-              auth_scope = ${sanitizeForAuthScope(certData.companyName) + ' | ' + (certData.scopeText || '') + ' | ' + sanitizeForAuthScope(effectiveAuthorizer)},
+              auth_scope = ${nextAuthScope},
               start_date = ${duration.start},
               end_date = ${duration.end},
-              seal_url = ${effectiveSealImage},
-              manager_id = ${operatorId},
+              seal_url = ${nextSealUrl},
+              manager_id = ${nextManagerId},
               updated_at = NOW()
           WHERE id = ${certId}
             AND status = 'PENDING'
@@ -623,21 +649,26 @@ export async function POST(req: Request) {
           before: {
             status: statusCheck[0].status,
             dealer_id: dealerId,
+            auditor_id: ownerId || null,
+            manager_id: existingManagerId,
             auth_scope: statusCheck[0].auth_scope,
             start_date: statusCheck[0].start_date,
             end_date: statusCheck[0].end_date,
-            seal_url: statusCheck[0].seal_url,
+            seal_url: existingSealUrl,
           },
           after: {
             dealer_id: targetDealerId,
-            companyName: certData.companyName,
+            companyName: nextCompanyName,
             shopName: certData.shopName,
-            scopeText: certData.scopeText,
+            scopeText: nextScopeText,
             duration: certData.duration,
             authorizer: effectiveAuthorizer,
-            sealImage: effectiveSealImage,
+            sealImage: nextSealUrl,
+            manager_id: nextManagerId,
           },
-          comment: `更新待审核证书 ${certNumber}`,
+          comment: isSuperAdmin
+            ? `更新待审核证书 ${certNumber}`
+            : `审核员修改本人待审核证书 ${certNumber}`,
           reason: reason || null,
           request: req,
         });
