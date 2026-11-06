@@ -722,7 +722,7 @@ export default function HomeClient() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
-               className="relative w-full h-full md:h-auto md:max-w-xl bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col"
+               className="relative w-full h-full md:h-auto md:max-w-xl bg-[#FDFBF7] border border-[#8B7355]/15 rounded-none md:rounded-[28px] shadow-2xl p-4 md:p-10 overflow-y-auto flex flex-col"
             >
               {/* 手机端顶部栏：Logo 居中 + 关闭 */}
               <div className="flex md:hidden items-center justify-center relative mt-4 mb-4">
@@ -967,7 +967,7 @@ export default function HomeClient() {
                 <div className="text-center">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 text-[11px] text-[#8B7355]/70 hover:text-[#6B5346] transition-colors group"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#8B7355]/70 hover:text-[#6B5346] transition-colors group"
                   >
                     <Upload className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
                     <span>从相册选择图片扫描</span>
