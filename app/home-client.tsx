@@ -500,15 +500,15 @@ export default function HomeClient() {
           >
             <form 
               onSubmit={handleSearch} 
-              className="group relative flex items-center bg-white/80 border border-slate-200 rounded-[28px] md:rounded-[32px] shadow-[0_4px_16px_rgba(0,0,0,0.06)] focus-within:border-[#8B7355]/30 focus-within:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
+              className="group relative flex min-w-0 items-center bg-white/80 border border-slate-200 rounded-[28px] md:rounded-[32px] shadow-[0_4px_16px_rgba(0,0,0,0.06)] focus-within:border-[#8B7355]/30 focus-within:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300 overflow-hidden"
             >
-              <div className="flex-1 flex items-center pl-4 py-2 md:pl-8 md:py-3 gap-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-4 md:py-3 md:pl-8">
                 <Search className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0 text-slate-500 group-focus-within:text-[#8B7355] transition-colors" />
                 <input 
                   type="text" 
                   aria-label="搜索授权证书"
                   placeholder={placeholderText} 
-                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/70 hover:placeholder:text-[#8B7355]/85 focus:ring-0 transition-all font-medium truncate"
+                  className="w-full min-w-0 bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/70 hover:placeholder:text-[#8B7355]/85 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
