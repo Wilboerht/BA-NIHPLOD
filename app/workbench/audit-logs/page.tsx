@@ -246,7 +246,7 @@ export default function AuditLogsPage() {
 
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
         <div className="px-0 py-6 border-b border-slate-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-transparent">
-          <div className="flex items-center gap-6 text-slate-500 font-semibold text-[13px] ml-2">
+          <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap text-slate-500 font-semibold text-[13px] ml-2 pb-1">
             {CATEGORY_TABS.map((tab) => (
               <span
                 key={tab.key || 'all'}

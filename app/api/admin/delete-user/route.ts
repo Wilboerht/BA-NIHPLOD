@@ -3,6 +3,7 @@ import { sql, checkActionRateLimit } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth";
 import { readJsonBody } from "@/lib/api-utils";
 import { actorFromUser, writeAudit } from "@/lib/audit";
+import { isUuid } from "@/lib/validation";
 
 /**
  * POST /api/admin/delete-user
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
 
     const { userId } = body!;
 
-    if (typeof userId !== 'string' || !userId) {
+    if (!isUuid(userId)) {
       return NextResponse.json(
         { error: "缺少必要参数：userId" },
         { status: 400 }

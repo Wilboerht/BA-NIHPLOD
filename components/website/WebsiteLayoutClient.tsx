@@ -14,9 +14,12 @@ import { WebsiteNavbar } from "@/components/website/WebsiteNavbar";
 export function WebsiteLayoutClient({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  // 管理后台和登录页面不显示公共导航栏
+  // 管理后台、登录、重置密码和证书沙盘不显示公共导航栏
   const isAdminRoute =
-    pathname.startsWith("/admin") || pathname.startsWith("/workbench");
+    pathname.startsWith("/admin")
+    || pathname.startsWith("/workbench")
+    || pathname.startsWith("/reset-password")
+    || pathname.startsWith("/demo");
 
   if (isAdminRoute) {
     return <>{children}</>;
@@ -25,8 +28,8 @@ export function WebsiteLayoutClient({ children }: { children: ReactNode }) {
   return (
     <>
       <WebsiteNavbar />
-      {/* 顶部留白补偿 fixed 导航栏高度 (py-5=68px / md:py-7=92px) */}
-      <div className="pt-[68px] md:pt-[92px]">{children}</div>
+      {/* 顶部留白补偿 fixed 导航栏实际高度 */}
+      <div className="pt-[92px]">{children}</div>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getComplaintAuditLogs } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { isUuid } from '@/lib/validation';
 
 export async function GET(
   req: Request,
@@ -9,8 +10,8 @@ export async function GET(
   try {
     const { id } = await params;
 
-    if (!id) {
-      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: '工单 ID 格式无效' }, { status: 400 });
     }
 
     // 权限检查

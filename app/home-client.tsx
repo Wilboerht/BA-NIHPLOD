@@ -5,7 +5,6 @@ import { Search, ShieldAlert, RefreshCw, CheckCircle2, X, Camera, AlertTriangle,
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import LegalModal from "@/components/LegalModal";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { useToast } from "@/hooks/useToast";
 import { fetchWithTimeout } from "@/lib/fetch";
@@ -30,11 +29,46 @@ const getDurationStatus = (durationStr?: string) => {
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
     
     if (now < startDate) return { text: '未生效', style: 'bg-amber-50 text-amber-600 border-amber-200' };
+    if (now > endDate) return { text: '已过期', style: 'bg-slate-100 text-slate-500 border-slate-200' };
     return { text: '生效中', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
   } catch {
     return null;
   }
 };
+
+function EvidenceThumb({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  return (
+    <div className="relative group">
+      <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
+        {url && (
+          <Image
+            src={url}
+            alt={file.name}
+            width={64}
+            height={64}
+            className="w-full h-full object-cover"
+            unoptimized
+          />
+        )}
+      </div>
+      <button
+        onClick={onRemove}
+        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+        type="button"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
 
 export default function HomeClient() {
   const { toast } = useToast();
@@ -48,9 +82,7 @@ export default function HomeClient() {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [showLegalModal, setShowLegalModal] = useState<{ isOpen: boolean; type: "service" | "privacy" }>({ isOpen: false, type: "service" });
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
-  const evidencePreviewUrls = useRef<Map<File, string>>(new Map());
 
   // 响应式 placeholder：手机端简短、PC 端完整
   const [placeholderText, setPlaceholderText] = useState("输入证书编号、店铺或公司名称");
@@ -61,15 +93,6 @@ export default function HomeClient() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // 清理 blob URL 防止内存泄漏
-  useEffect(() => {
-    const previewUrls = evidencePreviewUrls.current;
-    return () => {
-      previewUrls.forEach((url) => URL.revokeObjectURL(url));
-      previewUrls.clear();
-    };
-  }, []);
-  
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
   const [reportDesc, setReportDesc] = useState("");
@@ -77,9 +100,6 @@ export default function HomeClient() {
   const [reportContact, setReportContact] = useState("");
 
   const resetReportForm = () => {
-    // 释放已生成的预览 blob，避免内存泄漏
-    evidencePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-    evidencePreviewUrls.current.clear();
     setReportSuccess(false);
     setEvidenceFiles([]);
     setReportDesc("");
@@ -235,6 +255,7 @@ export default function HomeClient() {
   useEffect(() => {
     const reportHandler = () => {
       setShowReportModal(true);
+      setReportSuccess(false);
       setEvidenceFiles([]);
     };
     const scannerHandler = openScanner;
@@ -448,7 +469,7 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="relative h-[calc(100dvh-68px)] md:h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center bg-[#F6F4F0] overflow-hidden font-sans">
+    <main className="relative h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center bg-[#F6F4F0] overflow-hidden font-sans">
 
       {/* 核心内容区 */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10">
@@ -541,7 +562,7 @@ export default function HomeClient() {
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
               className="relative w-full max-w-2xl flex flex-col gap-4 md:gap-6 z-10"
             >
-              <div className="relative w-full bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14 overflow-hidden">
+              <div className="relative w-full max-h-[85vh] overflow-y-auto bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14">
                 <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50">
                   <button 
                     onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
@@ -571,7 +592,7 @@ export default function HomeClient() {
                           为保障您的权益，如遇疑似未经官方授权的商业行为，请向我们提交反馈。
                         </p>
                         <button 
-                          onClick={() => { setError(null); setShowReportModal(true); setEvidenceFiles([]); }}
+                          onClick={() => { setError(null); setShowReportModal(true); setReportSuccess(false); setEvidenceFiles([]); }}
                           className="bg-[#9B3D3B]/8 text-[#9B3D3B] border border-[#9B3D3B]/20 px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-sm hover:bg-[#9B3D3B]/15 hover:border-[#9B3D3B]/30 transition-colors flex items-center justify-center gap-2 mx-auto tracking-[0.1em] font-medium"
                         >
                           <AlertTriangle className="w-4 h-4" /> 官方维权申诉与核查
@@ -611,10 +632,9 @@ export default function HomeClient() {
                            <span className="text-[10px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-bold tracking-wider leading-relaxed">证书编号</span>
                            <p 
                              className="text-[#8B7355] text-xs md:text-[13px] font-medium tracking-widest font-mono cursor-pointer hover:underline decoration-dotted transition-all"
-                             onClick={() => {
-                               navigator.clipboard.writeText(result.id);
-                               // 可以加个简单的 toast 效果，但先保持极简
-                             }}
+                              onClick={() => {
+                                navigator.clipboard.writeText(result.id).catch(() => {});
+                              }}
                              title="点击复制编号"
                            >
                               {result.id}
@@ -809,41 +829,13 @@ export default function HomeClient() {
                     {/* 多图预览列表 */}
                     {evidenceFiles.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {evidenceFiles.map((file, idx) => {
-                          let url = evidencePreviewUrls.current.get(file);
-                          if (!url) {
-                            url = URL.createObjectURL(file);
-                            evidencePreviewUrls.current.set(file, url);
-                          }
-                          return (
-                            <div key={idx} className="relative group">
-                              <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
-                                <Image 
-                                  src={url} 
-                                  alt={file.name}
-                                  width={64}
-                                  height={64}
-                                  className="w-full h-full object-cover"
-                                  unoptimized
-                                />
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const revokeUrl = evidencePreviewUrls.current.get(file);
-                                  if (revokeUrl) {
-                                    URL.revokeObjectURL(revokeUrl);
-                                    evidencePreviewUrls.current.delete(file);
-                                  }
-                                  setEvidenceFiles(prev => prev.filter((_, i) => i !== idx));
-                                }}
-                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
-                                type="button"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          );
-                        })}
+                        {evidenceFiles.map((file, idx) => (
+                          <EvidenceThumb
+                            key={`${file.name}-${file.size}-${file.lastModified}-${idx}`}
+                            file={file}
+                            onRemove={() => setEvidenceFiles(prev => prev.filter((_, i) => i !== idx))}
+                          />
+                        ))}
                       </div>
                     )}
                  </div>
@@ -1028,7 +1020,7 @@ export default function HomeClient() {
         <div className="hidden md:flex flex-wrap items-center justify-center md:justify-end gap-6 md:gap-x-4 md:gap-y-1 text-[11px] font-normal text-slate-400/80 order-2 w-full md:w-auto">
           {/* 官方维权申诉 */}
           <button
-            onClick={() => { setShowReportModal(true); setEvidenceFiles([]); }}
+            onClick={() => { setShowReportModal(true); setReportSuccess(false); setEvidenceFiles([]); }}
             className="text-xs text-slate-500/90 md:text-red-400/90 hover:text-red-500 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap px-3 py-2 md:px-0 md:py-0"
           >
             <ShieldAlert className="w-3 h-3 text-red-400/70 md:text-red-400/90" /> 官方维权申诉
@@ -1048,7 +1040,6 @@ export default function HomeClient() {
           </a>
         </div>
       </footer>
-      <LegalModal isOpen={showLegalModal.isOpen} type={showLegalModal.type} onClose={() => setShowLegalModal({ ...showLegalModal, isOpen: false })} />
     </main>
   );
 }

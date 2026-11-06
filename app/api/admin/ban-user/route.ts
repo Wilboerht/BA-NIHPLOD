@@ -3,6 +3,7 @@ import { sql, getProfileById, checkActionRateLimit } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth";
 import { readJsonBody } from "@/lib/api-utils";
 import { actorFromUser, writeAudit } from "@/lib/audit";
+import { isUuid } from "@/lib/validation";
 
 /**
  * POST /api/admin/ban-user
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     if (
       typeof profileId !== 'string'
       || typeof action !== 'string'
-      || !profileId
+      || !isUuid(profileId)
       || !["ban", "unban"].includes(action)
     ) {
       return NextResponse.json(

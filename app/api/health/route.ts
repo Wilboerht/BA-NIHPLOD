@@ -11,17 +11,23 @@ const DB_CHECK_TIMEOUT_MS = 2000;
 export async function GET() {
   const timestamp = new Date().toISOString();
 
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       sql`SELECT 1`,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('database health check timeout')), DB_CHECK_TIMEOUT_MS)
-      ),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error('database health check timeout')),
+          DB_CHECK_TIMEOUT_MS
+        );
+      }),
     ]);
 
     return NextResponse.json({ status: 'ok', timestamp });
   } catch (err) {
     console.error('[health] 数据库检查失败:', err instanceof Error ? err.message : String(err));
     return NextResponse.json({ status: 'degraded', timestamp }, { status: 503 });
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

@@ -4,23 +4,13 @@ import { findProfileForLogin, sql } from '@/lib/db';
 import { createToken, setAuthCookie } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { getClientIpFromRequest } from '@/lib/request-ip';
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
 
-function getClientIP(req: Request): string {
-  // x-real-ip 由可信反向代理设置，比 x-forwarded-for 更难伪造
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    // 取第一个 IP（客户端真实 IP），配合可信反向代理使用
-    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
-    return ips[0] || 'unknown';
-  }
-  return 'unknown';
-}
+// 账号不存在时也执行一次同成本的 bcrypt 比较，降低账号枚举时序差
+const LOGIN_FAILURE_DUMMY_HASH = '$2b$12$Ki07Mawh4ZW893rYj2GKAuXGcfXmz/4405eHG0sajjkP.I5OlaXwm';
 
 /**
  * 查询当前 IP 是否已被限流
@@ -95,7 +85,14 @@ export async function POST(req: Request) {
 
     const { phone, password } = body!;
 
-    if (typeof phone !== 'string' || typeof password !== 'string' || !phone || !password) {
+    if (
+      typeof phone !== 'string'
+      || typeof password !== 'string'
+      || !phone
+      || !password
+      || phone.length > 255
+      || password.length > 1024
+    ) {
       return NextResponse.json(
         { error: '请输入手机号和密码' },
         { status: 400 }
@@ -103,7 +100,7 @@ export async function POST(req: Request) {
     }
 
     // 登录限速检查（仅统计失败次数，成功登录会清零）
-    const clientIP = getClientIP(req);
+    const clientIP = getClientIpFromRequest(req);
     if (await isRateLimited(clientIP)) {
       return NextResponse.json(
         { error: '登录尝试次数过多，请 5 分钟后再试' },
@@ -114,8 +111,13 @@ export async function POST(req: Request) {
     // 1. 使用双擎 DB 适配器查询 profiles 获取用户
     // 支持按 phone、username 或 email 登录 (忽略大小写)
     const { data: profile, error: profileErr } = await findProfileForLogin(phone);
-    
-    if (profileErr || !profile) {
+    if (profileErr) {
+      throw profileErr;
+    }
+
+    if (!profile) {
+      // 不存在的账号也执行一次 bcrypt，避免明显的响应时间差
+      await bcrypt.compare(password, LOGIN_FAILURE_DUMMY_HASH);
       await recordFailedAttempt(clientIP);
       try {
         await writeAudit(sql, {
@@ -142,8 +144,36 @@ export async function POST(req: Request) {
       username: typeof profile.username === 'string' ? profile.username : undefined,
     });
 
-    // 2. 检查是否被封禁
+    // 2. 验证密码（即使账号被封禁也先验证，避免通过响应差异枚举账号）
+    const passwordHash = typeof profile.password_hash === 'string' && profile.password_hash
+      ? profile.password_hash
+      : LOGIN_FAILURE_DUMMY_HASH;
+    const isPasswordValid = await bcrypt.compare(password, passwordHash);
+
+    if (!isPasswordValid) {
+      await recordFailedAttempt(clientIP);
+      try {
+        await writeAudit(sql, {
+          actor: profileActor,
+          action: 'LOGIN_FAILED',
+          targetType: 'profile',
+          targetId: String(profile.id),
+          comment: '密码错误',
+          reason: 'invalid_credentials',
+          request: req,
+        });
+      } catch (auditErr) {
+        console.error('[audit] LOGIN_FAILED 写入失败:', auditErr);
+      }
+      return NextResponse.json(
+        { error: '账号或密码错误' },
+        { status: 401 }
+      );
+    }
+
+    // 3. 密码正确后再检查封禁状态
     if (profile.is_banned) {
+      await recordFailedAttempt(clientIP);
       try {
         await writeAudit(sql, {
           actor: profileActor,
@@ -160,30 +190,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: '账号已被封禁，请联系管理员' },
         { status: 403 }
-      );
-    }
-
-    // 3. 验证密码
-    const passwordHash = typeof profile.password_hash === 'string' ? profile.password_hash : '';
-    const isPasswordValid = await bcrypt.compare(password, passwordHash);
-
-    if (!isPasswordValid) {
-      await recordFailedAttempt(clientIP);
-      try {
-        await writeAudit(sql, {
-          action: 'LOGIN_FAILED',
-          targetType: 'profile',
-          targetId: String(profile.id),
-          comment: '密码错误',
-          reason: 'invalid_credentials',
-          request: req,
-        });
-      } catch (auditErr) {
-        console.error('[audit] LOGIN_FAILED 写入失败:', auditErr);
-      }
-      return NextResponse.json(
-        { error: '账号或密码错误' },
-        { status: 401 }
       );
     }
 

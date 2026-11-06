@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
@@ -5,14 +6,13 @@ import { writeAudit } from '@/lib/audit';
 /**
  * GET /api/cron/update-expired-certificates
  * 自动将已过期的 ISSUED 证书状态更新为 EXPIRED
- * 需要传入 ?secret=CRON_SECRET 进行校验
+ * 需要传入 x-cron-secret: CRON_SECRET 请求头进行校验
  * 建议配置外部定时任务（如 Vercel Cron、GitHub Actions 或服务器 crontab）每日调用一次
  */
 export async function GET(request: Request) {
   try {
-    // 兼容两种调用方式：推荐请求头 x-cron-secret，同时支持 ?secret= 查询参数
-    const url = new URL(request.url);
-    const secret = request.headers.get('x-cron-secret') || url.searchParams.get('secret');
+    // 只接受请求头，避免密钥出现在 URL、访问日志和 Referer 中
+    const secret = request.headers.get('x-cron-secret');
     const expectedSecret = process.env.CRON_SECRET;
 
     if (!expectedSecret) {
@@ -23,7 +23,13 @@ export async function GET(request: Request) {
       );
     }
 
-    if (secret !== expectedSecret) {
+    const secretBuffer = Buffer.from(secret || '');
+    const expectedBuffer = Buffer.from(expectedSecret);
+    const secretValid =
+      secretBuffer.length === expectedBuffer.length
+      && crypto.timingSafeEqual(secretBuffer, expectedBuffer);
+
+    if (!secretValid) {
       return NextResponse.json(
         { error: '密钥校验失败' },
         { status: 401 }
@@ -59,11 +65,14 @@ export async function GET(request: Request) {
 
     console.log(`[cron] 自动过期证书更新完成：${updatedCount} 张证书已标记为 EXPIRED`);
 
-    return NextResponse.json({
-      success: true,
-      updatedCount,
-      updatedCertificates: updatedIds
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        updatedCount,
+        updatedCertificates: updatedIds
+      },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   } catch (err: unknown) {
     console.error('[cron] 更新过期证书失败:', err);
     const isDev = process.env.NODE_ENV !== 'production';

@@ -38,11 +38,14 @@ const sql = postgres(databaseUrl);
 function getAdminPassword() {
   const envPassword = process.env.ADMIN_INIT_PASSWORD;
   if (envPassword && envPassword.length >= 8) {
-    return envPassword;
+    return { password: envPassword, generated: false };
   }
+
   const randomPassword = crypto.randomBytes(12).toString('hex');
-  console.log(`⚠️  未设置 ADMIN_INIT_PASSWORD 环境变量，已生成随机密码`);
-  return randomPassword;
+  const passwordFile = path.resolve(process.cwd(), 'admin-init-password.txt');
+  fs.writeFileSync(passwordFile, `${randomPassword}\n`, { mode: 0o600 });
+  console.log('⚠️  未设置 ADMIN_INIT_PASSWORD，已生成随机密码并写入 admin-init-password.txt');
+  return { password: randomPassword, generated: true };
 }
 
 function getDefaultAdmins() {
@@ -118,7 +121,7 @@ async function createOrUpdateAdmin(admin, password) {
 async function main() {
   console.log("🔧 初始化默认管理员账户...\n");
 
-  const password = getAdminPassword();
+  const { password, generated } = getAdminPassword();
 
   let successCount = 0;
   for (const admin of DEFAULT_ADMINS) {
@@ -134,10 +137,10 @@ async function main() {
     DEFAULT_ADMINS.forEach(admin => {
       console.log(`${admin.fullName} (${admin.role})`);
       console.log(`  📧 用户名: ${admin.username}`);
-      console.log(`  🔐 密码: ${password}`);
+      console.log(`  🔐 密码: ${generated ? '已写入 admin-init-password.txt（权限 600）' : '使用 ADMIN_INIT_PASSWORD 环境变量值'}`);
       console.log();
     });
-    console.log("⚠️  请务必保存上述密码，或设置 ADMIN_INIT_PASSWORD 环境变量以使用固定密码。\n");
+    console.log("⚠️  出于安全原因不再在终端输出明文密码。\n");
   } else {
     console.log("⚠️  部分账户初始化失败，请检查错误信息。");
     process.exit(1);

@@ -8,7 +8,7 @@
 - **域名**：https://ba.nihplod.cn
 - **运营方**：旎柏（上海）商贸有限公司
 - **主品牌站**：https://nihplod.cn
-- **技术栈**：Next.js (App Router) + PostgreSQL + Prisma ORM
+- **技术栈**：Next.js 16 (App Router) + PostgreSQL（原生 postgres 驱动）
 
 ## 用户角色
 
@@ -17,6 +17,8 @@
 | 访客 (Visitor) | 查询授权证书真伪、提交打假投诉 |
 | 审核员 (Auditor) | 初审经销商授权申请、提交待核发 |
 | 超级管理员 (Super Admin) | 终审核发证书、吊销证书、管理用户 |
+
+> 系统没有经销商登录角色或经销商后台；经销商仅作为证书上的被授权主体数据。
 
 ## 证书验证
 
@@ -74,4 +76,5 @@
 - Token 黑名单（注销时失效）
 - 账号管理类接口仅限超级管理员
 - 文件上传魔数校验 + 路径遍历防护 + 签章来源白名单
-- CSP + HSTS + X-Frame-Options 等安全响应头
+- 投诉证据存放在 private 目录，仅管理员可访问 `/api/files/complaints/...`
+- CSP nonce + HSTS + X-Frame-Options 等安全响应头

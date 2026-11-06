@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { headers } from "next/headers";
 import "./globals.css";
 import ToastProvider from "@/components/ui/ToastProvider";
 import { WebsiteLayoutClient } from "@/components/website/WebsiteLayoutClient";
@@ -60,11 +61,15 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+export const dynamic = 'force-dynamic';
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html
       lang="zh-CN"
@@ -74,6 +79,7 @@ export default function RootLayout({
         {/* JSON-LD 结构化数据：Organization */}
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -93,6 +99,7 @@ export default function RootLayout({
         {/* JSON-LD 结构化数据：WebApplication */}
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -113,6 +120,7 @@ export default function RootLayout({
         {/* JSON-LD 结构化数据：FAQ（优化 Google SGE 展示）*/}
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -154,11 +162,13 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script
+              nonce={nonce}
               strategy="afterInteractive"
               src={"https://www.googletagmanager.com/gtag/js?id=" + process.env.NEXT_PUBLIC_GA_ID}
             />
             <Script
               id="google-analytics"
+              nonce={nonce}
               strategy="afterInteractive"
             >{`
               window.dataLayer = window.dataLayer || [];

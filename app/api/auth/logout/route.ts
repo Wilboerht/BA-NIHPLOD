@@ -8,8 +8,10 @@ export async function POST(req: Request) {
     // 将当前 Token 加入黑名单，使注销后的 Token 立即失效
     const payload = await verifyToken(req);
     if (payload?.jti) {
-      // Token 有效期 8 小时，黑名单过期时间与之保持一致，到期自动清理
-      const expAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+      const tokenExpiry = typeof payload.exp === 'number'
+        ? payload.exp * 1000
+        : Date.now() + 8 * 60 * 60 * 1000;
+      const expAt = new Date(tokenExpiry);
       await sql`
         INSERT INTO token_blacklist (jti, exp_at)
         VALUES (${payload.jti}, ${expAt})

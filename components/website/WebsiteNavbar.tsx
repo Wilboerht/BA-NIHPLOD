@@ -266,12 +266,6 @@ export function WebsiteNavbar() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes soft-blink {
-          0%, 100% { opacity: 0.88; }
-          50% { opacity: 1; }
-        }
-      `}</style>
     </>
   );
 }

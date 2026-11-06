@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const q = request.nextUrl.searchParams.get('q')?.trim() || undefined;
 
     // 状态白名单，避免非法值直接透传数据库导致 500
-    const ALLOWED_STATUS = ['ISSUED', 'PENDING', 'invalid'];
+    const ALLOWED_STATUS = ['ISSUED', 'PENDING', 'UPCOMING', 'invalid'];
     const status = rawStatus && ALLOWED_STATUS.includes(rawStatus) ? rawStatus : undefined;
 
     const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10) || 0, 1), 1000) : undefined;

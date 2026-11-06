@@ -106,7 +106,7 @@ export default function WorkbenchLayout({ children }: { children: React.ReactNod
       <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
       <main 
         className={styles.main}
-        style={{ paddingLeft: isCollapsed ? "80px" : "256px" }}
+        style={{ paddingLeft: isCollapsed ? "68px" : "256px" }}
       >
         {children}
         <footer className="w-full text-center py-5 text-slate-400 text-xs shrink-0 border-t border-slate-100 bg-white/50 backdrop-blur-sm flex flex-col gap-1">

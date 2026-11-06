@@ -1,16 +1,17 @@
 import * as fs from 'fs/promises';
 import path from 'path';
 
+export type StorageVisibility = 'public' | 'private';
+
 function sanitizeFilePath(input: string): string {
-  // 禁止路径遍历：规范化后再次检查
   let sanitized = input
     .replace(/\\/g, '/')
     .replace(/^[/]+/, '');
-  // 循环移除 .. 直到无法移除，防止 .../..../ 绕过
+
   while (sanitized.includes('..')) {
     sanitized = sanitized.replace(/\.\./g, '');
   }
-  // 最终确保没有绝对路径前缀和剩余 ..
+
   sanitized = sanitized.replace(/^[/]+/, '').replace(/\.\./g, '');
   return sanitized;
 }
@@ -21,26 +22,68 @@ function ensurePathInside(baseDir: string, targetPath: string): boolean {
   return resolvedTarget.startsWith(resolvedBase + path.sep) || resolvedTarget === resolvedBase;
 }
 
+function getStorageRoot(visibility: StorageVisibility): string {
+  if (visibility === 'private') {
+    const configured = process.env.PRIVATE_UPLOAD_ROOT;
+    return configured
+      ? path.resolve(/* turbopackIgnore: true */ configured)
+      : path.join(process.cwd(), 'private', 'uploads');
+  }
+  const configured = process.env.PUBLIC_UPLOAD_ROOT;
+  return configured
+    ? path.resolve(/* turbopackIgnore: true */ configured)
+    : path.join(process.cwd(), 'public', 'uploads');
+}
+
 const MAGIC_NUMBERS: Record<string, string[]> = {
   'image/png': ['89504e47'],
-  'image/jpeg': ['ffd8ffe0', 'ffd8ffe1', 'ffd8ffe8', 'ffd8ffdb', 'ffd8ffee'],
   'image/gif': ['47494638'],
-  'image/webp': ['52494646'],
   'application/pdf': ['25504446'],
 };
 
 export function validateFileMagic(buffer: Buffer, declaredType: string): boolean {
+  if (buffer.length < 4) return false;
   const hex = buffer.slice(0, 4).toString('hex').toLowerCase();
+
+  // 合法 JPEG 可能以 APP0/APP1/APP2/APP8/DQT 等不同标记开头
+  if (declaredType === 'image/jpeg') {
+    return hex.startsWith('ffd8ff');
+  }
+
+  // RIFF 容器还可能是 AVI/WAV，必须同时确认 WEBP 标识
+  if (declaredType === 'image/webp') {
+    return hex === '52494646'
+      && buffer.length >= 12
+      && buffer.toString('ascii', 8, 12) === 'WEBP';
+  }
+
   const validMagics = MAGIC_NUMBERS[declaredType];
-  if (!validMagics) return true; // 未知类型不强制校验
-  return validMagics.some((m) => hex.startsWith(m));
+  return validMagics ? validMagics.some((m) => hex.startsWith(m)) : false;
+}
+
+export function resolveStorageFilePath(
+  visibility: StorageVisibility,
+  bucket: string,
+  filePath: string
+): string | null {
+  const safeBucket = sanitizeFilePath(bucket);
+  const safeFilePath = sanitizeFilePath(filePath);
+  if (!safeBucket || !safeFilePath) return null;
+
+  const root = getStorageRoot(visibility);
+  const uploadDir = path.resolve(root, safeBucket);
+  const fullPath = path.resolve(uploadDir, safeFilePath);
+
+  if (!ensurePathInside(uploadDir, fullPath)) return null;
+  return fullPath;
 }
 
 export async function uploadFile(
   bucket: string,
   filePath: string,
   fileBuffer: Buffer | ArrayBuffer,
-  contentType: string
+  contentType: string,
+  visibility: StorageVisibility = 'public'
 ): Promise<{ path: string; error: string | null }> {
   try {
     const safeBucket = sanitizeFilePath(bucket);
@@ -57,17 +100,12 @@ export async function uploadFile(
       return { path: '', error: '文件类型与声明不符，可能为伪造文件' };
     }
 
-    const uploadDir = path.resolve(process.cwd(), 'public', 'uploads', safeBucket);
-    const fullPath = path.resolve(uploadDir, safeFilePath);
-
-    // 二次校验：确保最终路径在允许的基目录内
-    if (!ensurePathInside(uploadDir, fullPath)) {
+    const fullPath = resolveStorageFilePath(visibility, safeBucket, safeFilePath);
+    if (!fullPath) {
       return { path: '', error: '非法的文件路径' };
     }
 
-    // 确保目标文件的所有父目录都存在（包括子目录路径）
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
-
     await fs.writeFile(fullPath, bufferToWrite);
 
     return { path: safeFilePath, error: null };
@@ -79,34 +117,31 @@ export async function uploadFile(
 }
 
 export function getPublicUrl(bucket: string, filePath: string): string {
-  const cleanBucket = bucket.replace(/^\/+|\/+$/g, '');
-  const cleanPath = filePath.replace(/^\/+/g, '');
+  const cleanBucket = sanitizeFilePath(bucket);
+  const cleanPath = sanitizeFilePath(filePath);
   return `/uploads/${cleanBucket}/${cleanPath}`;
+}
+
+export function getPrivateFileUrl(bucket: string, filePath: string): string {
+  const cleanBucket = sanitizeFilePath(bucket);
+  const cleanPath = sanitizeFilePath(filePath);
+  return `/api/files/${cleanBucket}/${cleanPath}`;
 }
 
 export async function deleteFile(
   bucket: string,
-  filePath: string
+  filePath: string,
+  visibility: StorageVisibility = 'public'
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    const safeBucket = sanitizeFilePath(bucket);
-    const safeFilePath = sanitizeFilePath(filePath);
-
-    if (!safeBucket || !safeFilePath) {
-      return { success: false, error: '非法的文件路径' };
-    }
-
-    const uploadDir = path.resolve(process.cwd(), 'public', 'uploads', safeBucket);
-    const fullPath = path.resolve(uploadDir, safeFilePath);
-
-    if (!ensurePathInside(uploadDir, fullPath)) {
+    const fullPath = resolveStorageFilePath(visibility, bucket, filePath);
+    if (!fullPath) {
       return { success: false, error: '非法的文件路径' };
     }
 
     await fs.unlink(fullPath);
     return { success: true, error: null };
   } catch (error: unknown) {
-    // 文件不存在时视为成功（幂等删除）
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return { success: true, error: null };
     }
@@ -114,22 +149,4 @@ export async function deleteFile(
     const message = error instanceof Error ? error.message : '删除失败';
     return { success: false, error: message };
   }
-}
-
-/**
- * 根据公开 URL 删除本地文件
- * URL 格式: /uploads/<bucket>/<path>
- */
-export async function deletePublicUpload(url: string): Promise<{ success: boolean; error: string | null }> {
-  if (!url.startsWith('/uploads/')) {
-    return { success: false, error: '非本地上传文件' };
-  }
-  const relative = url.slice('/uploads/'.length); // e.g. public-uploads/complaints/xxx.png
-  const firstSlash = relative.indexOf('/');
-  if (firstSlash === -1) {
-    return { success: false, error: '非法的文件路径' };
-  }
-  const bucket = relative.slice(0, firstSlash);
-  const filePath = relative.slice(firstSlash + 1);
-  return deleteFile(bucket, filePath);
 }

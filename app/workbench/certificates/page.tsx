@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
 import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { getTodayISO } from "@/lib/validation";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
@@ -43,17 +44,19 @@ export default function CertificatesPage() {
   const pageSize = 20;
   const [total, setTotal] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<'ISSUED' | 'PENDING' | 'invalid'>('ISSUED');
+  const [statusFilter, setStatusFilter] = useState<'ISSUED' | 'UPCOMING' | 'PENDING' | 'invalid'>('ISSUED');
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // 审核员不显示待审核选项
   const auditorFilterItems = [
     { key: 'ISSUED' as const, label: '生效中', desc: '生效中' },
+    { key: 'UPCOMING' as const, label: '待生效', desc: '已签发但尚未到生效日期' },
     { key: 'invalid' as const, label: '无效', desc: '已失效、已吊销、已拒绝' },
   ];
   const adminFilterItems = [
     { key: 'ISSUED' as const, label: '生效中', desc: '生效中' },
+    { key: 'UPCOMING' as const, label: '待生效', desc: '已签发但尚未到生效日期' },
     { key: 'PENDING' as const, label: '待审核', desc: '待审核' },
     { key: 'invalid' as const, label: '无效', desc: '已失效、已吊销、已拒绝' },
   ];
@@ -222,6 +225,9 @@ export default function CertificatesPage() {
     if (cert.status === 'REJECTED') return 'REJECTED';
     if (cert.status === 'EXPIRED') return 'EXPIRED';
     if (cert.status === 'ISSUED') {
+      if (cert.start_date && cert.start_date.replace(/\./g, '-') > getTodayISO()) {
+        return 'UPCOMING';
+      }
       if (cert.end_date) {
         const end = getEndOfDay(cert.end_date.replace(/\./g, '-'));
         if (new Date() > end) return 'EXPIRED';
@@ -357,6 +363,11 @@ export default function CertificatesPage() {
                         if (displayStatus === 'EXPIRED') return (
                           <span title="已失效" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-500 cursor-default">
                             <XCircle className="w-3.5 h-3.5" />
+                          </span>
+                        );
+                        if (displayStatus === 'UPCOMING') return (
+                          <span title="待生效" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-50 text-amber-600 cursor-default">
+                            <Clock className="w-3.5 h-3.5" />
                           </span>
                         );
                         if (displayStatus === 'ISSUED') return (

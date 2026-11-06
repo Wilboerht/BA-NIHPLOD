@@ -75,8 +75,8 @@ const assert = (name, cond, extra = '') => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  :: ' + extra : ''}`);
 };
 
-async function req(pathname, { method = 'GET', body, token, rawBody } = {}) {
-  const headers = {};
+async function req(pathname, { method = 'GET', body, token, rawBody, headers: extraHeaders } = {}) {
+  const headers = { ...(extraHeaders || {}) };
   if (body !== undefined || rawBody !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Cookie = `auth-token=${token}`;
   const res = await fetch(BASE + pathname, {
@@ -88,7 +88,7 @@ async function req(pathname, { method = 'GET', body, token, rawBody } = {}) {
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch { /* non-json */ }
-  return { status: res.status, json };
+  return { status: res.status, json, headers: res.headers };
 }
 
 async function login(identifier, password) {
@@ -165,6 +165,25 @@ console.log(`\n=== E2E Smoke @ ${BASE} (db host: ${dbHost}) ===\n`);
 const health = await req('/api/health');
 assert('健康检查 200 + ok', health.status === 200 && health.json?.status === 'ok', `status=${health.status}`);
 
+const home = await req('/');
+const homeCsp = home.headers.get('content-security-policy') || '';
+assert('CSP 含 nonce', /script-src[^;]*'nonce-/.test(homeCsp), homeCsp.slice(0, 160));
+assert('生产 script-src 无 unsafe-inline', !/script-src[^;]*'unsafe-inline'/.test(homeCsp));
+assert('X-Powered-By 已关闭', !home.headers.get('x-powered-by'), String(home.headers.get('x-powered-by')));
+
+const verifyRedirect = await req('/verify');
+assert(
+  '/verify 返回 307 且保留跳转',
+  verifyRedirect.status === 307 && verifyRedirect.headers.get('location')?.includes('/'),
+  `status=${verifyRedirect.status} location=${verifyRedirect.headers.get('location')}`
+);
+const verifyWithCert = await req('/verify?cert=BAVP-2099-00000000');
+assert(
+  '/verify?cert 跳转保留参数',
+  verifyWithCert.status === 307 && verifyWithCert.headers.get('location')?.includes('cert=BAVP-2099-00000000'),
+  `status=${verifyWithCert.status} location=${verifyWithCert.headers.get('location')}`
+);
+
 const badJson = await req('/api/auth/login', { method: 'POST', rawBody: '{not-json' });
 assert('非法 JSON 返回 400', badJson.status === 400, `status=${badJson.status}`);
 
@@ -174,6 +193,14 @@ assert('超管/审核员登录', superLogin.status === 200 && !!superLogin.token
 
 const superToken = superLogin.token;
 const auditorToken = auditorLogin.token;
+
+const badCertId = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: { action: 'revoke_certificate', certId: 'not-a-uuid' },
+});
+assert('非法证书 UUID 返回 400', badCertId.status === 400, `status=${badCertId.status}`);
+const badComplaintId = await req('/api/db/complaints/not-a-uuid/logs', { token: superToken });
+assert('非法工单 UUID 返回 400', badComplaintId.status === 400, `status=${badComplaintId.status}`);
 
 const listAsAuditor = await req('/api/admin/list', { token: auditorToken });
 assert('AUDITOR 访问账号列表 403', listAsAuditor.status === 403, `status=${listAsAuditor.status}`);
@@ -316,7 +343,11 @@ assert(
 const cronNoSecret = await req('/api/cron/update-expired-certificates');
 assert('cron 无密钥 401', cronNoSecret.status === 401, `status=${cronNoSecret.status}`);
 const cronQuery = await req(`/api/cron/update-expired-certificates?secret=${encodeURIComponent(CRON_SECRET)}`);
-assert('cron ?secret= 更新 1 张', cronQuery.status === 200 && cronQuery.json?.updatedCount === 1, `status=${cronQuery.status} ${JSON.stringify(cronQuery.json)}`);
+assert('cron 不再接受查询参数', cronQuery.status === 401, `status=${cronQuery.status}`);
+const cronHeader = await req('/api/cron/update-expired-certificates', {
+  headers: { 'x-cron-secret': CRON_SECRET },
+});
+assert('cron 请求头更新 1 张', cronHeader.status === 200 && cronHeader.json?.updatedCount === 1, `status=${cronHeader.status} ${JSON.stringify(cronHeader.json)}`);
 const [expiredRow] = await db`SELECT status FROM certificates WHERE cert_number = 'BAVP-2026-BBBB0002'`;
 assert('到期证书已置 EXPIRED', expiredRow?.status === 'EXPIRED');
 

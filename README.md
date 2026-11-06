@@ -6,7 +6,7 @@
 
 - **前端/服务端**：Next.js 16（App Router，`proxy.ts` 作为请求前置校验）+ Tailwind CSS 4
 - **数据库**：PostgreSQL（运行时使用 `postgres` 原生驱动，`prisma` 仅用于 schema 工具链）
-- **文件存储**：本地 `public/uploads`（由 `lib/storage.ts` 管理，仅适用于常驻磁盘的部署形态）
+- **文件存储**：本地 `public/uploads`（证书印章）与 `private/uploads`（投诉证据，管理员鉴权后访问），仅适用于常驻磁盘的部署形态
 - **邮件**：Resend（未配置时降级为日志输出）
 
 ---
@@ -16,7 +16,7 @@
 ```bash
 npm install
 cp .env.local.example .env.local   # 填写 DATABASE_URL / AUTH_SECRET / NEXT_PUBLIC_BASE_URL
-npm run db:generate                # 生成 Prisma Client（lib/prisma.ts 需要，构建前也会自动执行）
+npm run db:generate                # 生成 Prisma Client（构建前也会自动执行）
 psql -d ba_nihplod_db -f db/schema.sql   # 初始化数据库结构
 npm run dev
 ```
@@ -54,12 +54,20 @@ npm run db:migrate:apply                # 正式执行
 >
 > 线上变更顺序必须是：**备份 → `db:migrate:apply -- --dry-run` → 正式迁移 → 构建 → 重启**。
 
-也可手动执行单个迁移（新迁移文件均带 BEGIN/COMMIT；手工执行时仍建议使用 `-1` 或 `ON_ERROR_STOP=1`）：
+手工执行单个迁移时，必须使用事务或 `ON_ERROR_STOP=1`（并非所有历史迁移文件都自带 `BEGIN/COMMIT`）：
 
 ```bash
-sudo -u postgres psql -d ba_nihplod_db -v ON_ERROR_STOP=1 -f db/migrate-20260925-security-fixes.sql
-sudo -u postgres psql -d ba_nihplod_db -v ON_ERROR_STOP=1 -f db/migrate-20260926-audit-log-indexes.sql
+sudo -u postgres psql -d ba_nihplod_db -v ON_ERROR_STOP=1 -1 -f db/migrate-20260925-security-fixes.sql
+sudo -u postgres psql -d ba_nihplod_db -v ON_ERROR_STOP=1 -1 -f db/migrate-20260926-audit-log-indexes.sql
 ```
+
+### CSP 与缓存
+
+生产 CSP 使用 nonce，页面必须动态渲染，因此 HTML 不应被 CDN 长期缓存。使用 Cloudflare 时：
+
+- 不要对 HTML 页面设置 Cache Everything；
+- 每次发布后 purge `/`、`/verify`、`/admin*`、`/workbench*`、`/reset-password*` 缓存；
+- 确认响应头 `script-src` 含 `'nonce-...'` 且不含 `'unsafe-inline'`。
 
 ### 时区要求（重要）
 
@@ -79,36 +87,64 @@ ALTER DATABASE ba_nihplod_db SET timezone TO 'Asia/Shanghai';
 1. 构建：`npm ci && npm run build`（`prebuild` 自动执行 `prisma generate`）
 2. 启动：`npm run start`（常驻进程可用 pm2/systemd 管理）
 3. **反向代理必须设置 `X-Real-IP $remote_addr`**（应用优先读取该头用于限流），且不要将应用端口直接暴露公网
-4. 定时任务（建议每日一次），两种鉴权方式均可：
+4. 定时任务（建议每日一次），只接受请求头：
    ```bash
    curl -H "x-cron-secret: $CRON_SECRET" https://<域名>/api/cron/update-expired-certificates
-   curl "https://<域名>/api/cron/update-expired-certificates?secret=$CRON_SECRET"
    ```
 
-### 迁移部署（2026-09-25 安全加固 + 2026-09-26 审计索引）
+### 迁移部署
 
-先在维护窗口内备份全库并执行迁移，再发布新代码（旧代码不识别 `token_version` 等新列，顺序不能反）：
+当前迁移包含 2026-09-25、2026-09-26、2026-10-27 系列和 2026-11-06 的幂等/索引迁移。线上已有 `schema_migrations` 时，不需要再执行 `--mark-applied`，直接按以下顺序：
 
 ```bash
+# 1. 先备份数据库和上传目录
 pg_dump -Fc -d ba_nihplod_db -f backup_before_deploy.dump
 
-# 首次接入迁移 ledger：把历史上已手动执行过的迁移登记为已应用（仅登记，不执行）
+# 2. 先只读查看待执行迁移（不会创建 schema_migrations）
+npm run db:migrate:apply -- --dry-run
+
+# 3. 正式执行迁移
+npm run db:migrate:apply
+
+# 4. 再构建、重启
+npm run build
+pm2 restart ba-nihplod-app --update-env
+```
+
+如果新环境还没有 `schema_migrations` 且历史上已手工执行过旧迁移，先按实际执行情况登记，再运行 dry-run 确认：
+
+```bash
 npm run db:migrate:apply -- \
   --mark-applied=migrate-add-dealer-unique.sql \
   --mark-applied=migrate-pgtrgm-search.sql \
   --mark-applied=migrate-phone-optional.sql \
   --mark-applied=migrate-search-count.sql \
   --mark-applied=migrate-sync-email.sql
-
-npm run db:migrate:apply -- --dry-run   # 确认仅剩 2026-09-25 / 2026-09-26 两个待执行
-npm run db:migrate:apply                # 实际执行
 ```
 
-回滚：`db/rollback-20260926-audit-log-indexes.sql`、`db/rollback-20260925-security-fixes.sql`（先回滚代码，再回滚数据库）。
+回滚：`db/rollback-20260926-audit-log-indexes.sql`、`db/rollback-20260925-security-fixes.sql`、`db/rollback-20261106-01-migrations.sql`（先回滚代码，再回滚数据库）。
 
 部署前只读核查脚本：`scripts/pre-deploy-check.sql`。
 
+部署后如果使用 Cloudflare，请 purge 页面缓存，确保旧 HTML 不再携带旧的 Server Action ID。
+
+历史投诉证据迁移（仅当数据库存在旧的 `/uploads/public-uploads/complaints/` 地址时）：
+
+```bash
+npm run migrate:evidence-private             # dry-run
+npm run migrate:evidence-private -- --apply  # 复制并更新数据库
+npm run migrate:evidence-private -- --apply --delete-old
+```
+
 ---
+
+### 私有证据与配额
+
+- `private/uploads` 存放投诉证据，只能通过管理员接口 `/api/files/complaints/...` 读取；
+- `MAX_PRIVATE_UPLOAD_BYTES` 默认 2GB，超出时匿名上传返回 507；
+- `UPLOAD_RETENTION_DAYS` 默认 180，供 `cleanup:uploads` 清理已关闭/软删除工单证据；
+- `DB_STATEMENT_TIMEOUT_MS` 默认 15000，避免慢查询长期占用连接；
+- 历史公开证据可用 `npm run migrate:evidence-private -- --apply --delete-old` 迁移。
 
 ## 备份（生产必做）
 
@@ -129,6 +165,7 @@ npm run backup:uploads
 ```cron
 40 3 * * * cd /var/www/BA-NIHPLOD && npm run backup:db >> /var/log/ba-db-backup.log 2>&1
 50 3 * * * cd /var/www/BA-NIHPLOD && npm run backup:uploads >> /var/log/ba-uploads-backup.log 2>&1
+10 4 * * * cd /var/www/BA-NIHPLOD && npm run cleanup:uploads -- --delete --purge-closed-days=180 >> /var/log/ba-cleanup.log 2>&1
 ```
 
 注意：
@@ -169,8 +206,10 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 - 证书授权方由服务端固定为 `COMPANY_FULL_NAME`；自定义印章仅 `SUPER_ADMIN` 可提交
 - `audit_logs` 为 append-only：数据库 trigger 禁止 UPDATE/DELETE；删除证书改为 `SET NULL` + `certificate_ref`
 - 生产环境 `.env.local` 权限必须为 `600`；不要保留可读的重复 `.env` 配置（`DATABASE_URL` 会泄露数据库密码）
-- 上传文件魔数校验 + 路径遍历防护；投诉证据仅接受站内 `/uploads/` 地址
-- CSP / HSTS / X-Frame-Options 等安全响应头见 `next.config.ts`
+- 上传文件魔数校验 + 路径遍历防护；投诉证据写入 `private/uploads`，仅管理员可通过 `/api/files/complaints/...` 访问
+- Nginx 应增加 `location ^~ /uploads/public-uploads/ { return 410; }`，防止旧证据路径继续被公开访问
+- 匿名证据默认全局上限 2GB、已关闭/软删除工单证据默认保留 180 天，均可通过环境变量调整
+- CSP nonce / HSTS / X-Frame-Options 等安全响应头见 `proxy.ts` 与 `next.config.ts`；生产 `script-src` 不含 `unsafe-inline`
 
 ---
 
@@ -182,10 +221,12 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 | `npm run db:generate` | 生成 Prisma Client |
 | `npm run db:migrate:apply` | 执行待应用的数据库迁移（支持 `-- --dry-run`） |
 | `npm run db:push` | 仅本地临时使用；**生产禁止**，会绕过 SQL 迁移/触发器/手工索引 |
+| `npm test` | 纯函数单元测试（校验/日期/魔数） |
 | `npm run test:e2e` | 端到端冒烟测试（必须显式 `--db` 一次性数据库 + 已启动的服务） |
+| `npm run migrate:evidence-private` | 将历史公开投诉证据迁移到 private（默认 dry-run，加 `-- --apply` 执行） |
 | `npm run backup:db` | 备份 BA 数据库（需要 `pg_dump`，默认保留 30 天） |
 | `npm run backup:uploads` | 备份 BA public/uploads + private 文件 |
-| `npm run cleanup:uploads` | 清理未被引用的上传文件（默认 dry-run，加 `-- --delete` 执行；软删除投诉证据仍被引用） |
+| `npm run cleanup:uploads` | 清理未引用文件；加 `-- --delete` 执行。默认保留最近 7 天；`UPLOAD_RETENTION_DAYS` 控制已关闭工单证据保留期 |
 | `npm run list:admins` | 列出管理员账号 |
 | `npm run init:admins` | 初始化管理员账号 |
 

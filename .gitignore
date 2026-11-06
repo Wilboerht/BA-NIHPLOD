@@ -17,6 +17,7 @@
 /.next/
 /out/
 public/uploads/
+/private/
 
 # production
 /build
@@ -30,6 +31,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# local generated admin password
+admin-init-password.txt
 
 # env files (can opt-in for committing if needed)
 .env*

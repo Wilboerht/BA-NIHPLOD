@@ -4,6 +4,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { ALL_ROLES } from '@/types';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { isUuid } from '@/lib/validation';
 
 export async function PUT(req: Request) {
   try {
@@ -15,7 +16,7 @@ export async function PUT(req: Request) {
 
     const { userId, newRole } = body!;
 
-    if (typeof userId !== 'string' || typeof newRole !== 'string' || !userId || !newRole) {
+    if (!isUuid(userId) || typeof newRole !== 'string' || !newRole) {
       return NextResponse.json(
         { error: '缺少必要参数' },
         { status: 400 }

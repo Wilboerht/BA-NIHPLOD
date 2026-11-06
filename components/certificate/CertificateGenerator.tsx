@@ -66,17 +66,16 @@ function getCustomChannel(text: string): string {
 
 function updateScopeTextChannels(text: string, channels: string[], custom: string): string {
   const lines = text.split('\n');
-  if (lines.length >= 2) {
-    const items = channels.filter(ch => ch !== '其他');
-    if (channels.includes('其他')) {
-      if (custom.trim()) {
-        items.push(custom.trim());
-      } else {
-        items.push('其他');
-      }
+  while (lines.length < 2) lines.push('');
+  const items = channels.filter(ch => ch !== '其他');
+  if (channels.includes('其他')) {
+    if (custom.trim()) {
+      items.push(custom.trim());
+    } else {
+      items.push('其他');
     }
-    lines[1] = items.join(' | ');
   }
+  lines[1] = items.join(' | ');
   return lines.join('\n');
 }
 
@@ -109,7 +108,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isIssued, setIsIssued] = useState(false);
+  const [pendingSubmitted, setPendingSubmitted] = useState(false);
   const [isVoided, setIsVoided] = useState(initialVoided);
+  const showPending = isPending || pendingSubmitted;
   const [, setIsDownloading] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   const [isScopeExpanded, setIsScopeExpanded] = useState(false);
@@ -470,7 +471,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       console.warn("QR code generation failed:", err);
     }
 
-    if (!isIssued || isVoided || isPending) {
+    if (!isIssued || isVoided || showPending) {
       offCtx.save();
       offCtx.rotate(-Math.PI / 4);
       offCtx.textAlign = "center";
@@ -484,7 +485,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             offCtx.fillText("已作废", x, y);
           }
         }
-      } else if (isPending) {
+      } else if (showPending) {
         offCtx.fillStyle = "rgba(217, 119, 6, 0.18)";
         const stepX = 220 * scale;
         const stepY = 160 * scale;
@@ -526,7 +527,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const h = setTimeout(() => renderCertificate(), 300);
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, isFontLoaded, isIssued, isVoided, isPending]);
+  }, [data, isFontLoaded, isIssued, isVoided, isPending, pendingSubmitted]);
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
@@ -647,6 +648,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
       // 仅「已签发」状态才去掉水印并允许下载；
       // 审核员提报（create_pending）保持「审核中 · 未核发」水印
+      if (mode === 'create' && !isManager) {
+        setPendingSubmitted(true);
+      }
       const nowIssued = mode !== 'create' || isManager;
       if (nowIssued) {
         setIsIssued(true);
@@ -718,6 +722,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                 <div className="flex items-center gap-2">
                   <input
                     type="date"
+                    required
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
                     value={data.duration && data.duration.includes(' - ') ? data.duration.split(' - ')[0].replace(/\./g, '-') : ""}
                     onChange={(e) => setData(prev => {
@@ -728,6 +733,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   <span className="text-slate-300">/</span>
                   <input
                     type="date"
+                    required
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
                     value={data.duration && data.duration.includes(' - ') ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
                     onChange={(e) => setData(prev => {

@@ -33,7 +33,7 @@ WHERE conrelid = 'audit_logs'::regclass AND contype = 'f' AND confrelid = 'compl
 SELECT table_name, column_name, data_type, column_default
 FROM information_schema.columns
 WHERE (table_name = 'audit_logs' AND column_name = 'complaint_ref')
-   OR (table_name = 'profiles' AND column_name = 'token_version');
+   OR (table_name = 'profiles' AND column_name IN ('token_version', 'email', 'deleted_at'));
 
 \echo '== 3b. 审计 v2 / 软删除列（迁移后应存在） =='
 SELECT table_name, column_name, data_type
@@ -84,6 +84,7 @@ WHERE indexname IN (
   'idx_dealers_phone_company',
   'idx_dealers_company_name_trgm',
   'idx_certificates_status_end_date',
+  'idx_certificates_status_start_end',
   'idx_certificates_cert_number'
 )
 ORDER BY indexname;

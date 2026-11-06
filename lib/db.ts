@@ -1,5 +1,5 @@
 import postgres from 'postgres';
-import { ADMIN_ROLES } from '@/types';
+import { buildContainsPattern } from './validation';
 
 /**
  * 原生 Postgres 连接池（保留用于复杂 SQL 查询）
@@ -13,20 +13,32 @@ const DB_TIMEZONE =
     ? process.env.DB_TIMEZONE
     : 'Asia/Shanghai';
 
+const parsedStatementTimeout = Number.parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '', 10);
+const DB_STATEMENT_TIMEOUT_MS =
+  Number.isFinite(parsedStatementTimeout) && parsedStatementTimeout > 0
+    ? parsedStatementTimeout
+    : 15000;
+
 function createDbClient() {
   const databaseUrl = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
   if (!databaseUrl) {
     console.error('[db] FATAL: DATABASE_URL environment variable is not set.');
-    // 返回一个代理对象，在调用时抛出明确的错误，避免 null 导致的隐晦崩溃
-    return new Proxy({} as ReturnType<typeof postgres>, {
+    const missingConfigError = (property: string) => {
+      const err = new Error(
+        `[db] Database connection failed: DATABASE_URL is not configured. ` +
+        `Attempted to access "sql.${property}". ` +
+        `Please set DATABASE_URL in your .env.local file.`
+      );
+      (err as Error & { statusCode?: number }).statusCode = 503;
+      return err;
+    };
+    // 必须使用可调用函数作为 target，否则 sql`...` 的 apply trap 会抛 TypeError
+    const fallback = function () {
+      throw missingConfigError('query');
+    } as unknown as ReturnType<typeof postgres>;
+    return new Proxy(fallback, {
       get(_target, prop) {
-        const err = new Error(
-          `[db] Database connection failed: DATABASE_URL is not configured. ` +
-          `Attempted to access "sql.${String(prop)}". ` +
-          `Please set DATABASE_URL in your .env.local file.`
-        );
-        (err as Error & { statusCode?: number }).statusCode = 503;
-        throw err;
+        throw missingConfigError(String(prop));
       },
     });
   }
@@ -34,10 +46,12 @@ function createDbClient() {
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
-    // 通过启动参数设置会话时区，确保 CURRENT_DATE 与业务时区一致
+    // 通过启动参数设置会话参数，避免慢查询和长事务长期占用连接
     connection: {
       TimeZone: DB_TIMEZONE,
       application_name: 'bavp',
+      statement_timeout: DB_STATEMENT_TIMEOUT_MS,
+      idle_in_transaction_session_timeout: 30000,
     },
   });
 }
@@ -68,9 +82,6 @@ export const sql = new Proxy(
   }
 );
 
-// 如需使用 Prisma ORM（类型安全查询），请从 @/lib/prisma 导入
-// import { prisma } from '@/lib/prisma';
-
 // ============================================================================
 // 【认证类】
 // ============================================================================
@@ -100,23 +111,6 @@ export async function getProfileById(id: string): Promise<{ data: SqlRow | null;
     FROM profiles WHERE id = ${id} AND deleted_at IS NULL LIMIT 1
   `;
   return { data: result[0] || null, error: null };
-}
-
-/**
- * 检查管理员权限
- */
-export async function checkIsAdmin(adminId: string): Promise<boolean> {
-  if (!adminId) return false;
-
-  try {
-    const { data: profile, error } = await getProfileById(adminId);
-    if (error || !profile) return false;
-
-    return ADMIN_ROLES.includes(String(profile.role) as typeof ADMIN_ROLES[number]);
-  } catch (error) {
-    console.error("[checkIsAdmin] Error:", error);
-    return false;
-  }
 }
 
 // ============================================================================
@@ -207,17 +201,19 @@ export async function getAllCertificates(
     LEFT JOIN profiles p ON c.auditor_id = p.id
   `;
 
-  // 状态语义与前端展示保持一致：ISSUED 仅指「已签发且未到期」
+  // 状态语义与前端展示保持一致：ISSUED 仅指「已签发且当前处于生效期」
   const statusCondition =
     statusFilter === 'invalid'
       ? sql` AND (c.status IN ('EXPIRED', 'REVOKED', 'REJECTED') OR (c.status = 'ISSUED' AND c.end_date < CURRENT_DATE))`
       : statusFilter === 'ISSUED'
-        ? sql` AND c.status = 'ISSUED' AND c.end_date >= CURRENT_DATE`
-        : statusFilter
-          ? sql` AND c.status = ${statusFilter}`
-          : sql``;
+        ? sql` AND c.status = 'ISSUED' AND c.start_date <= CURRENT_DATE AND c.end_date >= CURRENT_DATE`
+        : statusFilter === 'UPCOMING'
+          ? sql` AND c.status = 'ISSUED' AND c.start_date > CURRENT_DATE`
+          : statusFilter
+            ? sql` AND c.status = ${statusFilter}`
+            : sql``;
 
-  const likePattern = search?.trim() ? `%${search.trim()}%` : null;
+  const likePattern = search?.trim() ? buildContainsPattern(search.trim()) : null;
   const searchCondition = likePattern
     ? sql` AND (c.cert_number ILIKE ${likePattern} OR d.company_name ILIKE ${likePattern} OR split_part(c.auth_scope, ' | ', 1) ILIKE ${likePattern})`
     : sql``;
@@ -263,7 +259,7 @@ export async function getAllComplaints(
     const statusCondition = status && status !== 'ALL'
       ? sql` AND status = ${status}`
       : sql``;
-    const likePattern = search?.trim() ? `%${search.trim()}%` : null;
+    const likePattern = search?.trim() ? buildContainsPattern(search.trim()) : null;
     const searchCondition = likePattern
       ? sql` AND (channel ILIKE ${likePattern} OR description ILIKE ${likePattern} OR contact_info ILIKE ${likePattern} OR id::text ILIKE ${likePattern})`
       : sql``;
@@ -286,33 +282,6 @@ export async function getAllComplaints(
   }
 }
 
-/**
- * 获取待处理投诉（PENDING + INVESTIGATING）
- */
-export async function getPendingComplaints(limit = 500): Promise<{ data: SqlRow[]; error: Error | null }> {
-  const result = await sql`
-    SELECT * FROM complaints
-    WHERE status IN ('PENDING', 'INVESTIGATING')
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
-    LIMIT ${limit}
-  `;
-  return { data: result || [], error: null };
-}
-
-/**
- * 获取待处理投诉计数（PENDING + INVESTIGATING）
- */
-export async function getPendingComplaintsCount(): Promise<{ data: { count: number }; error: Error | null }> {
-  const result = await sql`
-    SELECT COUNT(*) as count
-    FROM complaints
-    WHERE status IN ('PENDING', 'INVESTIGATING')
-      AND deleted_at IS NULL
-  `;
-  return { data: { count: parseInt(String(result[0]?.count || 0), 10) }, error: null };
-}
-
 // ============================================================================
 // 【系统统计类】
 // ============================================================================
@@ -324,7 +293,7 @@ export async function getDashboardStats(): Promise<{ data: Record<string, number
   const [certCountRes, complaintCountRes, issuedCountRes] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM certificates WHERE deleted_at IS NULL`,
     sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING') AND deleted_at IS NULL`,
-    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND end_date >= CURRENT_DATE AND deleted_at IS NULL`
+    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND deleted_at IS NULL`
   ]);
 
   return {
@@ -395,31 +364,9 @@ export async function checkActionRateLimit(
     // 本次请求计数 <= maxAttempts 时放行（即窗口内恰好允许 maxAttempts 次）
     return record.attempts <= maxAttempts;
   } catch (err) {
-    console.error('[RateLimit] 数据库查询失败，限流降级放行:', err);
-    // 数据库不可用时放行，避免阻塞正常业务
-    return true;
-  }
-}
-
-/**
- * 创建投诉审核日志
- */
-export async function createComplaintAuditLog(
-  complaintId: string,
-  actorId: string,
-  action: string,
-  comment?: string
-): Promise<{ success: boolean; error: Error | null }> {
-  try {
-    await sql`
-      INSERT INTO audit_logs (complaint_id, actor_id, action, comment, created_at)
-      VALUES (${complaintId}, ${actorId}, ${action}, ${comment || null}, NOW())
-    `;
-    return { success: true, error: null };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '审计日志写入失败';
-    console.error('[AuditLog] 创建投诉审计日志失败:', err);
-    return { success: false, error: new Error(message) };
+    // 安全优先：限流依赖数据库时，数据库异常不能静默放行
+    console.error('[RateLimit] 数据库查询失败，拒绝本次操作:', err);
+    return false;
   }
 }
 
@@ -452,7 +399,7 @@ export async function getAuditLogs(
                   ? sql` AND a.target_type = 'system'`
                   : sql``;
 
-    const likePattern = search?.trim() ? `%${search.trim()}%` : null;
+    const likePattern = search?.trim() ? buildContainsPattern(search.trim()) : null;
     const searchCondition = likePattern
       ? sql` AND (p.full_name ILIKE ${likePattern}
               OR p.username ILIKE ${likePattern}

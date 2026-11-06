@@ -28,53 +28,109 @@ const PUBLIC_PATHS = [
   '/admin/login',
 ];
 
+function createCsp(nonce: string): string {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "'strict-dynamic'",
+    'https://www.googletagmanager.com',
+    'https://www.google-analytics.com',
+    'https://static.cloudflareinsights.com',
+    isDev ? "'unsafe-eval'" : '',
+  ].filter(Boolean);
+  const styleSrc = ["'self'", `'nonce-${nonce}'`, isDev ? "'unsafe-inline'" : ''].filter(Boolean);
+  const connectSrc = isDev
+    ? "'self' https://cloudflareinsights.com ws: wss:"
+    : "'self' https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com";
+
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc.join(' ')}`,
+    `style-src ${styleSrc.join(' ')}`,
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self' blob: data: https://www.google-analytics.com",
+    "font-src 'self'",
+    `connect-src ${connectSrc}`,
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    isDev ? '' : 'upgrade-insecure-requests',
+  ].filter(Boolean).join('; ') + ';';
+}
+
+function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
+  const csp = createCsp(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('Cache-Control', 'no-store');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isApi = pathname.startsWith('/api/');
+  const nonce = isApi ? '' : Buffer.from(crypto.randomUUID()).toString('base64');
 
-  // 检查是否为公开路径
-  if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
-    return NextResponse.next();
+  // 兼容入口：在 proxy 层完成服务端 307，避免依赖页面软跳转
+  if (pathname === '/verify') {
+    const target = new URL('/', request.url);
+    const cert = request.nextUrl.searchParams.get('cert');
+    if (cert) target.searchParams.set('cert', cert);
+    const redirect = NextResponse.redirect(target, 307);
+    redirect.headers.set('Cache-Control', 'no-store');
+    return redirect;
   }
 
-  // 检查是否需要保护
-  const needsProtection = PROTECTED_PATHS.some(path => pathname.startsWith(path));
+  const nextForRequest = () => (
+    isApi ? NextResponse.next() : nextWithNonce(request, nonce)
+  );
+
+  // 公开路径放行（页面仍需要 nonce/CSP）
+  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
+    return nextForRequest();
+  }
+
+  const needsProtection = PROTECTED_PATHS.some((path) => pathname.startsWith(path));
   if (!needsProtection) {
-    return NextResponse.next();
+    return nextForRequest();
   }
 
-  // 验证 JWT（不查数据库）
   const payload = await verifyTokenBasic(request);
 
   if (!payload) {
-    // API 路由返回 401
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { error: '未登录或登录已过期' },
-        { status: 401 }
-      );
+    if (isApi) {
+      return NextResponse.json({ error: '未登录或登录已过期' }, { status: 401 });
     }
-    // 页面路由重定向到登录页或首页
     if (pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // 检查 token 是否来自被封禁账号（新 token 会包含此字段，旧 token 在 API 层被拦截）
   if (payload.is_banned === true) {
-    if (pathname.startsWith('/api/')) {
+    if (isApi) {
       return NextResponse.json({ error: '账号已被封禁' }, { status: 403 });
     }
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // 首次登录只允许访问改密页和认证接口；服务端 requireAuth 仍会二次兜底
   if (
     payload.is_first_login === true
     && !pathname.startsWith('/reset-password')
     && !pathname.startsWith('/api/auth/')
   ) {
-    if (pathname.startsWith('/api/')) {
+    if (isApi) {
       return NextResponse.json(
         { error: '首次登录必须修改密码', code: 'PASSWORD_CHANGE_REQUIRED' },
         { status: 403 }
@@ -83,45 +139,42 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/reset-password', request.url));
   }
 
-  // 对于 /workbench 和 /admin 路由，检查是否为管理员
   if (pathname.startsWith('/workbench') || pathname.startsWith('/admin')) {
     if (!ADMIN_ROLES.includes(payload.role as typeof ADMIN_ROLES[number])) {
-      if (pathname.startsWith('/api/')) {
+      if (isApi) {
         return NextResponse.json({ error: '无权限执行此操作' }, { status: 403 });
-      }
-      if (pathname.startsWith('/workbench')) {
-        return NextResponse.redirect(new URL('/', request.url));
       }
       return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
-  // 账号管理类路径强制要求超级管理员（兜底防线）
-  if (SUPER_ADMIN_PATHS.some(path => pathname.startsWith(path))) {
+  if (SUPER_ADMIN_PATHS.some((path) => pathname.startsWith(path))) {
     if (payload.role !== 'SUPER_ADMIN') {
-      if (pathname.startsWith('/api/')) {
+      if (isApi) {
         return NextResponse.json({ error: '无权限执行此操作，仅超级管理员可操作' }, { status: 403 });
       }
       return NextResponse.redirect(new URL('/workbench', request.url));
     }
   }
 
-  const response = NextResponse.next();
-
-  // 安全响应头（defense-in-depth）
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
+  const response = nextForRequest();
+  if (!isApi) {
+    response.headers.set('Cache-Control', 'no-store');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  }
   return response;
 }
 
 export const config = {
   matcher: [
-    '/workbench/:path*',
-    '/admin/:path*',
-    '/demo/:path*',
+    '/',
+    '/verify',
     '/reset-password',
+    '/admin/:path*',
+    '/workbench/:path*',
+    '/demo/:path*',
     '/api/admin/:path*',
     '/api/auth/change-password',
     '/api/auth/me',

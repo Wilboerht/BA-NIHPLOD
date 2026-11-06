@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
-import { uploadFile, getPublicUrl } from '@/lib/storage';
+import { uploadFile, getPrivateFileUrl } from '@/lib/storage';
 import { checkActionRateLimit, sql } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
+import { readFormDataWithLimit } from '@/lib/api-utils';
+import { invalidateStorageUsageCache, wouldExceedPrivateQuota } from '@/lib/storage-quota';
+import { getClientIpFromRequest } from '@/lib/request-ip';
 import crypto from 'crypto';
 
 const ALLOWED_TYPES = [
@@ -12,22 +15,12 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB（匿名上传限制更严格）
-
-function getClientIP(req: Request): string {
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean);
-    return ips[0] || 'unknown';
-  }
-  return 'unknown';
-}
+const MAX_BODY_SIZE = MAX_FILE_SIZE + 1024 * 1024;
 
 export async function POST(req: Request) {
   try {
     // 限流：每个 IP 5 分钟内最多上传 20 次（支持最多 4 次 5 图投诉）
-    const clientIP = getClientIP(req);
+    const clientIP = getClientIpFromRequest(req);
     const allowedShort = await checkActionRateLimit(`upload:${clientIP}`, 20, 5 * 60 * 1000);
     if (!allowedShort) {
       return NextResponse.json({ error: '上传过于频繁，请 5 分钟后再试' }, { status: 429 });
@@ -38,13 +31,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '今日上传次数已达上限，请明天再试' }, { status: 429 });
     }
 
-    // 先根据 Content-Length 做粗粒度拦截，避免解析超大 multipart 造成内存压力
-    const contentLength = Number(req.headers.get('content-length') || 0);
-    if (Number.isFinite(contentLength) && contentLength > MAX_FILE_SIZE + 1024 * 1024) {
-      return NextResponse.json({ error: '请求体过大' }, { status: 413 });
-    }
+    // Content-Length + 流式上限，防止 chunked 请求绕过检查
+    const { formData, response: formError } = await readFormDataWithLimit(req, MAX_BODY_SIZE);
+    if (formError || !formData) return formError!;
 
-    const formData = await req.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
@@ -67,26 +57,36 @@ export async function POST(req: Request) {
       );
     }
 
+    if (await wouldExceedPrivateQuota(file.size)) {
+      return NextResponse.json({ error: '证据存储空间已满，请联系管理员' }, { status: 507 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // 生成安全文件名
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const safeExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '') ? fileExt : 'bin';
-    const fileName = `complaints/${crypto.randomUUID()}.${safeExt}`;
+    const fileName = `${crypto.randomUUID()}.${safeExt}`;
 
     const { path, error } = await uploadFile(
-      'public-uploads',
+      'complaints',
       fileName,
       buffer,
-      file.type || 'application/octet-stream'
+      file.type || 'application/octet-stream',
+      'private'
     );
 
     if (error) {
       console.error('[Public Upload] File upload failed:', error);
-      return NextResponse.json({ error: '文件上传失败，请稍后重试' }, { status: 500 });
+      const status = error.includes('文件类型') ? 400 : 500;
+      return NextResponse.json(
+        { error: status === 400 ? error : '文件上传失败，请稍后重试' },
+        { status }
+      );
     }
+    invalidateStorageUsageCache();
 
-    const publicUrl = getPublicUrl('public-uploads', path);
+    const publicUrl = getPrivateFileUrl('complaints', path);
 
     try {
       await writeAudit(sql, {

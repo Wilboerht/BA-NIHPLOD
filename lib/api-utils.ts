@@ -25,10 +25,73 @@ export function apiError(
 }
 
 /**
- * 统一的 API 成功响应封装
+ * 安全读取 multipart 请求体
+ * - Content-Length 超限直接拒绝
+ * - 对 chunked 请求做流式字节上限，避免 formData() 无界缓冲
  */
-export function apiSuccess<T>(data: T, status = 200): NextResponse {
-  return NextResponse.json({ success: true, data }, { status });
+export async function readFormDataWithLimit(
+  req: Request,
+  maxBytes: number
+): Promise<{ formData: FormData | null; response: NextResponse | null }> {
+  const contentLength = Number(req.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    return {
+      formData: null,
+      response: NextResponse.json({ error: '请求体过大' }, { status: 413 }),
+    };
+  }
+
+  if (!req.body) {
+    try {
+      return { formData: await req.formData(), response: null };
+    } catch {
+      return {
+        formData: null,
+        response: NextResponse.json({ error: '请求格式错误' }, { status: 400 }),
+      };
+    }
+  }
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return {
+          formData: null,
+          response: NextResponse.json({ error: '请求体过大' }, { status: 413 }),
+        };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return {
+      formData: null,
+      response: NextResponse.json({ error: '请求读取失败' }, { status: 400 }),
+    };
+  }
+
+  const body = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), total);
+  try {
+    const reconstructed = new Request(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body,
+    });
+    return { formData: await reconstructed.formData(), response: null };
+  } catch {
+    return {
+      formData: null,
+      response: NextResponse.json({ error: '请求格式错误' }, { status: 400 }),
+    };
+  }
 }
 
 /**

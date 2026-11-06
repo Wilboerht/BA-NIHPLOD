@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
     { label: "包含数字", met: /\d/.test(password) },
   ];
 
-  const canSubmit = requirements.every(req => req.met) && password === confirmPassword && password !== "";
+  const canSubmit = !!user?.id && requirements.every(req => req.met) && password === confirmPassword && password !== "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

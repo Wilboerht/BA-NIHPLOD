@@ -53,6 +53,7 @@ export default function ComplaintsPage() {
   const [reviewNote, setReviewNote] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [reviewComplaint, setReviewComplaint] = useState<Complaint | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -61,6 +62,28 @@ export default function ComplaintsPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setUserRole(data?.user?.role ?? null))
       .catch(() => setUserRole(null));
+  }, []);
+
+  // 支持工作台首页 /workbench/complaints?id=... 深链
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) return;
+
+    let cancelled = false;
+    setActiveReviewId(id);
+    fetchWithTimeout(`/api/db/complaints/${encodeURIComponent(id)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('fetch complaint failed');
+        const data = await res.json();
+        if (!cancelled && data?.data) setReviewComplaint(data.data);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveReviewId(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEscapeKey(() => setSelectedImageUrls([]), selectedImageUrls.length > 0);
@@ -211,7 +234,7 @@ export default function ComplaintsPage() {
     }
   };
 
-  const activeComplaint = complaints.find(c => c.id === activeReviewId);
+  const activeComplaint = complaints.find(c => c.id === activeReviewId) || reviewComplaint;
 
   const totalPages = Math.ceil(total / pageSize);
 

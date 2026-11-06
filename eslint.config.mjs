@@ -11,6 +11,8 @@ const eslintConfig = defineConfig([
       "no-implied-eval": "error",
       "no-new-func": "error",
       "react-hooks/set-state-in-effect": "off",
+      "react-hooks/immutability": "off",
+      "@next/next/no-location-assign-relative-destination": "off",
     },
   },
   // Override default ignores of eslint-config-next.

@@ -5,13 +5,14 @@ import { fileURLToPath } from 'url';
 import postgres from 'postgres';
 
 /**
- * 清理 public/uploads 下未被数据库引用的孤立文件
+ * 清理 public/uploads 与 private/uploads 下未被数据库引用的文件。
  * - 默认 dry-run，只列出；加 --delete 才真正删除
- * - 跳过最近 N 天内修改的文件（默认 7 天），避免误删正在使用的文件
- * - 引用来源：certificates.seal_url、complaints.evidence_image_url / evidence_image_urls
+ * - 默认跳过最近 7 天修改的文件，避免误删正在使用的文件
+ * - --purge-closed-days=N 可清理超过 N 天且已解决/已驳回/软删除工单的证据
  *
  * 用法：
  *   node scripts/cleanupOrphanUploads.mjs [--delete] [--min-age-days=7]
+ *   node scripts/cleanupOrphanUploads.mjs --delete --purge-closed-days=180
  */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -35,15 +36,35 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const shouldDelete = process.argv.includes('--delete');
-const minAgeArg = process.argv.find((a) => a.startsWith('--min-age-days='));
-const minAgeDays = minAgeArg ? Number(minAgeArg.split('=')[1]) : 7;
-const maxAgeMs = Number.isFinite(minAgeDays) && minAgeDays >= 0 ? minAgeDays * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+function argValue(name, fallback) {
+  const prefix = `--${name}=`;
+  const hit = process.argv.find((a) => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : fallback;
+}
 
-const uploadsRoot = path.resolve(__dirname, '../public/uploads');
+const shouldDelete = process.argv.includes('--delete');
+const minAgeDays = Number(argValue('min-age-days', '7'));
+const maxAgeMs = Number.isFinite(minAgeDays) && minAgeDays >= 0
+  ? minAgeDays * 24 * 60 * 60 * 1000
+  : 7 * 24 * 60 * 60 * 1000;
+const purgeClosedDays = Number(argValue('purge-closed-days', process.env.UPLOAD_RETENTION_DAYS || '0'));
+const canPurgeClosed = Number.isFinite(purgeClosedDays) && purgeClosedDays > 0;
+
+const publicRoot = path.resolve(
+  process.env.PUBLIC_UPLOAD_ROOT || path.join(process.cwd(), 'public', 'uploads')
+);
+const privateRoot = path.resolve(
+  process.env.PRIVATE_UPLOAD_ROOT || path.join(process.cwd(), 'private', 'uploads')
+);
 
 async function walk(dir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
   const files = [];
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
@@ -56,71 +77,115 @@ async function walk(dir) {
   return files;
 }
 
+function urlToFilePath(url) {
+  if (typeof url !== 'string') return null;
+  if (url.startsWith('/uploads/')) {
+    return path.resolve(publicRoot, url.slice('/uploads/'.length));
+  }
+  if (url.startsWith('/api/files/')) {
+    return path.resolve(privateRoot, url.slice('/api/files/'.length));
+  }
+  return null;
+}
+
 const sql = postgres(databaseUrl, { max: 1 });
 
 try {
-  const rootExists = await fs
-    .access(uploadsRoot)
-    .then(() => true)
-    .catch(() => false);
-  if (!rootExists) {
-    console.log('ℹ️  public/uploads 目录不存在，无需清理');
-    await sql.end();
-    process.exit(0);
-  }
-
   const refs = new Set();
-  const sealRows = await sql`SELECT seal_url AS url FROM certificates WHERE seal_url IS NOT NULL`;
-  const finalImageRows = await sql`SELECT final_image_url AS url FROM certificates WHERE final_image_url IS NOT NULL`;
+
+  const certificateRows = await sql`
+    SELECT seal_url AS url FROM certificates WHERE seal_url IS NOT NULL
+    UNION ALL
+    SELECT final_image_url AS url FROM certificates WHERE final_image_url IS NOT NULL
+  `;
   const complaintRows = await sql`
     SELECT evidence_image_url AS url FROM complaints WHERE evidence_image_url IS NOT NULL
     UNION ALL
     SELECT unnest(evidence_image_urls) AS url FROM complaints
   `;
-  // 模板资产也可能位于 /uploads/，避免未来启用模板后误删
   const templateRows = await sql`
     SELECT background_url AS url FROM templates WHERE background_url IS NOT NULL
     UNION ALL
     SELECT stamp_url AS url FROM templates WHERE stamp_url IS NOT NULL
   `;
-  for (const row of [...sealRows, ...finalImageRows, ...complaintRows, ...templateRows]) {
-    if (typeof row.url === 'string' && row.url.startsWith('/uploads/')) {
-      refs.add(row.url);
-    }
+
+  for (const row of [...certificateRows, ...complaintRows, ...templateRows]) {
+    const file = urlToFilePath(row.url);
+    if (file) refs.add(file);
   }
 
-  const files = await walk(uploadsRoot);
+  // 1) 清理未被引用的陈旧文件
+  const files = [...(await walk(publicRoot)), ...(await walk(privateRoot))];
   const now = Date.now();
   const orphans = [];
 
   for (const file of files) {
-    const rel = path.relative(uploadsRoot, file).split(path.sep).join('/');
-    const url = `/uploads/${rel}`;
-    if (refs.has(url)) continue;
-
+    if (refs.has(path.resolve(file))) continue;
     const stat = await fs.stat(file);
-    if (now - stat.mtimeMs < maxAgeMs) continue; // 新文件保护期
-
-    orphans.push({ file, rel, size: stat.size });
+    if (now - stat.mtimeMs < maxAgeMs) continue;
+    orphans.push({ file, size: stat.size });
   }
 
-  const totalBytes = orphans.reduce((sum, o) => sum + o.size, 0);
   console.log(`📦 扫描 ${files.length} 个文件，数据库引用 ${refs.size} 个`);
-  console.log(`🧹 孤立文件 ${orphans.length} 个，合计 ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`🧹 未被引用的陈旧文件 ${orphans.length} 个`);
   for (const o of orphans.slice(0, 50)) {
-    console.log(`   - ${o.rel} (${(o.size / 1024).toFixed(1)} KB)`);
+    console.log(`   - ${path.relative(process.cwd(), o.file)} (${(o.size / 1024).toFixed(1)} KB)`);
   }
   if (orphans.length > 50) console.log(`   ... 其余 ${orphans.length - 50} 个已省略`);
 
-  if (!shouldDelete) {
-    console.log('\n（dry-run 模式，未删除任何文件；确认后加 --delete 执行删除）');
-  } else {
+  if (shouldDelete) {
     for (const o of orphans) {
       await fs.unlink(o.file).catch((err) => {
-        console.error(`删除失败 ${o.rel}:`, err.message);
+        console.error(`删除失败 ${o.file}:`, err.message);
       });
     }
-    console.log(`\n✅ 已删除 ${orphans.length} 个孤立文件`);
+    console.log(`✅ 已删除 ${orphans.length} 个未引用文件`);
+  } else {
+    console.log('\n（dry-run：未删除任何文件；确认后加 --delete 执行）');
+  }
+
+  // 2) 可选：清理已关闭/软删除工单的过期证据
+  if (canPurgeClosed) {
+    const rows = await sql`
+      SELECT id, evidence_image_url, evidence_image_urls
+      FROM complaints
+      WHERE (deleted_at IS NOT NULL OR status IN ('RESOLVED', 'REJECTED'))
+        AND updated_at < NOW() - make_interval(days => ${purgeClosedDays})
+      ORDER BY updated_at ASC
+      LIMIT 200
+    `;
+
+    console.log(`\n🗂️ 可清理的已关闭工单 ${rows.length} 条（超过 ${purgeClosedDays} 天）`);
+
+    for (const row of rows) {
+      const urls = [
+        ...(row.evidence_image_url ? [row.evidence_image_url] : []),
+        ...(Array.isArray(row.evidence_image_urls) ? row.evidence_image_urls : []),
+      ].filter((url) => typeof url === 'string');
+
+      console.log(`   - 工单 ${row.id}: ${urls.length} 个证据`);
+      if (!shouldDelete) continue;
+
+      for (const url of urls) {
+        const file = urlToFilePath(url);
+        if (!file) continue;
+        await fs.unlink(file).catch((err) => {
+          if (err.code !== 'ENOENT') console.error(`删除失败 ${file}:`, err.message);
+        });
+      }
+
+      await sql`
+        UPDATE complaints
+        SET evidence_image_url = NULL,
+            evidence_image_urls = '{}',
+            updated_at = NOW()
+        WHERE id = ${row.id}
+      `;
+    }
+
+    if (!shouldDelete) {
+      console.log('（dry-run：未删除证据；确认后加 --delete 执行）');
+    }
   }
 } finally {
   await sql.end({ timeout: 3 }).catch(() => {});

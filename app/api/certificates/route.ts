@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { COMPANY_FULL_NAME } from '@/lib/config';
@@ -6,6 +6,7 @@ import { parseAuthScope } from '@/lib/utils';
 import { sendPendingCertNotification } from '@/lib/mail';
 import { apiError, readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { isRecord, isUuid, parseDateOnly } from '@/lib/validation';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 
@@ -44,7 +45,7 @@ function generateUniqueCertNumber(): string {
 // 签章图片地址白名单：仅允许本地上传文件或系统默认公章，防止写入恶意外链
 function isAllowedSealUrl(url: string | undefined | null): boolean {
   if (url === undefined || url === null || url === '') return true;
-  if (typeof url !== 'string') return false;
+  if (typeof url !== 'string' || url.length > 512 || url.includes('..')) return false;
   return url.startsWith('/uploads/') || url === '/default-seal.png';
 }
 
@@ -69,15 +70,17 @@ function parseDuration(duration: string | undefined): { start: string; end: stri
   if (parts.length !== 2) {
     throw new ValidationError(`有效期格式无效："${duration}"，应为 "YYYY.MM.DD - YYYY.MM.DD"`);
   }
-  const start = parts[0].replace(/\./g, '-').trim();
-  const end = parts[1].replace(/\./g, '-').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
-    throw new ValidationError(`有效期格式无效："${duration}"，日期应为 YYYY.MM.DD 格式`);
+  const startRaw = parts[0].replace(/\./g, '-').trim();
+  const endRaw = parts[1].replace(/\./g, '-').trim();
+  const startDate = parseDateOnly(startRaw);
+  const endDate = parseDateOnly(endRaw);
+  if (!startDate || !endDate) {
+    throw new ValidationError(`有效期格式无效："${duration}"，请使用真实的 YYYY.MM.DD 日期`);
   }
-  if (new Date(start) > new Date(end)) {
+  if (startDate.iso > endDate.iso) {
     throw new ValidationError('有效期无效：结束日期不能早于开始日期');
   }
-  return { start, end };
+  return { start: startDate.iso, end: endDate.iso };
 }
 
 // 清理 auth_scope 输入中的分隔符，避免解析错位
@@ -134,11 +137,14 @@ export async function POST(req: Request) {
     if (action !== undefined && typeof action !== 'string') {
       return NextResponse.json({ error: '操作类型无效' }, { status: 400 });
     }
-    if (certId !== undefined && typeof certId !== 'string') {
+    if (certId !== undefined && (!isUuid(certId))) {
       return NextResponse.json({ error: '证书 ID 格式无效' }, { status: 400 });
     }
-    if (reason !== undefined && typeof reason !== 'string') {
+    if (reason !== undefined && (typeof reason !== 'string' || reason.length > 1000)) {
       return NextResponse.json({ error: '原因格式无效' }, { status: 400 });
+    }
+    if (certData !== undefined && !isRecord(certData)) {
+      return NextResponse.json({ error: '证书数据格式无效' }, { status: 400 });
     }
 
     // 验证管理员权限
@@ -261,7 +267,7 @@ export async function POST(req: Request) {
       });
 
       // 异步通知管理员（不阻塞响应）
-      (async () => {
+      after(async () => {
         try {
           const admins = await sql`SELECT COALESCE(email, username) as email, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND deleted_at IS NULL AND (email IS NOT NULL OR username IS NOT NULL)`;
           if (admins.length > 0) {
@@ -283,7 +289,7 @@ export async function POST(req: Request) {
         } catch {
           // 邮件通知失败不影响主流程
         }
-      })();
+      });
 
       return NextResponse.json({ success: true, status: 'PENDING', certNumber: certNumber! });
     }

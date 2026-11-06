@@ -4,6 +4,7 @@ import { sql, checkActionRateLimit } from '@/lib/db';
 import { requireAuth, validatePassword } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { isUuid } from '@/lib/validation';
 
 export async function POST(req: Request) {
   try {
@@ -17,12 +18,13 @@ export async function POST(req: Request) {
     const { userId, oldPassword, newPassword } = body!;
 
     if (
-      typeof userId !== 'string'
+      !isUuid(userId)
       || typeof oldPassword !== 'string'
       || typeof newPassword !== 'string'
-      || !userId
       || !oldPassword
       || !newPassword
+      || oldPassword.length > 1024
+      || newPassword.length > 1024
     ) {
       return NextResponse.json(
         { error: '缺少必要参数' },

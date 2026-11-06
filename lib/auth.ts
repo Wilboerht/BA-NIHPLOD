@@ -115,11 +115,15 @@ export async function verifyToken(request: NextRequest | Request): Promise<Token
 
   // 检查 Token 黑名单
   if (payload.jti) {
-    try {
-      // 顺带清理过期黑名单记录（1% 概率触发，避免每次请求都执行）
-      if (Math.random() < 0.01) {
+    // 低概率清理失败不应导致正常用户被登出
+    if (Math.random() < 0.01) {
+      try {
         await sql`SELECT cleanup_expired_blacklist()`;
+      } catch (cleanupErr) {
+        console.warn('[verifyToken] 黑名单清理失败:', cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
       }
+    }
+    try {
       const blacklisted = await sql`SELECT 1 FROM token_blacklist WHERE jti = ${payload.jti as string} LIMIT 1`;
       if (blacklisted.length > 0) {
         return null;

@@ -270,6 +270,8 @@ CREATE INDEX IF NOT EXISTS idx_certificates_dealer_id ON certificates(dealer_id)
 CREATE INDEX IF NOT EXISTS idx_certificates_end_date ON certificates(end_date);
 CREATE INDEX IF NOT EXISTS idx_certificates_cert_number ON certificates(cert_number);
 CREATE INDEX IF NOT EXISTS idx_certificates_status_end_date ON certificates(status, end_date);
+CREATE INDEX IF NOT EXISTS idx_certificates_status_start_end
+    ON certificates(status, start_date, end_date) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_certificates_active_status_created
     ON certificates(status, created_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_certificates_deleted_at ON certificates(deleted_at);

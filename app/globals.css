@@ -53,6 +53,15 @@
   }
 }
 
+@keyframes soft-blink {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+
+body.ba-error-page nav {
+  display: none !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

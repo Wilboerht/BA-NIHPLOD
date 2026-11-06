@@ -4,6 +4,13 @@ import { sql, checkActionRateLimit } from '@/lib/db';
 import { parseAuthScope, formatDateISO, getEndOfDay } from '@/lib/utils';
 import { headers } from 'next/headers';
 import { writeAudit } from '@/lib/audit';
+import {
+  buildContainsPattern,
+  buildPrefixPattern,
+  isFutureDate,
+  parseDateOnly,
+} from '@/lib/validation';
+import { getClientIp } from '@/lib/request-ip';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -33,7 +40,7 @@ interface DbCertRow {
 }
 
 export async function verifyCertificateAction(query: string): Promise<VerifyActionResponse> {
-  const cleanQuery = query?.trim();
+  const cleanQuery = typeof query === 'string' ? query.trim() : '';
 
   if (!cleanQuery) {
     return { success: false, error: "请输入需要核验的证书编号或主体名称。" };
@@ -52,8 +59,8 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       return { success: false, error: "查询过于频繁，请稍后再试" };
     }
   } catch (rateLimitErr) {
-    // 限流检查失败时继续执行，不阻塞查询；但仍需记录以便运维发现数据库异常
-    console.warn('[verifyCertificateAction] 限流检查失败，降级放行:', rateLimitErr instanceof Error ? rateLimitErr.message : String(rateLimitErr));
+    console.warn('[verifyCertificateAction] 限流检查异常:', rateLimitErr instanceof Error ? rateLimitErr.message : String(rateLimitErr));
+    return { success: false, error: "系统查询出错，请稍后再试。" };
   }
 
   try {
@@ -84,7 +91,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     // 2. 如果没有匹配，按店铺名称或公司名称（嵌入在 auth_scope 中）搜索
     // 策略：先用前缀匹配（ILIKE '关键词%'），避免过于宽泛；如果无结果且关键词长度≥3，再尝试包含匹配
     if (!results) {
-      const prefixPattern = cleanQuery + '%';
+      const prefixPattern = buildPrefixPattern(cleanQuery);
       dbResults = await sql`
         SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
                d.company_name
@@ -99,7 +106,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
 
       // 2b. 前缀匹配无结果且关键词长度≥3时，回退到包含匹配（ILIKE '%关键词%'）
       if ((!dbResults || dbResults.length === 0) && cleanQuery.length >= 3) {
-        const containPattern = '%' + cleanQuery + '%';
+        const containPattern = buildContainsPattern(cleanQuery);
         dbResults = await sql`
           SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
                  d.company_name
@@ -145,8 +152,16 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       }
 
       const endDateStr = typeof data.end_date === 'string' ? data.end_date : formatDateISO(data.end_date);
-      const endDate = getEndOfDay(endDateStr || '1970-01-01');
-      if (now > endDate) {
+      const startDateStr = typeof data.start_date === 'string' ? data.start_date : formatDateISO(data.start_date);
+      const parsedStart = parseDateOnly(startDateStr.slice(0, 10));
+      const parsedEnd = parseDateOnly(endDateStr.slice(0, 10));
+      if (!parsedStart || !parsedEnd) {
+        continue;
+      }
+      if (isFutureDate(parsedStart.iso, now)) {
+        continue;
+      }
+      if (now > getEndOfDay(parsedEnd.iso)) {
         continue;
       }
 
@@ -159,13 +174,12 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         }
       }
 
-      const startDate = typeof data.start_date === 'string' ? data.start_date : formatDateISO(data.start_date);
       const parsed = parseAuthScope(data.auth_scope);
       finalData.push({
         id: data.cert_number,
         dealerName: companyName,
         companyName: parsed.companyName || '',
-        duration: `${startDate.replace(/-/g, '.')} - ${endDateStr.replace(/-/g, '.')}`,
+        duration: `${parsedStart.iso.replace(/-/g, '.')} - ${parsedEnd.iso.replace(/-/g, '.')}`,
         scope: parsed.scopeText || data.auth_scope || '-',
         status: rawStatus,
         final_image_url: data.final_image_url || undefined
@@ -212,21 +226,20 @@ function sanitizeInput(input: string): string {
 
 async function getClientIP(): Promise<string> {
   try {
-    const h = await headers();
-    // x-real-ip 由可信反向代理设置，优先使用；x-forwarded-for 仅作降级
-    const realIp = h.get('x-real-ip');
-    if (realIp) return realIp.trim();
-    const forwarded = h.get('x-forwarded-for');
-    if (forwarded) return forwarded.split(',')[0].trim();
+    return getClientIp(await headers());
   } catch {
-    // headers() 在部分边缘环境可能异常
+    return 'unknown';
   }
-  return 'unknown';
 }
 
 function isInternalUploadUrls(urls?: string[]): boolean {
   if (!urls || urls.length === 0) return true;
-  return urls.every((url) => url.startsWith('/uploads/'));
+  if (!Array.isArray(urls) || urls.length > 5) return false;
+  return urls.every((url) => (
+    typeof url === 'string'
+    && url.length <= 512
+    && url.startsWith('/api/files/complaints/')
+  ));
 }
 
 export async function submitComplaintAction(formData: {
@@ -245,7 +258,8 @@ export async function submitComplaintAction(formData: {
         return { success: false, error: "提交过于频繁，请 5 分钟后再试" };
       }
     } catch (rateLimitErr) {
-      console.warn('[submitComplaintAction] 限流检查失败，降级放行:', rateLimitErr instanceof Error ? rateLimitErr.message : String(rateLimitErr));
+      console.warn('[submitComplaintAction] 限流检查异常:', rateLimitErr instanceof Error ? rateLimitErr.message : String(rateLimitErr));
+      return { success: false, error: "提交失败，请稍后重试" };
     }
 
     // 输入长度校验

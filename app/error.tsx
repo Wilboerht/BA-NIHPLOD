@@ -13,18 +13,19 @@ export default function ErrorBoundary({
   }, [error]);
 
   useEffect(() => {
+    document.body.classList.add("ba-error-page");
     const timer = setTimeout(() => {
       window.location.href = "/";
     }, 5000);
-    return () => clearTimeout(timer);
+    return () => {
+      document.body.classList.remove("ba-error-page");
+      clearTimeout(timer);
+    };
   }, []);
 
   return (
-    <>
-      <style>{`nav { display: none !important; }`}</style>
-      <div className="fixed inset-0 flex items-center justify-center bg-[#FAFAFA] z-[200]">
-        <p className="text-sm text-slate-500">页面加载出错，即将返回首页...</p>
-      </div>
-    </>
+    <div className="fixed inset-0 flex items-center justify-center bg-[#FAFAFA] z-[200]">
+      <p className="text-sm text-slate-500">页面加载出错，即将返回首页...</p>
+    </div>
   );
 }

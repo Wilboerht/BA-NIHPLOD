@@ -51,14 +51,30 @@ const files = fs
 const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} });
 
 try {
-  await sql`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      filename   TEXT PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
+  if (dryRun && markApplied.length > 0) {
+    console.error('❌ --dry-run 不能与 --mark-applied 同时使用');
+    process.exit(1);
+  }
 
-  const appliedRows = await sql`SELECT filename FROM schema_migrations`;
+  // dry-run 必须只读：不能为了读取 ledger 而创建表
+  if (!dryRun) {
+    await sql`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        filename   TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+  }
+
+  const ledgerCheck = await sql`SELECT to_regclass('public.schema_migrations') AS name`;
+  const hasLedger = Boolean(ledgerCheck[0]?.name);
+  if (!hasLedger) {
+    console.warn('ℹ️  schema_migrations 不存在；dry-run 将把全部迁移视为待执行');
+  }
+
+  const appliedRows = hasLedger
+    ? await sql`SELECT filename FROM schema_migrations`
+    : [];
   const applied = new Set(appliedRows.map((r) => r.filename));
   const pending = files.filter((f) => !applied.has(f));
 

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { headers } from 'next/headers';
 import type { TransactionSql } from 'postgres';
 import { sql } from './db';
+import { normalizeClientIp } from './request-ip';
 
 type SqlLike = TransactionSql | typeof sql;
 
@@ -48,15 +49,17 @@ export async function getRequestMeta(request?: Request): Promise<RequestMeta> {
   let requestId: string | null = null;
 
   if (request) {
-    ip = firstHeader(request.headers.get('x-real-ip'), 64)
-      ?? firstHeader(request.headers.get('x-forwarded-for'), 64);
+    ip = normalizeClientIp(request.headers.get('x-real-ip'))
+      ?? normalizeClientIp(request.headers.get('x-forwarded-for'))
+      ?? normalizeClientIp(request.headers.get('cf-connecting-ip'));
     userAgent = firstHeader(request.headers.get('user-agent'), 500);
     requestId = firstHeader(request.headers.get('x-request-id'), 100);
   } else {
     try {
       const h = await headers();
-      ip = firstHeader(h.get('x-real-ip'), 64)
-        ?? firstHeader(h.get('x-forwarded-for'), 64);
+      ip = normalizeClientIp(h.get('x-real-ip'))
+        ?? normalizeClientIp(h.get('x-forwarded-for'))
+        ?? normalizeClientIp(h.get('cf-connecting-ip'));
       userAgent = firstHeader(h.get('user-agent'), 500);
       requestId = firstHeader(h.get('x-request-id'), 100);
     } catch {

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, UserCog, Key, Trash2, Info,
-  ChevronDown, X, Eye, EyeOff, Loader2, CheckCircle2, Plus, Ban, ShieldCheck
+  ChevronDown, ChevronLeft, ChevronRight, X, Eye, EyeOff, Loader2, CheckCircle2, Plus, Ban, ShieldCheck
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -60,6 +60,9 @@ export default function AdminsManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+  const [total, setTotal] = useState(0);
 
   // 创建弹窗状态
   const [showCreate, setShowCreate] = useState(false);
@@ -85,7 +88,8 @@ export default function AdminsManagementPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   // 弹窗打开时聚焦第一个输入框
   useEffect(() => {
@@ -123,11 +127,12 @@ export default function AdminsManagementPage() {
 
     // 获取所有管理员列表
     try {
-      const res = await fetchWithTimeout('/api/admin/list');
+      const res = await fetchWithTimeout(`/api/admin/list?page=${page}&pageSize=${pageSize}`);
       const result = await res.json();
       
       if (res.ok && result.data) {
         setUsers(result.data);
+        setTotal(Number(result.total) || 0);
       } else {
         console.error('Failed to fetch admin list:', result.error);
       }
@@ -310,6 +315,7 @@ export default function AdminsManagementPage() {
     u.full_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
     u.username?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
@@ -433,7 +439,7 @@ export default function AdminsManagementPage() {
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] text-slate-400 font-mono tracking-tighter uppercase tabular-nums">{user.id}</span>
                       <span className="text-[10px] text-slate-300 font-medium">
-                        创建于 {new Date(user.created_at || user.updated_at || Date.now()).toLocaleDateString()}
+                        创建于 {user.created_at || user.updated_at ? new Date(user.created_at || user.updated_at || '').toLocaleDateString() : '-'}
                       </span>
                     </div>
                   </td>
@@ -491,6 +497,30 @@ export default function AdminsManagementPage() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-2 py-4 border-t border-slate-100">
+            <span className="text-xs text-slate-400 font-medium">
+              共 {total} 条，第 {page} / {totalPages} 页
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 创建新管理用户弹窗 ── */}

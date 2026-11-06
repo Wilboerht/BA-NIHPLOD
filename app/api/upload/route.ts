@@ -4,6 +4,7 @@ import { uploadFile, getPublicUrl } from '@/lib/storage';
 import { requireAuth } from '@/lib/auth';
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { readFormDataWithLimit } from '@/lib/api-utils';
 
 const ALLOWED_TYPES = [
   'image/jpeg',
@@ -14,6 +15,7 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_BODY_SIZE = MAX_FILE_SIZE + 1024 * 1024;
 
 function sanitizeFolder(folder: string): string {
   // 只允许字母数字和下划线，禁止路径遍历
@@ -33,13 +35,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '上传过于频繁，请稍后再试' }, { status: 429 });
     }
 
-    // 先根据 Content-Length 做粗粒度拦截，避免解析超大 multipart 造成内存压力
-    const contentLength = Number(req.headers.get('content-length') || 0);
-    if (Number.isFinite(contentLength) && contentLength > MAX_FILE_SIZE + 1024 * 1024) {
-      return NextResponse.json({ error: '请求体过大' }, { status: 413 });
-    }
+    // Content-Length + 流式上限，防止 chunked 请求绕过检查
+    const { formData, response: formError } = await readFormDataWithLimit(req, MAX_BODY_SIZE);
+    if (formError || !formData) return formError!;
 
-    const formData = await req.formData();
     const file = formData.get('file') as File;
     const bucket = (formData.get('bucket') as string) || 'certificates';
     const folder = sanitizeFolder((formData.get('folder') as string) || '');
@@ -80,7 +79,11 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error('[Upload] File upload failed:', error);
-      return NextResponse.json({ error: '文件上传失败，请稍后重试' }, { status: 500 });
+      const status = error.includes('文件类型') ? 400 : 500;
+      return NextResponse.json(
+        { error: status === 400 ? error : '文件上传失败，请稍后重试' },
+        { status }
+      );
     }
 
     const publicUrl = getPublicUrl(bucket, path);

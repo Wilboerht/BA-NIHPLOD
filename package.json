@@ -15,16 +15,21 @@
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
     "db:migrate:apply": "node scripts/apply-migrations.mjs",
+    "test": "node --test tests/validation.test.ts",
     "test:e2e": "node scripts/e2e-smoke.mjs",
+    "migrate:evidence-private": "node scripts/migrate-evidence-to-private.mjs",
     "cleanup:uploads": "node scripts/cleanupOrphanUploads.mjs",
     "backup:db": "bash scripts/backup-ba-db.sh",
     "backup:uploads": "bash scripts/backup-ba-uploads.sh"
   },
   "overrides": {
-    "postcss": ">=8.5.10"
+    "postcss": ">=8.5.32",
+    "dompurify": ">=3.4.17",
+    "fflate": ">=0.8.3",
+    "nanoid": ">=3.3.20",
+    "source-map-js": ">=1.2.2"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -35,8 +40,7 @@
     "jose": "^6.2.3",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.7.0",
-    "next": "^16.2.9",
-    "pg": "^8.21.0",
+    "next": "^16.4.5",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
@@ -52,7 +56,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.9",
+    "eslint-config-next": "^16.4.5",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5"

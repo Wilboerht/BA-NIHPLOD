@@ -3,6 +3,37 @@ import { sql } from '@/lib/db';
 import { requireAdmin, requireSuperAdmin } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { isUuid } from '@/lib/validation';
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: '工单 ID 格式无效' }, { status: 400 });
+    }
+
+    const { response } = await requireAdmin(req);
+    if (response) return response;
+
+    const rows = await sql`
+      SELECT *
+      FROM complaints
+      WHERE id = ${id}
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (rows.length === 0) {
+      return NextResponse.json({ error: '工单不存在' }, { status: 404 });
+    }
+    return NextResponse.json({ data: rows[0] });
+  } catch (err: unknown) {
+    console.error('[complaints-get] API 错误:', err);
+    return NextResponse.json({ error: '获取工单失败' }, { status: 500 });
+  }
+}
 
 // 合法的状态流转图
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -26,7 +57,7 @@ export async function PUT(
 
     const { status, review_note } = body!;
 
-    if (!id || !status || typeof status !== 'string') {
+    if (!isUuid(id) || !status || typeof status !== 'string') {
       return NextResponse.json(
         { error: '缺少必要参数' },
         { status: 400 }
@@ -140,8 +171,8 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    if (!id) {
-      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: '工单 ID 格式无效' }, { status: 400 });
     }
 
     const { user, response } = await requireSuperAdmin(req);

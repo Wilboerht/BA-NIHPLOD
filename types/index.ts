@@ -1,3 +1,4 @@
+// 系统不存在 DEALER 登录角色；经销商仅作为证书中的业务数据。
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'AUDITOR'] as const;
 export type AdminRole = typeof ADMIN_ROLES[number];
 export const ALL_ROLES = [...ADMIN_ROLES] as const;
@@ -88,9 +89,11 @@ export interface Complaint {
   description: string;
   channel: string;
   evidence_image_url?: string;
+  evidence_image_urls?: string[];
   status: 'PENDING' | 'INVESTIGATING' | 'RESOLVED' | 'REJECTED';
   handler_id?: string;
   review_note?: string;
+  contact_info?: string;
   created_at: string;
   updated_at?: string;
   deleted_at?: string;
