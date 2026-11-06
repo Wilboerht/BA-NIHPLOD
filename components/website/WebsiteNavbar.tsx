@@ -136,24 +136,6 @@ export function WebsiteNavbar() {
 
           {/* 右侧操作区：PC 端可见 */}
           <div className="hidden md:flex items-center gap-1 lg:gap-2">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-scanner-modal'))}
-              aria-label="扫码核验"
-              className="hidden lg:inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium tracking-[0.08em] text-[#6B5346] transition-colors hover:bg-[#8B7355]/10"
-            >
-              <QrCode className="h-3.5 w-3.5" />
-              扫码核验
-            </button>
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal'))}
-              aria-label="官方维权申诉"
-              className="hidden lg:inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium tracking-[0.08em] text-[#8B7355] transition-colors hover:bg-[#8B7355]/10"
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              维权申诉
-            </button>
             {/* 旎柏中国官网 - 桌面端 */}
             <a
               href="https://nihplod.cn"
