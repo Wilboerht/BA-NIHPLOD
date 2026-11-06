@@ -996,18 +996,9 @@ export default function HomeClient() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-[#F3F0EA]/40 px-6 md:px-8 lg:px-12">
+      <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-transparent px-6 md:px-8 lg:px-12">
         <div className="mx-auto flex w-full flex-col items-center gap-2 py-4 md:flex-row md:justify-between md:gap-4">
-          <div className="flex flex-wrap items-center justify-center gap-x-1 text-[13px] font-normal tracking-wide text-[#5C5855]">
-            <a
-              href="https://beian.miit.gov.cn/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-1 py-1 transition-colors hover:text-[#1A1A1A]"
-            >
-              沪ICP备2026014764号-1
-            </a>
-            <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
+          <div className="flex flex-wrap items-center justify-center gap-x-1 text-[12px] font-normal tracking-wide text-[#8B7355]/80">
             <a
               href="https://www.beian.gov.cn/portal/registerSystemInfo"
               target="_blank"
@@ -1025,12 +1016,21 @@ export default function HomeClient() {
               沪公网安备31010702010178号
             </a>
             <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-1 py-1 transition-colors hover:text-[#1A1A1A]"
+            >
+              沪ICP备2026014764号-1
+            </a>
+            <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
             <span className="whitespace-nowrap px-1 py-1">
               &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] font-normal tracking-wide text-[#5C5855] md:justify-end">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-normal tracking-wide text-[#8B7355]/80 md:justify-end">
             <button
               onClick={() => { setShowReportModal(true); setReportSuccess(false); setEvidenceFiles([]); }}
               className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[#8B7355] transition-colors hover:bg-[#8B7355]/10 hover:text-[#6B5346]"
