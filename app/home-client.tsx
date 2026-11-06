@@ -493,7 +493,7 @@ export default function HomeClient() {
           {/* 搜索框区 */}
           <motion.div 
             initial={false} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-4xl px-2"
+            className="w-full max-w-3xl px-2"
           >
             <form 
               onSubmit={handleSearch} 
@@ -997,13 +997,13 @@ export default function HomeClient() {
 
       {/* 页脚 */}
       <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-[#F3F0EA]/40 px-6 md:px-8 lg:px-12">
-        <div className="mx-auto flex w-full flex-col items-center gap-3 py-5 md:flex-row md:items-center md:justify-between md:gap-4 md:py-7">
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-light tracking-wide text-[#5C5855]/90">
+        <div className="mx-auto flex w-full flex-col items-center gap-2 py-4 md:flex-row md:justify-between md:gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-1 text-[13px] font-normal tracking-wide text-[#5C5855]">
             <a
               href="https://beian.miit.gov.cn/"
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors hover:text-[#1A1A1A]"
+              className="px-1 py-1 transition-colors hover:text-[#1A1A1A]"
             >
               沪ICP备2026014764号-1
             </a>
@@ -1012,7 +1012,7 @@ export default function HomeClient() {
               href="https://www.beian.gov.cn/portal/registerSystemInfo"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 transition-colors hover:text-[#1A1A1A]"
+              className="inline-flex items-center gap-1 px-1 py-1 transition-colors hover:text-[#1A1A1A]"
             >
               <Image
                 src="/assets/beian.webp"
@@ -1025,15 +1025,15 @@ export default function HomeClient() {
               沪公网安备31010702010178号
             </a>
             <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
-            <span className="whitespace-nowrap">
+            <span className="whitespace-nowrap px-1 py-1">
               &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 text-[13px] font-light tracking-wide text-[#5C5855]/90 md:justify-end">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] font-normal tracking-wide text-[#5C5855] md:justify-end">
             <button
               onClick={() => { setShowReportModal(true); setReportSuccess(false); setEvidenceFiles([]); }}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-1 text-[#8B7355] transition-colors hover:text-[#6B5346]"
+              className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[#8B7355] transition-colors hover:bg-[#8B7355]/10 hover:text-[#6B5346]"
             >
               <ShieldAlert className="h-3 w-3" />
               官方维权申诉
@@ -1043,7 +1043,7 @@ export default function HomeClient() {
               href="https://nihplod.cn/privacy"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 whitespace-nowrap transition-colors hover:text-[#1A1A1A] hover:underline hover:underline-offset-2"
+              className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-[#8B7355]/10 hover:text-[#1A1A1A] hover:underline hover:underline-offset-2"
             >
               隐私声明
               <ExternalLink className="h-2.5 w-2.5 opacity-50" />
