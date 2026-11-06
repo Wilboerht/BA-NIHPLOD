@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, ExternalLink, ShieldAlert, QrCode, ChevronDown } from "lucide-react";
+import { Menu, ExternalLink, ShieldAlert, QrCode, ChevronDown, X } from "lucide-react";
 import { BRAND_NAME_CN } from "@/lib/config";
 
 export function WebsiteNavbar() {
@@ -12,6 +12,8 @@ export function WebsiteNavbar() {
   const [wechatExpanded, setWechatExpanded] = useState(false);
   const touchStartX = useRef(0);
   const actionLockRef = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   // 滚动检测：超过 10px 添加毛玻璃效果
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -30,6 +32,48 @@ export function WebsiteNavbar() {
     }
     return () => {
       document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
+  // 移动菜单：Escape 关闭、焦点锁定在面板内
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 60);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !panelRef.current) return;
+
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element.offsetParent !== null);
+
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus?.focus?.();
     };
   }, [mobileMenuOpen]);
 
@@ -61,13 +105,13 @@ export function WebsiteNavbar() {
       {/* ========== 桌面端 + 移动端导航栏 ========== */}
       <nav
         aria-label="主导航"
-        className={`fixed top-0 left-0 right-0 z-[100] grid place-items-center px-6 md:px-12 lg:px-20 py-8 md:py-7 transition-[background-color,border-color,box-shadow] duration-500 ${
+        className={`fixed top-0 left-0 right-0 z-[100] grid h-[var(--site-header-h)] place-items-center px-6 md:px-12 lg:px-20 transition-[background-color,border-color,box-shadow] duration-500 ${
           scrolled
-            ? "bg-[#F6F4F0]/70 backdrop-blur-md border-b border-black/[0.04]"
+            ? "bg-[#F6F4F0]/80 backdrop-blur-md border-b border-[#8B7355]/10"
             : "bg-[#F6F4F0] border-b border-transparent"
         }`}
       >
-        <div className="w-full flex items-center justify-center md:justify-between gap-4 relative">
+        <div className="relative flex w-full max-w-[var(--content-max)] items-center justify-center gap-4 md:justify-between">
           {/* 左侧：Logo + 品牌名 */}
           <Link
             href="/"
@@ -91,14 +135,32 @@ export function WebsiteNavbar() {
           </Link>
 
           {/* 右侧操作区：PC 端可见 */}
-          <div className="hidden md:flex items-center gap-2 md:gap-4">
+          <div className="hidden md:flex items-center gap-1 lg:gap-2">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-scanner-modal'))}
+              aria-label="扫码核验"
+              className="hidden lg:inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium tracking-[0.08em] text-[#6B5346] transition-colors hover:bg-[#8B7355]/10"
+            >
+              <QrCode className="h-3.5 w-3.5" />
+              扫码核验
+            </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal'))}
+              aria-label="官方维权申诉"
+              className="hidden lg:inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium tracking-[0.08em] text-[#8B7355] transition-colors hover:bg-[#8B7355]/10"
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              维权申诉
+            </button>
             {/* 旎柏中国官网 - 桌面端 */}
             <a
               href="https://nihplod.cn"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="前往旎柏中国官网（新窗口打开）"
-              className="group hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 text-sm font-medium tracking-[0.1em] text-[#8B7355]/80 hover:text-[#8B7355] transition-colors duration-300"
+              className="group ml-1 hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#8B7355]/5 hover:bg-[#8B7355]/10 border border-[#8B7355]/10 text-sm font-medium tracking-[0.1em] text-[#6B5346] hover:text-[#4E3F2A] transition-colors duration-300"
             >
               <div className="w-6 h-6 rounded-full bg-white/60 border border-[#8B7355]/15 flex items-center justify-center shrink-0">
                 <Image
@@ -106,7 +168,7 @@ export function WebsiteNavbar() {
                   alt=""
                   width={22}
                   height={22}
-                  className="w-[18px] h-[18px] object-contain brightness-110 saturate-125 animate-[soft-blink_3s_ease-in-out_infinite]"
+                  className="w-[18px] h-[18px] object-contain brightness-110 saturate-125 animate-[soft-blink_3s_ease-in-out_infinite] motion-reduce:animate-none"
                   style={{ filter: "drop-shadow(0 1px 1px rgba(0,38,62,0.2))" }}
                   unoptimized
                 />
@@ -121,6 +183,7 @@ export function WebsiteNavbar() {
             onClick={openMenu}
             aria-label="打开菜单"
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-site-menu"
             className="md:hidden absolute left-0 flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100/80 transition-colors text-slate-600 cursor-pointer"
           >
             <Menu className="w-5 h-5" />
@@ -142,20 +205,31 @@ export function WebsiteNavbar() {
 
         {/* 左侧滑出面板 */}
         <div
+          ref={panelRef}
+          id="mobile-site-menu"
           role="dialog"
-        aria-modal="true"
-        aria-label="导航菜单"
+          aria-modal="true"
+          aria-label="导航菜单"
           onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => {
             if (touchStartX.current - e.changedTouches[0].clientX > 60) {
               closeMenu();
             }
           }}
-        className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl rounded-r-2xl transform transition-transform duration-500 ease-out ${
+          className={`absolute top-0 left-0 h-full w-[min(300px,85vw)] bg-white shadow-2xl rounded-r-2xl transform transition-transform duration-500 ease-out ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex flex-col h-full px-6 py-6">
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={closeMenu}
+            aria-label="关闭菜单"
+            className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex flex-col h-full px-6 py-6 pt-16">
             {/* 品牌标识 */}
             <div className="my-3">
               <div className="flex items-center justify-center gap-3">
@@ -257,7 +331,7 @@ export function WebsiteNavbar() {
                   alt=""
                   width={36}
                   height={36}
-                  className="w-9 h-9 object-contain opacity-30 animate-[soft-blink_3s_ease-in-out_infinite]"
+                  className="w-9 h-9 object-contain opacity-30 animate-[soft-blink_3s_ease-in-out_infinite] motion-reduce:animate-none"
                   unoptimized
                 />
               </div>

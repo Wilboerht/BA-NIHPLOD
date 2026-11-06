@@ -87,7 +87,7 @@ export default function HomeClient() {
   // 响应式 placeholder：手机端简短、PC 端完整
   const [placeholderText, setPlaceholderText] = useState("输入证书编号、店铺或公司名称");
   useEffect(() => {
-    const update = () => setPlaceholderText(window.innerWidth < 768 ? "请输入查询信息" : "输入证书编号、店铺或公司名称");
+    const update = () => setPlaceholderText(window.innerWidth < 768 ? "输入编号 / 店铺 / 公司" : "输入证书编号、店铺或公司名称");
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -469,17 +469,20 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="relative h-[calc(100dvh-92px)] w-full flex flex-col justify-between items-center bg-[#F6F4F0] overflow-hidden font-sans">
+    <main className="home-canvas relative min-h-[calc(100dvh-var(--site-header-h))] w-full flex flex-col justify-between items-center overflow-x-hidden font-sans">
 
       {/* 核心内容区 */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10">
         <div className="w-full flex flex-col items-center">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             className="text-center space-y-4 md:space-y-6 mb-4 md:mb-6"
           >
             <div className="space-y-4 md:space-y-6">
+              <p className="text-[10px] md:text-[11px] font-medium tracking-[0.35em] uppercase text-[#8B7355]/80">
+                Official Authorization Verification
+              </p>
               <h1 className="text-[36px] sm:text-[44px] md:text-[52px] font-normal leading-[1.1] tracking-tight text-[#1A1A1A]">
                 授权资质官方核查
               </h1>
@@ -492,7 +495,7 @@ export default function HomeClient() {
 
           {/* 搜索框区 */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }}
+            initial={false} animate={{ opacity: 1, scale: 1 }}
             className="w-full max-w-2xl px-2"
           >
             <form 
@@ -505,10 +508,20 @@ export default function HomeClient() {
                   type="text" 
                   aria-label="搜索授权证书"
                   placeholder={placeholderText} 
-                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/45 hover:placeholder:text-[#8B7355]/60 focus:ring-0 transition-all font-medium truncate"
+                  className="w-full bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/70 hover:placeholder:text-[#8B7355]/85 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="清空搜索"
+                    className="shrink-0 rounded-full p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* 按钮区 */}
@@ -537,6 +550,16 @@ export default function HomeClient() {
               </div>
             </form>
 
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] font-medium tracking-wide text-[#7A746B]">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-[#8B7355]/70" />
+                官方数据
+              </span>
+              <span className="h-1 w-1 rounded-full bg-[#8B7355]/25" />
+              <span>实时核验</span>
+              <span className="h-1 w-1 rounded-full bg-[#8B7355]/25" />
+              <span>二维码防伪</span>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -987,57 +1010,60 @@ export default function HomeClient() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-10 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 shrink-0 border-t border-slate-100/30">
-        <div className="flex flex-col items-center md:items-start gap-2 md:gap-0.5 order-1">
-          <p className="order-2 md:order-1 flex flex-col md:flex-row items-center md:items-start gap-y-2 md:gap-x-1.5 md:gap-y-0.5 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
-            <span className="inline-flex md:contents items-center gap-1 order-1">
+      <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-[#F3F0EA]/40">
+        <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col items-center gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between md:px-12 md:py-7 lg:px-20">
+          <div className="flex flex-col items-center gap-2 md:items-start">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] font-normal tracking-normal text-[#5F5A54]">
               <a
                 href="https://beian.miit.gov.cn/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="order-1 md:order-1 hover:text-slate-500 transition-colors"
+                className="transition-colors hover:text-[#3F3A35]"
               >
                 沪ICP备2026014764号-1
               </a>
-            </span>
+              <span className="h-3 w-px bg-[#8B7355]/25" />
+              <a
+                href="https://www.beian.gov.cn/portal/registerSystemInfo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 transition-colors hover:text-[#3F3A35]"
+              >
+                <Image
+                  src="/assets/beian.webp"
+                  alt="公安网备"
+                  width={10}
+                  height={10}
+                  className="h-2.5 w-2.5 opacity-60"
+                  unoptimized
+                />
+                沪公网安备31010702010178号
+              </a>
+            </div>
+            <p className="text-[12px] font-normal tracking-normal text-[#6B6560]">
+              &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
+            </p>
+          </div>
 
-            {/* 手机第二行 / 桌面第二项 */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] font-medium text-[#6B6560] md:justify-end">
+            <button
+              onClick={() => { setShowReportModal(true); setReportSuccess(false); setEvidenceFiles([]); }}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-1 text-[#9B3D3B] transition-colors hover:text-[#7F2F2D]"
+            >
+              <ShieldAlert className="h-3 w-3" />
+              官方维权申诉
+            </button>
+            <span className="h-3 w-px bg-[#8B7355]/25" />
             <a
-              href="https://www.beian.gov.cn/portal/registerSystemInfo"
+              href="https://nihplod.cn/privacy"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 order-3 md:order-3 hover:text-slate-500 transition-colors"
+              className="inline-flex items-center gap-1 whitespace-nowrap transition-colors hover:text-[#3F3A35] hover:underline hover:underline-offset-2"
             >
-              <Image src="/assets/beian.webp" alt="公安网备" width={10} height={10} className="w-2.5 h-2.5 opacity-50" unoptimized />
-              沪公网安备31010702010178号
+              隐私声明
+              <ExternalLink className="h-2.5 w-2.5 opacity-50" />
             </a>
-
-          </p>
-          <p className="order-1 md:order-2 text-[11px] font-normal text-slate-400/60 tracking-normal antialiased">
-            &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
-          </p>
-        </div>
-        <div className="hidden md:flex flex-wrap items-center justify-center md:justify-end gap-6 md:gap-x-4 md:gap-y-1 text-[11px] font-normal text-slate-400/80 order-2 w-full md:w-auto">
-          {/* 官方维权申诉 */}
-          <button
-            onClick={() => { setShowReportModal(true); setReportSuccess(false); setEvidenceFiles([]); }}
-            className="text-xs text-slate-500/90 md:text-red-400/90 hover:text-red-500 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap px-3 py-2 md:px-0 md:py-0"
-          >
-            <ShieldAlert className="w-3 h-3 text-red-400/70 md:text-red-400/90" /> 官方维权申诉
-          </button>
-
-          <span className="hidden md:inline text-slate-300/60">|</span>
-
-          {/* 隐私声明 */}
-          <a
-            href="https://nihplod.cn/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-slate-500/90 md:text-slate-500 hover:text-slate-600 hover:underline underline-offset-2 cursor-pointer transition-colors whitespace-nowrap inline-flex items-center gap-1 px-3 py-2 md:px-0 md:py-0"
-          >
-            隐私声明
-            <ExternalLink className="w-2.5 h-2.5 opacity-50" />
-          </a>
+          </div>
         </div>
       </footer>
     </main>

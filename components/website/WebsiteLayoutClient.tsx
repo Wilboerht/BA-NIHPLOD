@@ -29,7 +29,7 @@ export function WebsiteLayoutClient({ children }: { children: ReactNode }) {
     <>
       <WebsiteNavbar />
       {/* 顶部留白补偿 fixed 导航栏实际高度 */}
-      <div className="pt-[92px]">{children}</div>
+      <div className="pt-[var(--site-header-h)]">{children}</div>
     </>
   );
 }
