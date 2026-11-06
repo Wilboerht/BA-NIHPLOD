@@ -97,8 +97,8 @@ ALTER DATABASE ba_nihplod_db SET timezone TO 'Asia/Shanghai';
 当前迁移包含 2026-09-25、2026-09-26、2026-10-27 系列和 2026-11-06 的幂等/索引迁移。线上已有 `schema_migrations` 时，不需要再执行 `--mark-applied`，直接按以下顺序：
 
 ```bash
-# 1. 先备份数据库和上传目录
-pg_dump -Fc -d ba_nihplod_db -f backup_before_deploy.dump
+# 1. 先备份数据库和上传目录（以 postgres 身份导出，root 直接执行会因角色不存在而失败）
+sudo -u postgres pg_dump -Fc -d ba_nihplod_db > /root/db-backups/ba_pre_deploy_$(date +%Y%m%d_%H%M%S).dump
 
 # 2. 先只读查看待执行迁移（不会创建 schema_migrations）
 npm run db:migrate:apply -- --dry-run
