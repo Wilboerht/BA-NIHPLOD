@@ -493,7 +493,7 @@ export default function HomeClient() {
           {/* 搜索框区 */}
           <motion.div 
             initial={false} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-3xl px-2"
+            className="w-full max-w-4xl px-2"
           >
             <form 
               onSubmit={handleSearch} 
@@ -546,17 +546,6 @@ export default function HomeClient() {
                 </button>
               </div>
             </form>
-
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] font-medium tracking-wide text-[#7A746B]">
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-[#8B7355]/70" />
-                官方数据
-              </span>
-              <span className="h-1 w-1 rounded-full bg-[#8B7355]/25" />
-              <span>实时核验</span>
-              <span className="h-1 w-1 rounded-full bg-[#8B7355]/25" />
-              <span>二维码防伪</span>
-            </div>
           </motion.div>
         </div>
       </div>
@@ -1007,39 +996,38 @@ export default function HomeClient() {
       </AnimatePresence>
 
       {/* 页脚 */}
-      <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-[#F3F0EA]/40">
-        <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col items-center gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8 md:py-7 lg:px-12">
-          <div className="flex flex-col items-center gap-2 md:items-start">
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] font-normal tracking-normal text-[#5F5A54]">
-              <a
-                href="https://beian.miit.gov.cn/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-colors hover:text-[#3F3A35]"
-              >
-                沪ICP备2026014764号-1
-              </a>
-              <span className="h-3 w-px bg-[#8B7355]/25" />
-              <a
-                href="https://www.beian.gov.cn/portal/registerSystemInfo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 transition-colors hover:text-[#3F3A35]"
-              >
-                <Image
-                  src="/assets/beian.webp"
-                  alt="公安网备"
-                  width={10}
-                  height={10}
-                  className="h-2.5 w-2.5 opacity-60"
-                  unoptimized
-                />
-                沪公网安备31010702010178号
-              </a>
-            </div>
-            <p className="text-[12px] font-normal tracking-normal text-[#6B6560]">
+      <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-[#F3F0EA]/40 px-6 md:px-8 lg:px-12">
+        <div className="mx-auto flex w-full flex-col items-center gap-3 py-5 md:flex-row md:items-center md:justify-between md:gap-4 md:py-7">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] font-normal tracking-normal text-[#5F5A54]">
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-[#3F3A35]"
+            >
+              沪ICP备2026014764号-1
+            </a>
+            <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
+            <a
+              href="https://www.beian.gov.cn/portal/registerSystemInfo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 transition-colors hover:text-[#3F3A35]"
+            >
+              <Image
+                src="/assets/beian.webp"
+                alt="公安网备"
+                width={10}
+                height={10}
+                className="h-2.5 w-2.5 opacity-60"
+                unoptimized
+              />
+              沪公网安备31010702010178号
+            </a>
+            <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
+            <span className="whitespace-nowrap text-[#6B6560]">
               &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
-            </p>
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] font-medium text-[#6B6560] md:justify-end">

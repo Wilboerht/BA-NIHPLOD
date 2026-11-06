@@ -111,7 +111,7 @@ export function WebsiteNavbar() {
             : "bg-[#F6F4F0] border-b border-transparent"
         }`}
       >
-        <div className="relative flex w-full max-w-[var(--content-max)] items-center justify-center gap-4 md:justify-between">
+        <div className="relative flex w-full items-center justify-center gap-4 md:justify-between">
           {/* 左侧：Logo + 品牌名 */}
           <Link
             href="/"
