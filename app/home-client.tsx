@@ -505,7 +505,7 @@ export default function HomeClient() {
                   type="text" 
                   aria-label="搜索授权证书"
                   placeholder={placeholderText} 
-                  className="w-full min-w-0 bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/70 hover:placeholder:text-[#8B7355]/85 focus:ring-0 focus-visible:outline-none transition-all font-medium truncate"
+                  className="w-full min-w-0 bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/70 hover:placeholder:text-[#8B7355]/85 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
