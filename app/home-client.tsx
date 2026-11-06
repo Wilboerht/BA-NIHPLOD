@@ -1043,7 +1043,7 @@ export default function HomeClient() {
               href="https://nihplod.cn/privacy"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-[#8B7355]/10 hover:text-[#1A1A1A] hover:underline hover:underline-offset-2"
+              className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-[#8B7355]/10 hover:text-[#1A1A1A]"
             >
               隐私声明
               <ExternalLink className="h-2.5 w-2.5 opacity-50" />
