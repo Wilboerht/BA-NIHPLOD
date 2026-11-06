@@ -63,6 +63,7 @@ export default function AdminsManagementPage() {
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [total, setTotal] = useState(0);
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // 创建弹窗状态
   const [showCreate, setShowCreate] = useState(false);
@@ -89,7 +90,7 @@ export default function AdminsManagementPage() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, debouncedSearch]);
 
   // 弹窗打开时聚焦第一个输入框
   useEffect(() => {
@@ -127,7 +128,12 @@ export default function AdminsManagementPage() {
 
     // 获取所有管理员列表
     try {
-      const res = await fetchWithTimeout(`/api/admin/list?page=${page}&pageSize=${pageSize}`);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
+      const res = await fetchWithTimeout(`/api/admin/list?${params.toString()}`);
       const result = await res.json();
       
       if (res.ok && result.data) {
@@ -309,12 +315,7 @@ export default function AdminsManagementPage() {
     }
   };
 
-  const debouncedSearch = useDebounce(searchQuery, 300);
-
-  const filteredUsers = users.filter(u =>
-    u.full_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    u.username?.toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const filteredUsers = users;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -371,7 +372,10 @@ export default function AdminsManagementPage() {
               type="text"
               placeholder="搜索姓名、邮箱或账号..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
             />
           </div>

@@ -2,6 +2,9 @@
   "name": "ba.nihplod.cn",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "dev": "next dev",
     "prebuild": "prisma generate",
@@ -15,10 +18,11 @@
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
     "db:migrate:apply": "node scripts/apply-migrations.mjs",
-    "test": "node --test tests/validation.test.ts",
+    "test": "node --test tests/validation.test.ts tests/request-ip.test.ts tests/certificate-status.test.ts",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "migrate:evidence-private": "node scripts/migrate-evidence-to-private.mjs",
     "cleanup:uploads": "node scripts/cleanupOrphanUploads.mjs",
+    "archive:audit": "node scripts/archiveAuditLogs.mjs",
     "backup:db": "bash scripts/backup-ba-db.sh",
     "backup:uploads": "bash scripts/backup-ba-uploads.sh"
   },

@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { buildContainsPattern } from './validation';
+import { BUSINESS_TIME_ZONE, getDateISOInBusinessTimeZone } from './date';
 
 /**
  * 原生 Postgres 连接池（保留用于复杂 SQL 查询）
@@ -11,7 +12,7 @@ const SAFE_TIMEZONE = /^[A-Za-z0-9_+\-/]+$/;
 const DB_TIMEZONE =
   process.env.DB_TIMEZONE && SAFE_TIMEZONE.test(process.env.DB_TIMEZONE)
     ? process.env.DB_TIMEZONE
-    : 'Asia/Shanghai';
+    : BUSINESS_TIME_ZONE;
 
 const parsedStatementTimeout = Number.parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '', 10);
 const DB_STATEMENT_TIMEOUT_MS =
@@ -122,21 +123,13 @@ interface SqlRow {
 }
 
 function formatDateFields(row: SqlRow): SqlRow {
-  // 使用本地时区格式化日期，避免 UTC 转换导致跨天时差（off-by-one）
-  const fmtDate = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   return {
     ...row,
     start_date: row.start_date instanceof Date
-      ? fmtDate(row.start_date)
+      ? getDateISOInBusinessTimeZone(row.start_date)
       : row.start_date,
     end_date: row.end_date instanceof Date
-      ? fmtDate(row.end_date)
+      ? getDateISOInBusinessTimeZone(row.end_date)
       : row.end_date,
     created_at: row.created_at instanceof Date
       ? row.created_at.toISOString()
@@ -297,18 +290,26 @@ export async function getAllComplaints(
 /**
  * 获取系统仪表板统计数据
  */
-export async function getDashboardStats(): Promise<{ data: Record<string, number>; error: Error | null }> {
-  const [certCountRes, complaintCountRes, issuedCountRes] = await Promise.all([
+export async function getDashboardStats(
+  pendingAuditorId?: string
+): Promise<{ data: Record<string, number>; error: Error | null }> {
+  const pendingCertAuditorCondition = pendingAuditorId
+    ? sql` AND auditor_id = ${pendingAuditorId}`
+    : sql``;
+
+  const [certCountRes, complaintCountRes, issuedCountRes, pendingCertCountRes] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM certificates WHERE deleted_at IS NULL`,
     sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING') AND deleted_at IS NULL`,
-    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND deleted_at IS NULL`
+    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND deleted_at IS NULL`,
+    sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'PENDING' AND deleted_at IS NULL ${pendingCertAuditorCondition}`
   ]);
 
   return {
     data: {
       totalCertificates: parseInt(String(certCountRes[0]?.count || 0), 10),
       pendingComplaints: parseInt(String(complaintCountRes[0]?.count || 0), 10),
-      issuedValid: parseInt(String(issuedCountRes[0]?.count || 0), 10)
+      issuedValid: parseInt(String(issuedCountRes[0]?.count || 0), 10),
+      pendingCertificates: parseInt(String(pendingCertCountRes[0]?.count || 0), 10)
     },
     error: null
   };
@@ -333,21 +334,22 @@ export async function checkActionRateLimit(
 ): Promise<boolean> {
   const now = new Date();
   const windowStart = new Date(Date.now() - windowMs);
+  const expiresAt = new Date(now.getTime() + windowMs);
 
   try {
-    // 低概率清理过期记录（避免每次请求都执行）
+    // 低概率清理已真正过期的记录（避免每次请求都执行）
     if (Math.random() < 0.01) {
       await sql`
         DELETE FROM action_rate_limits
-        WHERE window_start < ${windowStart}
+        WHERE expires_at < ${now}
       `;
     }
 
     // 原子性 UPSERT：插入或更新，并返回最新值
     // 计数上限记录为 maxAttempts + 1，用于精确判断「第 maxAttempts 次放行、第 maxAttempts+1 次拦截」
     const result = await sql`
-      INSERT INTO action_rate_limits (key, attempts, window_start)
-      VALUES (${key}, 1, ${now})
+      INSERT INTO action_rate_limits (key, attempts, window_start, expires_at)
+      VALUES (${key}, 1, ${now}, ${expiresAt})
       ON CONFLICT (key) DO UPDATE SET
         attempts = CASE
           WHEN action_rate_limits.window_start < ${windowStart} THEN 1
@@ -357,8 +359,12 @@ export async function checkActionRateLimit(
         window_start = CASE
           WHEN action_rate_limits.window_start < ${windowStart} THEN ${now}
           ELSE action_rate_limits.window_start
+        END,
+        expires_at = CASE
+          WHEN action_rate_limits.window_start < ${windowStart} THEN ${expiresAt}
+          ELSE action_rate_limits.expires_at
         END
-      RETURNING attempts, window_start
+      RETURNING attempts, window_start, expires_at
     `;
 
     const record = result[0];

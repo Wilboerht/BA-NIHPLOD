@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
     const rawStatus = request.nextUrl.searchParams.get('status');
     const q = request.nextUrl.searchParams.get('q')?.trim() || undefined;
 
-    // 状态白名单，避免非法值直接透传数据库导致 500
-    const ALLOWED_STATUS = ['ISSUED', 'PENDING', 'UPCOMING', 'invalid'];
-    const status = rawStatus && ALLOWED_STATUS.includes(rawStatus) ? rawStatus : undefined;
+    const ALLOWED_STATUS = ['ISSUED', 'PENDING', 'UPCOMING', 'invalid', 'REVOKED', 'EXPIRED'];
+    if (rawStatus && !ALLOWED_STATUS.includes(rawStatus)) {
+      return NextResponse.json({ error: '无效的状态筛选条件' }, { status: 400 });
+    }
+    const status = rawStatus || undefined;
 
     const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10) || 0, 1), 1000) : undefined;
     const pageNum = page ? Math.max(parseInt(page, 10) || 1, 1) : undefined;
@@ -33,7 +35,6 @@ export async function GET(request: NextRequest) {
       data = result.data;
       total = result.total;
     } else {
-      // 未显式传 limit 时给出默认上限，避免意外全表返回
       const result = await getAllCertificates(limitNum ?? 100, undefined, status, q, auditorId);
       data = result.data;
       total = result.total;

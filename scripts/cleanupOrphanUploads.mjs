@@ -77,13 +77,22 @@ async function walk(dir) {
   return files;
 }
 
+const PRIVATE_EVIDENCE_PATTERN = /^complaints\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpe?g|gif|webp)$/i;
+
+function resolveInside(root, relative) {
+  const resolved = path.resolve(root, relative);
+  return resolved === root || resolved.startsWith(root + path.sep) ? resolved : null;
+}
+
 function urlToFilePath(url) {
   if (typeof url !== 'string') return null;
   if (url.startsWith('/uploads/')) {
-    return path.resolve(publicRoot, url.slice('/uploads/'.length));
+    return resolveInside(publicRoot, url.slice('/uploads/'.length));
   }
   if (url.startsWith('/api/files/')) {
-    return path.resolve(privateRoot, url.slice('/api/files/'.length));
+    const relative = url.slice('/api/files/'.length);
+    if (!PRIVATE_EVIDENCE_PATTERN.test(relative)) return null;
+    return resolveInside(privateRoot, relative);
   }
   return null;
 }
@@ -99,9 +108,9 @@ try {
     SELECT final_image_url AS url FROM certificates WHERE final_image_url IS NOT NULL
   `;
   const complaintRows = await sql`
-    SELECT evidence_image_url AS url FROM complaints WHERE evidence_image_url IS NOT NULL
+    SELECT id, evidence_image_url AS url FROM complaints WHERE evidence_image_url IS NOT NULL
     UNION ALL
-    SELECT unnest(evidence_image_urls) AS url FROM complaints
+    SELECT id, unnest(evidence_image_urls) AS url FROM complaints
   `;
   const templateRows = await sql`
     SELECT background_url AS url FROM templates WHERE background_url IS NOT NULL
@@ -109,9 +118,17 @@ try {
     SELECT stamp_url AS url FROM templates WHERE stamp_url IS NOT NULL
   `;
 
-  for (const row of [...certificateRows, ...complaintRows, ...templateRows]) {
+  const urlOwners = new Map();
+  for (const row of [...certificateRows, ...templateRows]) {
     const file = urlToFilePath(row.url);
     if (file) refs.add(file);
+  }
+  for (const row of complaintRows) {
+    const file = urlToFilePath(row.url);
+    if (!file) continue;
+    refs.add(file);
+    if (!urlOwners.has(file)) urlOwners.set(file, new Set());
+    urlOwners.get(file).add(row.id);
   }
 
   // 1) 清理未被引用的陈旧文件
@@ -166,9 +183,17 @@ try {
       console.log(`   - 工单 ${row.id}: ${urls.length} 个证据`);
       if (!shouldDelete) continue;
 
-      for (const url of urls) {
+      for (const url of new Set(urls)) {
         const file = urlToFilePath(url);
         if (!file) continue;
+        const owners = urlOwners.get(file);
+        if (owners) {
+          owners.delete(row.id);
+          if (owners.size > 0) {
+            console.log(`   - 文件仍被其他工单引用，跳过删除: ${file}`);
+            continue;
+          }
+        }
         await fs.unlink(file).catch((err) => {
           if (err.code !== 'ENOENT') console.error(`删除失败 ${file}:`, err.message);
         });

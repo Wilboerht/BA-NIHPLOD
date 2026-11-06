@@ -1,8 +1,20 @@
+import { getDateISOInBusinessTimeZone } from './date.ts';
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const EVIDENCE_URL_PATTERN = /^\/api\/files\/complaints\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpe?g|gif|webp)$/i;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value);
+}
+
+export function isSafeEvidenceUrl(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 512 && EVIDENCE_URL_PATTERN.test(value);
+}
+
+export function isValidEmail(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 255 && EMAIL_PATTERN.test(value);
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -49,10 +61,7 @@ export function parseDateOnly(value: unknown): { iso: string; date: Date } | nul
 }
 
 export function getTodayISO(now: Date = new Date()): string {
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return getDateISOInBusinessTimeZone(now);
 }
 
 export function isFutureDate(dateOnly: string, now: Date = new Date()): boolean {

@@ -91,9 +91,12 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  const nextForRequest = () => (
-    isApi ? NextResponse.next() : nextWithNonce(request, nonce)
-  );
+  const nextForRequest = () => {
+    if (!isApi) return nextWithNonce(request, nonce);
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
+  };
 
   // 公开路径放行（页面仍需要 nonce/CSP）
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
@@ -177,5 +180,7 @@ export const config = {
     '/api/admin/:path*',
     '/api/auth/change-password',
     '/api/auth/me',
+    '/api/db/:path*',
+    '/api/certificates',
   ],
 };

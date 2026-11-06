@@ -6,7 +6,7 @@ import { parseAuthScope } from '@/lib/utils';
 import { sendPendingCertNotification } from '@/lib/mail';
 import { apiError, readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
-import { isRecord, isUuid, parseDateOnly } from '@/lib/validation';
+import { isRecord, isUuid, isValidEmail, parseDateOnly } from '@/lib/validation';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 
@@ -95,6 +95,7 @@ async function getOrCreateDealer(phone: string | undefined | null, shopName: str
   const safePhone = phone?.trim() || null;
 
   if (!safePhone) {
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${`dealer:${shopName}`}))`;
     // NULL phone 时 ON CONFLICT 不触发，需手动去重
     const existing = await tx`SELECT id FROM dealers WHERE company_name = ${shopName} AND phone IS NULL LIMIT 1`;
     if (existing && existing.length > 0) return existing[0].id;
@@ -270,13 +271,16 @@ export async function POST(req: Request) {
       // 异步通知管理员（不阻塞响应）
       after(async () => {
         try {
-          const admins = await sql`SELECT COALESCE(email, username) as email, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND deleted_at IS NULL AND (email IS NOT NULL OR username IS NOT NULL)`;
-          if (admins.length > 0) {
+          const admins = await sql`SELECT email, username, full_name FROM profiles WHERE role = 'SUPER_ADMIN' AND is_banned = false AND deleted_at IS NULL`;
+          const adminEmails = ((admins as unknown) as { email: unknown; username: unknown }[])
+            .map((admin) => (isValidEmail(admin.email) ? admin.email : admin.username))
+            .filter(isValidEmail);
+          if (adminEmails.length > 0) {
             const auditorResult = await sql`SELECT full_name FROM profiles WHERE id = ${operatorId} AND deleted_at IS NULL LIMIT 1`;
             const auditorName = ((auditorResult[0] as unknown) as { full_name?: string })?.full_name || '审核员';
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ba.nihplod.cn';
             sendPendingCertNotification({
-              adminEmails: ((admins as unknown) as { email: string }[]).map(a => a.email),
+              adminEmails,
               shopName: certData.shopName || '未知店铺',
               companyName: certData.companyName,
               phone: certData.phone,
@@ -595,30 +599,11 @@ export async function POST(req: Request) {
       const nextSealUrl = isSuperAdmin
         ? (hasField('sealImage') ? (certData.sealImage || null) : existingSealUrl)
         : existingSealUrl;
-      const nextManagerId = isSuperAdmin ? operatorId : existingManagerId;
+      const nextManagerId = existingManagerId;
       const nextAuthScope = `${sanitizeForAuthScope(nextCompanyName)} | ${nextScopeText || ''} | ${sanitizeForAuthScope(effectiveAuthorizer)}`;
 
       await sql.begin(async (tx) => {
-        // 如果 dealer 被多张证书共享，编辑时拆出新 dealer，避免影响其他证书
-        const countRows = await tx`
-          SELECT COUNT(*)::int AS count
-          FROM certificates
-          WHERE dealer_id = ${dealerId}
-            AND deleted_at IS NULL
-        `;
-        const sharedCount = Number(countRows[0]?.count ?? 0);
-        let targetDealerId = dealerId;
-
-        if (sharedCount > 1) {
-          targetDealerId = String(await getOrCreateDealer(nextPhone, certData.shopName, tx));
-        } else {
-          await tx`
-            UPDATE dealers
-            SET company_name = ${certData.shopName},
-                phone = ${nextPhone}
-            WHERE id = ${dealerId}
-          `;
-        }
+        const targetDealerId = String(await getOrCreateDealer(nextPhone, certData.shopName, tx));
 
         // cert_number 为不可变字段：更新证书时绝不修改，确保二维码永久有效
         const updateResult = await tx`
@@ -637,6 +622,16 @@ export async function POST(req: Request) {
         `;
         if (!updateResult || updateResult.length === 0) {
           throw new ValidationError('该证书不是待审核状态，无法更新');
+        }
+
+        if (targetDealerId !== dealerId) {
+          await tx`
+            DELETE FROM dealers d
+            WHERE d.id = ${dealerId}
+              AND NOT EXISTS (
+                SELECT 1 FROM certificates c WHERE c.dealer_id = ${dealerId}
+              )
+          `;
         }
 
         await writeAudit(tx, {

@@ -186,6 +186,11 @@ assert(
 
 const badJson = await req('/api/auth/login', { method: 'POST', rawBody: '{not-json' });
 assert('非法 JSON 返回 400', badJson.status === 400, `status=${badJson.status}`);
+const oversizedJson = await req('/api/auth/login', {
+  method: 'POST',
+  rawBody: JSON.stringify({ phone: 'x', password: 'y'.repeat(300000) }),
+});
+assert('超大 JSON 返回 413', oversizedJson.status === 413, `status=${oversizedJson.status}`);
 
 const superLogin = await login('super@test.local', 'SuperPass123');
 const auditorLogin = await login('auditor@test.local', 'AuditPass123');
@@ -213,6 +218,8 @@ assert('超管密码未被越权修改', superOldPwd.status === 200);
 
 const listAsSuper = await req('/api/admin/list', { token: superToken });
 assert('SUPER 获取账号列表', listAsSuper.status === 200 && Array.isArray(listAsSuper.json?.data));
+const badAdminPage = await req('/api/admin/list?page=abc', { token: superToken });
+assert('非法分页参数回退到默认页', badAdminPage.status === 200, `status=${badAdminPage.status}`);
 const created = await req('/api/admin/create-admin', {
   method: 'POST', token: superToken,
   body: { fullName: '新审核员', username: 'newauditor@test.local', password: 'NewAudit123', role: 'AUDITOR' },
@@ -242,6 +249,11 @@ const changePwd = await req('/api/auth/change-password', {
   body: { userId: auditor.id, oldPassword: 'AuditPass123', newPassword: 'AuditPass456' },
 });
 assert('审核员修改本人密码', changePwd.status === 200);
+const newCookie = changePwd.headers.get('set-cookie') || '';
+const newToken = newCookie.match(/auth-token=([^;]+)/)?.[1];
+assert('改密返回新登录态 Cookie', !!newToken);
+const meWithNewToken = await req('/api/auth/me', { token: newToken });
+assert('改密后新 token 可立即使用', meWithNewToken.status === 200, `status=${meWithNewToken.status}`);
 const meAfterChange = await req('/api/auth/me', { token: auditorToken });
 assert('改密后旧 token 立即失效', meAfterChange.status === 401, `status=${meAfterChange.status}`);
 const auditorRelogin = await login('auditor@test.local', 'AuditPass456');
@@ -410,10 +422,10 @@ const [superUpdatedRow] = await db`
   SELECT status, auditor_id, manager_id FROM certificates WHERE id = ${pendingCertRow.id}
 `;
 assert(
-  '超管修改待审证书仍保持 auditor 与 PENDING',
+  '超管修改待审证书仍保持 auditor、PENDING 与空 manager',
   superUpdatedRow?.status === 'PENDING'
     && superUpdatedRow?.auditor_id === auditor.id
-    && superUpdatedRow?.manager_id === superAdmin.id,
+    && superUpdatedRow?.manager_id === null,
   `${superUpdatedRow?.status} / ${superUpdatedRow?.auditor_id} / ${superUpdatedRow?.manager_id}`
 );
 
@@ -471,6 +483,12 @@ const page2 = await req('/api/db/certificates?status=invalid&page=2&pageSize=2',
 assert('invalid 第 2 页 2 条', page2.json?.total === 4 && page2.json?.data?.length === 2);
 const stats = await req('/api/db/stats', { token: superToken });
 assert('统计 totalCertificates=7', stats.json?.data?.totalCertificates === 7, `total=${stats.json?.data?.totalCertificates}`);
+assert('统计包含待审计数', typeof stats.json?.data?.pendingCertificates === 'number');
+assert(
+  '统计接口禁止缓存',
+  String(stats.headers.get('cache-control') || '').includes('no-store'),
+  String(stats.headers.get('cache-control'))
+);
 
 const complaintsPage2 = await req('/api/db/complaints?page=2&pageSize=20', { token: superToken });
 assert('投诉第 2 页 5 条 / 总 25', complaintsPage2.json?.total === 25 && complaintsPage2.json?.data?.length === 5);

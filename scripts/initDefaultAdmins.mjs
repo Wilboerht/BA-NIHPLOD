@@ -63,6 +63,7 @@ function getDefaultAdmins() {
 }
 
 const DEFAULT_ADMINS = getDefaultAdmins();
+const resetExisting = process.argv.includes('--reset');
 
 if (DEFAULT_ADMINS.length === 0) {
   console.log("ℹ️  未配置 DEFAULT_ADMINS 环境变量，跳过默认管理员初始化。");
@@ -70,6 +71,20 @@ if (DEFAULT_ADMINS.length === 0) {
   console.log('   DEFAULT_ADMINS=[{"username":"admin@example.com","fullName":"Admin","role":"SUPER_ADMIN"}]');
   await sql.end();
   process.exit(0);
+}
+
+async function writeBootstrapAudit(action, profileId, detail) {
+  try {
+    await sql`
+      INSERT INTO audit_logs (target_type, target_id, actor_role, actor_name, action, comment, after)
+      VALUES (
+        'profile', ${profileId}, 'SYSTEM', 'initDefaultAdmins',
+        ${action}, ${detail}, ${JSON.stringify({ action, detail })}::jsonb
+      )
+    `;
+  } catch (err) {
+    console.warn(`⚠️  审计日志写入失败 (${action}):`, err instanceof Error ? err.message : err);
+  }
 }
 
 async function createOrUpdateAdmin(admin, password) {
@@ -80,35 +95,60 @@ async function createOrUpdateAdmin(admin, password) {
     return false;
   }
 
-  // 生成密码哈希
-  const passwordHash = await bcrypt.hash(password, 12);
+  const normalizedUsername = username.trim();
+  const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedUsername)
+    ? normalizedUsername.toLowerCase()
+    : null;
 
   try {
     // 检查用户是否存在
     const existing = await sql`
-      SELECT id FROM profiles WHERE username = ${username} AND deleted_at IS NULL LIMIT 1
+      SELECT id, role FROM profiles WHERE username = ${normalizedUsername} AND deleted_at IS NULL LIMIT 1
     `;
 
+    if (existing.length > 0 && !resetExisting) {
+      console.log(`ℹ️  已存在，跳过: ${fullName} (${normalizedUsername}) - Role: ${existing[0].role}`);
+      console.log("   如需重置密码/角色，请使用 npm run init:admins -- --reset");
+      return true;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
     if (existing.length > 0) {
-      // 更新现有用户
-      await sql`
+      const updated = await sql`
         UPDATE profiles 
         SET password_hash = ${passwordHash},
             full_name = ${fullName},
+            email = COALESCE(email, ${email}),
             role = ${role},
             is_first_login = true,
             token_version = token_version + 1,
             updated_at = NOW()
-        WHERE username = ${username} AND deleted_at IS NULL
+        WHERE username = ${normalizedUsername} AND deleted_at IS NULL
+        RETURNING id
       `;
-      console.log(`✅ 更新: ${fullName} (${username}) - Role: ${role}`);
+      if (updated.length > 0) {
+        await writeBootstrapAudit(
+          'BOOTSTRAP_RESET_ADMIN',
+          updated[0].id,
+          `重置管理员 ${normalizedUsername}（${role}）`
+        );
+      }
+      console.log(`✅ 重置: ${fullName} (${normalizedUsername}) - Role: ${role}`);
     } else {
-      // 创建新用户
-      await sql`
-        INSERT INTO profiles (username, full_name, password_hash, role, is_first_login)
-        VALUES (${username}, ${fullName}, ${passwordHash}, ${role}, true)
+      const inserted = await sql`
+        INSERT INTO profiles (username, full_name, email, password_hash, role, is_first_login)
+        VALUES (${normalizedUsername}, ${fullName}, ${email}, ${passwordHash}, ${role}, true)
+        RETURNING id
       `;
-      console.log(`✅ 创建: ${fullName} (${username}) - Role: ${role}`);
+      if (inserted.length > 0) {
+        await writeBootstrapAudit(
+          'BOOTSTRAP_CREATE_ADMIN',
+          inserted[0].id,
+          `创建管理员 ${normalizedUsername}（${role}）`
+        );
+      }
+      console.log(`✅ 创建: ${fullName} (${normalizedUsername}) - Role: ${role}`);
     }
 
     return true;

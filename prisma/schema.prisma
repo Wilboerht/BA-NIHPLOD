@@ -200,7 +200,7 @@ model AuditLog {
   // 关系
   certificate Certificate? @relation(fields: [certificate_id], references: [id], onDelete: SetNull)
   complaint   Complaint?   @relation(fields: [complaint_id], references: [id], onDelete: SetNull)
-  actor       Profile?     @relation(fields: [actor_id], references: [id])
+  actor       Profile?    @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("audit_logs")
   @@index([certificate_id])
@@ -244,7 +244,9 @@ model ActionRateLimit {
   key          String   @id
   attempts     Int      @default(1)
   window_start DateTime @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("action_rate_limits")
   @@index([window_start])
+  @@index([expires_at])
 }

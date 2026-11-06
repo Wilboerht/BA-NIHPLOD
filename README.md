@@ -73,8 +73,9 @@ sudo -u postgres psql -d ba_nihplod_db -v ON_ERROR_STOP=1 -1 -f db/migrate-20260
 
 证书有效期判断在应用与数据库两侧都会用到日期，必须保持时区一致（默认均为 `Asia/Shanghai`）：
 
-- 应用：在 `.env.local` 配置 `TZ=Asia/Shanghai`（如需其他时区同时配置 `DB_TIMEZONE`）
-- 数据库：连接会通过启动参数自动设置会话时区；建议同时固定实例/数据库时区：
+- 应用：在 `.env.local` 配置 `TZ=Asia/Shanghai`
+- 前端：配置 `NEXT_PUBLIC_BUSINESS_TIME_ZONE=Asia/Shanghai`
+- 数据库：配置 `DB_TIMEZONE=Asia/Shanghai`，连接会通过启动参数自动设置会话时区；建议同时固定实例/数据库时区：
 
 ```sql
 ALTER DATABASE ba_nihplod_db SET timezone TO 'Asia/Shanghai';
@@ -86,7 +87,7 @@ ALTER DATABASE ba_nihplod_db SET timezone TO 'Asia/Shanghai';
 
 1. 构建：`npm ci && npm run build`（`prebuild` 自动执行 `prisma generate`）
 2. 启动：`npm run start`（常驻进程可用 pm2/systemd 管理）
-3. **反向代理必须设置 `X-Real-IP $remote_addr`**（应用优先读取该头用于限流），且不要将应用端口直接暴露公网
+3. **反向代理必须设置 `X-Real-IP $remote_addr`**（应用优先读取该头用于限流），且不要将应用端口直接暴露公网；使用 Cloudflare 时需配置 `real_ip_header CF-Connecting-IP`，应用也会在缺少 X-Real-IP 时优先读取 `CF-Connecting-IP`，并对 `X-Forwarded-For` 取最后一跳
 4. 定时任务（建议每日一次），只接受请求头：
    ```bash
    curl -H "x-cron-secret: $CRON_SECRET" https://<域名>/api/cron/update-expired-certificates
@@ -94,7 +95,7 @@ ALTER DATABASE ba_nihplod_db SET timezone TO 'Asia/Shanghai';
 
 ### 迁移部署
 
-当前迁移包含 2026-09-25、2026-09-26、2026-10-27 系列和 2026-11-06 的幂等/索引迁移。线上已有 `schema_migrations` 时，不需要再执行 `--mark-applied`，直接按以下顺序：
+当前迁移包含 2026-09-25、2026-09-26、2026-10-27、2026-11-06 系列和 2026-11-07 的限流过期时间、审计搜索索引、Schema 漂移收敛迁移。线上已有 `schema_migrations` 时，不需要再执行 `--mark-applied`，直接按以下顺序：
 
 ```bash
 # 1. 先备份数据库和上传目录（以 postgres 身份导出，root 直接执行会因角色不存在而失败）
@@ -197,15 +198,18 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 - 首次登录必须在服务端完成改密；`is_first_login=true` 时仅放行 `/api/auth/me` 与 `/api/auth/change-password`
 - 修改/重置密码后，`profiles.token_version` +1，旧 Token 立即失效（与时钟无关）
 - 角色变更/封禁也会 `token_version` +1，旧会话立即失效
-- 登录限流：仅统计失败次数、成功清零，5 分钟内最多 5 次失败（按 IP）
+- 登录限流：仅统计失败次数、成功清零，5 分钟内最多 5 次失败（按 IP）；同一账号 5 分钟内最多 10 次失败
 - 敏感操作限流：创建/删除账号、重置密码、封禁、证书操作、修改密码等
+- 行为限流按 key 独立保存过期时间，短窗口清理不会重置 24 小时上传限额
 - 账号管理类接口仅限 `SUPER_ADMIN`（`lib/auth.ts#requireSuperAdmin`）
 - 证书/投诉删除为软删除：列表移除，业务数据、证据与审计链保留
 - 投诉删除（软删除）仅 `SUPER_ADMIN`；审核员只能流转状态
 - 待审核证书：审核员可修改本人提交的待审核申请且只能看到本人待审记录；`SUPER_ADMIN` 可修改任意待审核证书并终审/直接签发
 - 已签发证书内容不可编辑；修正必须吊销后重新签发
 - 证书授权方由服务端固定为 `COMPANY_FULL_NAME`；自定义印章仅 `SUPER_ADMIN` 可提交
+- 修改密码后当前设备自动续签新 Token，其他设备的旧 Token 立即失效
 - `audit_logs` 为 append-only：数据库 trigger 禁止 UPDATE/DELETE；删除证书改为 `SET NULL` + `certificate_ref`
+- 审计日志可通过 `npm run archive:audit` 归档到 JSONL 后再按保留策略清理；归档历史不参与在线查询
 - 生产环境 `.env.local` 权限必须为 `600`；不要保留可读的重复 `.env` 配置（`DATABASE_URL` 会泄露数据库密码）
 - 上传文件魔数校验 + 路径遍历防护；投诉证据写入 `private/uploads`，仅管理员可通过 `/api/files/complaints/...` 访问
 - Nginx 应增加 `location ^~ /uploads/public-uploads/ { return 410; }`，防止旧证据路径继续被公开访问
@@ -222,14 +226,16 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 | `npm run db:generate` | 生成 Prisma Client |
 | `npm run db:migrate:apply` | 执行待应用的数据库迁移（支持 `-- --dry-run`） |
 | `npm run db:push` | 仅本地临时使用；**生产禁止**，会绕过 SQL 迁移/触发器/手工索引 |
-| `npm test` | 纯函数单元测试（校验/日期/魔数） |
+| `npm test` | 纯函数单元测试（校验/日期/魔数/IP/证书状态） |
 | `npm run test:e2e` | 端到端冒烟测试（必须显式 `--db` 一次性数据库 + 已启动的服务） |
 | `npm run migrate:evidence-private` | 将历史公开投诉证据迁移到 private（默认 dry-run，加 `-- --apply` 执行） |
 | `npm run backup:db` | 备份 BA 数据库（需要 `pg_dump`，默认保留 30 天） |
 | `npm run backup:uploads` | 备份 BA public/uploads + private 文件 |
 | `npm run cleanup:uploads` | 清理未引用文件；加 `-- --delete` 执行。默认保留最近 7 天；`UPLOAD_RETENTION_DAYS` 控制已关闭工单证据保留期 |
+| `npm run archive:audit -- --before=YYYY-MM-DD` | 归档指定日期前的审计日志；默认 dry-run，加 `--apply` 写入 JSONL 并删除数据库记录 |
 | `npm run list:admins` | 列出管理员账号 |
-| `npm run init:admins` | 初始化管理员账号 |
+| `npm run init:admins` | 初始化管理员账号（已存在账号默认跳过，不会重复重置密码/角色） |
+| `npm run init:admins -- --reset` | 明确重置 `DEFAULT_ADMINS` 中已存在账号的密码/角色，并写审计日志 |
 
 ### 冒烟测试示例
 

@@ -5,12 +5,14 @@ import { requireAdmin } from '@/lib/auth';
 export async function GET(req: Request) {
   try {
     // 权限检查：只有管理员可以查看统计数据
-    const { response } = await requireAdmin(req);
+    const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
     }
 
-    const { data, error } = await getDashboardStats();
+    const { data, error } = await getDashboardStats(
+      user?.role === 'AUDITOR' ? user.id : undefined
+    );
 
     if (error) {
       return NextResponse.json(

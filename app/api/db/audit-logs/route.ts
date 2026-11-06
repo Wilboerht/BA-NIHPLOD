@@ -20,7 +20,10 @@ export async function GET(req: Request) {
 
     const rawCategory = searchParams.get('category');
     const ALLOWED_CATEGORIES = ['certificate', 'complaint', 'account', 'auth', 'file', 'system'];
-    const category = rawCategory && ALLOWED_CATEGORIES.includes(rawCategory) ? rawCategory : undefined;
+    if (rawCategory && !ALLOWED_CATEGORIES.includes(rawCategory)) {
+      return NextResponse.json({ error: '无效的日志分类' }, { status: 400 });
+    }
+    const category = rawCategory || undefined;
     const q = searchParams.get('q')?.trim() || undefined;
 
     const { data, total, error } = await getAuditLogs(page, pageSize, category, q);

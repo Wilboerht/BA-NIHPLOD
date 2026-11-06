@@ -35,6 +35,9 @@ yarn-error.log*
 # local generated admin password
 admin-init-password.txt
 
+# audit archives
+/audit-archives/
+
 # env files (can opt-in for committing if needed)
 .env*
 # 允许提交环境变量模板（不含真实密钥）

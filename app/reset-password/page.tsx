@@ -234,12 +234,12 @@ export default function ResetPasswordPage() {
               <div className="space-y-4">
                 <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">安全更新成功</h2>
                 <p className="text-slate-500 font-medium leading-relaxed">
-                  您的密码已更新，为保障账号安全，原登录状态已失效，请使用新密码重新登录。
+                  您的密码已更新，当前设备的登录状态已保持，其他设备的旧登录状态已失效。
                 </p>
               </div>
               <div className="pt-6">
-                <Link href="/admin/login" className="inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95">
-                  使用新密码重新登录
+                <Link href="/workbench" className="inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 active:scale-95">
+                  返回工作台
                   <ArrowRight className="w-6 h-6" />
                 </Link>
               </div>

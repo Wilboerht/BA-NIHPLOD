@@ -7,21 +7,22 @@ import { actorFromUser, writeAudit } from '@/lib/audit';
 import { getClientIpFromRequest } from '@/lib/request-ip';
 
 const MAX_ATTEMPTS = 5;
+const ACCOUNT_MAX_ATTEMPTS = 10;
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
 
 // 账号不存在时也执行一次同成本的 bcrypt 比较，降低账号枚举时序差
 const LOGIN_FAILURE_DUMMY_HASH = '$2b$12$Ki07Mawh4ZW893rYj2GKAuXGcfXmz/4405eHG0sajjkP.I5OlaXwm';
 
 /**
- * 查询当前 IP 是否已被限流
+ * 查询当前限流 key 是否已被限流
  * 采用「仅失败计数、成功清零」策略，避免正常用户被误封
  */
-async function isRateLimited(ip: string): Promise<boolean> {
+async function isRateLimited(key: string, maxAttempts = MAX_ATTEMPTS): Promise<boolean> {
   try {
     const rows = await sql`
       SELECT attempts, window_start
       FROM login_rate_limits
-      WHERE ip = ${ip}
+      WHERE ip = ${key}
       LIMIT 1
     `;
     if (rows.length === 0) return false;
@@ -29,7 +30,7 @@ async function isRateLimited(ip: string): Promise<boolean> {
     const windowStart = new Date(Date.now() - WINDOW_MS);
     const record = rows[0];
     const recordWindowStart = new Date(record.window_start);
-    return recordWindowStart >= windowStart && Number(record.attempts) >= MAX_ATTEMPTS;
+    return recordWindowStart >= windowStart && Number(record.attempts) >= maxAttempts;
   } catch {
     // 数据库故障时安全优先：拒绝服务，防止在数据库异常时被暴力破解
     console.error('[RateLimit] 数据库查询失败，拒绝登录以保障安全');
@@ -40,13 +41,13 @@ async function isRateLimited(ip: string): Promise<boolean> {
 /**
  * 记录一次登录失败（窗口内累加，过期重置）
  */
-async function recordFailedAttempt(ip: string): Promise<void> {
+async function recordFailedAttempt(key: string): Promise<void> {
   const windowStart = new Date(Date.now() - WINDOW_MS);
 
   try {
     await sql`
       INSERT INTO login_rate_limits (ip, attempts, window_start)
-      VALUES (${ip}, 1, NOW())
+      VALUES (${key}, 1, NOW())
       ON CONFLICT (ip) DO UPDATE SET
         attempts = CASE
           WHEN login_rate_limits.window_start < ${windowStart} THEN 1
@@ -70,9 +71,9 @@ async function recordFailedAttempt(ip: string): Promise<void> {
 /**
  * 登录成功后清除失败计数
  */
-async function clearFailedAttempts(ip: string): Promise<void> {
+async function clearFailedAttempts(key: string): Promise<void> {
   try {
-    await sql`DELETE FROM login_rate_limits WHERE ip = ${ip}`;
+    await sql`DELETE FROM login_rate_limits WHERE ip = ${key}`;
   } catch (err) {
     console.error('[RateLimit] 清除登录失败计数失败:', err);
   }
@@ -101,7 +102,12 @@ export async function POST(req: Request) {
 
     // 登录限速检查（仅统计失败次数，成功登录会清零）
     const clientIP = getClientIpFromRequest(req);
-    if (await isRateLimited(clientIP)) {
+    const accountKey = `acct:${phone.trim().toLowerCase().slice(0, 255)}`;
+    const [ipLimited, accountLimited] = await Promise.all([
+      isRateLimited(clientIP),
+      isRateLimited(accountKey, ACCOUNT_MAX_ATTEMPTS),
+    ]);
+    if (ipLimited || accountLimited) {
       return NextResponse.json(
         { error: '登录尝试次数过多，请 5 分钟后再试' },
         { status: 429 }
@@ -119,6 +125,7 @@ export async function POST(req: Request) {
       // 不存在的账号也执行一次 bcrypt，避免明显的响应时间差
       await bcrypt.compare(password, LOGIN_FAILURE_DUMMY_HASH);
       await recordFailedAttempt(clientIP);
+      await recordFailedAttempt(accountKey);
       try {
         await writeAudit(sql, {
           action: 'LOGIN_FAILED',
@@ -152,6 +159,7 @@ export async function POST(req: Request) {
 
     if (!isPasswordValid) {
       await recordFailedAttempt(clientIP);
+      await recordFailedAttempt(accountKey);
       try {
         await writeAudit(sql, {
           actor: profileActor,
@@ -174,6 +182,7 @@ export async function POST(req: Request) {
     // 3. 密码正确后再检查封禁状态
     if (profile.is_banned) {
       await recordFailedAttempt(clientIP);
+      await recordFailedAttempt(accountKey);
       try {
         await writeAudit(sql, {
           actor: profileActor,
@@ -195,6 +204,7 @@ export async function POST(req: Request) {
 
     // 登录成功：清除失败计数
     await clearFailedAttempts(clientIP);
+    await clearFailedAttempts(accountKey);
 
     // 4. 签发 JWT 并设置 Cookie
     const token = await createToken({

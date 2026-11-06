@@ -7,7 +7,7 @@ import CertificateGenerator, { CertData } from "@/components/certificate/Certifi
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
-import { parseAuthScope, getEndOfDay } from "@/lib/utils";
+import { parseAuthScope } from "@/lib/utils";
 import { getTodayISO } from "@/lib/validation";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { COMPANY_FULL_NAME } from "@/lib/config";
@@ -51,7 +51,7 @@ export default function CertificatesPage() {
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // 审核员不显示待审核选项
+  // 审核员只能查看本人待审记录
   const auditorFilterItems = [
     { key: 'ISSUED' as const, label: '生效中', desc: '生效中' },
     { key: 'UPCOMING' as const, label: '待生效', desc: '已签发但尚未到生效日期' },
@@ -225,12 +225,12 @@ export default function CertificatesPage() {
     if (cert.status === 'REJECTED') return 'REJECTED';
     if (cert.status === 'EXPIRED') return 'EXPIRED';
     if (cert.status === 'ISSUED') {
-      if (cert.start_date && cert.start_date.replace(/\./g, '-') > getTodayISO()) {
+      const today = getTodayISO();
+      if (cert.start_date && cert.start_date.replace(/\./g, '-') > today) {
         return 'UPCOMING';
       }
-      if (cert.end_date) {
-        const end = getEndOfDay(cert.end_date.replace(/\./g, '-'));
-        if (new Date() > end) return 'EXPIRED';
+      if (cert.end_date && cert.end_date.replace(/\./g, '-') < today) {
+        return 'EXPIRED';
       }
       return 'ISSUED';
     }
@@ -342,7 +342,7 @@ export default function CertificatesPage() {
                        <span className="text-slate-600 text-[13px] tracking-tight">{parseAuthScope(cert.auth_scope).companyName || "-"}</span>
                     </td>
                     <td className="px-6 py-6 text-[11px] text-slate-400 font-medium tabular-nums px-x uppercase tracking-wide">
-                      {new Date(cert.start_date).toLocaleDateString()}—{new Date(cert.end_date).toLocaleDateString()}
+                      {cert.start_date.replace(/-/g, '.')}—{cert.end_date.replace(/-/g, '.')}
                     </td>
                     {statusFilter === 'PENDING' && (
                       <td className="px-6 py-6 text-[13px] text-slate-600">{cert.auditor_name || '-'}</td>
@@ -398,7 +398,7 @@ export default function CertificatesPage() {
                                 companyLabel: "公司名称",
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "授权主体",
-                                scopeText: parsed.scopeText || "品牌官方经销授权",
+                                scopeText: parsed.scopeText,
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: parsed.authorizer || COMPANY_FULL_NAME,
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
@@ -428,7 +428,7 @@ export default function CertificatesPage() {
                                 companyLabel: "公司名称",
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺或平台名称",
-                                scopeText: parsed.scopeText || "品牌官方经销授权",
+                                scopeText: parsed.scopeText,
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: parsed.authorizer || COMPANY_FULL_NAME,
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
@@ -458,7 +458,7 @@ export default function CertificatesPage() {
                                 companyLabel: "公司名称", 
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺或平台名称",
-                                scopeText: parsed.scopeText || "品牌官方经销授权",
+                                scopeText: parsed.scopeText,
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: parsed.authorizer || COMPANY_FULL_NAME,
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
@@ -486,7 +486,7 @@ export default function CertificatesPage() {
                                 companyLabel: "公司名称",
                                 shopName: cert.dealers?.company_name || "",
                                 shopLabel: "店铺或平台名称",
-                                scopeText: parsed.scopeText || "品牌官方经销授权",
+                                scopeText: parsed.scopeText,
                                 duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
                                 authorizer: parsed.authorizer || COMPANY_FULL_NAME,
                                 sealImage: cert.seal_url || cert.templates?.stamp_url || "/default-seal.png",
@@ -512,7 +512,7 @@ export default function CertificatesPage() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && cert.end_date && new Date() <= new Date(cert.end_date + 'T23:59:59') && (
+                        {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && cert.end_date && cert.end_date.replace(/\./g, '-') >= getTodayISO() && (
                           <button
                             onClick={() => revokeCertificate(cert.id, cert.status)}
                             disabled={revokingId === cert.id}

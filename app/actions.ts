@@ -1,16 +1,18 @@
 "use server";
 
 import { sql, checkActionRateLimit } from '@/lib/db';
-import { parseAuthScope, formatDateISO, getEndOfDay } from '@/lib/utils';
+import { parseAuthScope, formatDateISO } from '@/lib/utils';
 import { headers } from 'next/headers';
 import { writeAudit } from '@/lib/audit';
 import {
   buildContainsPattern,
   buildPrefixPattern,
-  isFutureDate,
+  getTodayISO,
+  isSafeEvidenceUrl,
   parseDateOnly,
 } from '@/lib/validation';
 import { getClientIp } from '@/lib/request-ip';
+import { getEffectiveCertificateStatus } from '@/lib/certificate-status';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -32,8 +34,8 @@ interface DbCertRow {
   cert_number: string;
   start_date: string | Date;
   end_date: string | Date;
-  auth_scope: string;
-  status: string;
+  auth_scope?: string;
+  status?: string;
   final_image_url?: string;
   company_name?: string;
   dealers?: { company_name?: string } | { company_name?: string }[] | null;
@@ -46,7 +48,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     return { success: false, error: "请输入需要核验的证书编号或主体名称。" };
   }
 
-  if (cleanQuery.length > 50) {
+  if (cleanQuery.length > 200) {
     return { success: false, error: "输入内容过长，请检查后重试。" };
   }
 
@@ -64,9 +66,18 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
   }
 
   try {
+    const mapRows = (rows: Record<string, unknown>[]): DbCertRow[] => rows.map((r) => ({
+      cert_number: String(r.cert_number),
+      start_date: r.start_date instanceof Date ? formatDateISO(r.start_date) : String(r.start_date),
+      end_date: r.end_date instanceof Date ? formatDateISO(r.end_date) : String(r.end_date),
+      auth_scope: r.auth_scope == null ? undefined : String(r.auth_scope),
+      status: r.status == null ? undefined : String(r.status),
+      final_image_url: r.final_image_url == null ? undefined : String(r.final_image_url),
+      dealers: { company_name: String(r.company_name || '未知经销商') }
+    }));
+
     let results: DbCertRow[] | null = null;
 
-    // 1. 尝试按证书编号精确匹配（查询所有状态，由业务逻辑判断）
     let dbResults = await sql`
       SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
              d.company_name
@@ -77,20 +88,8 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
     `;
 
     if (dbResults && dbResults.length > 0) {
-      results = dbResults.map((r: Record<string, unknown>) => ({
-        cert_number: String(r.cert_number),
-        start_date: r.start_date instanceof Date ? formatDateISO(r.start_date) : String(r.start_date),
-        end_date: r.end_date instanceof Date ? formatDateISO(r.end_date) : String(r.end_date),
-        auth_scope: r.auth_scope == null ? undefined : String(r.auth_scope),
-        status: r.status == null ? undefined : String(r.status),
-        final_image_url: r.final_image_url == null ? undefined : String(r.final_image_url),
-        dealers: { company_name: String(r.company_name || '未知经销商') }
-      })) as DbCertRow[];
-    }
-
-    // 2. 如果没有匹配，按店铺名称或公司名称（嵌入在 auth_scope 中）搜索
-    // 策略：先用前缀匹配（ILIKE '关键词%'），避免过于宽泛；如果无结果且关键词长度≥3，再尝试包含匹配
-    if (!results) {
+      results = mapRows(dbResults as Record<string, unknown>[]);
+    } else {
       const prefixPattern = buildPrefixPattern(cleanQuery);
       dbResults = await sql`
         SELECT c.cert_number, c.start_date, c.end_date, c.auth_scope, c.status, c.final_image_url,
@@ -98,13 +97,15 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         FROM certificates c
         LEFT JOIN dealers d ON c.dealer_id = d.id
         WHERE c.deleted_at IS NULL
+          AND c.status = 'ISSUED'
+          AND c.start_date <= CURRENT_DATE
+          AND c.end_date >= CURRENT_DATE
           AND (d.company_name ILIKE ${prefixPattern}
            OR split_part(c.auth_scope, ' | ', 1) ILIKE ${prefixPattern})
         ORDER BY c.end_date DESC
         LIMIT 50
       `;
 
-      // 2b. 前缀匹配无结果且关键词长度≥3时，回退到包含匹配（ILIKE '%关键词%'）
       if ((!dbResults || dbResults.length === 0) && cleanQuery.length >= 3) {
         const containPattern = buildContainsPattern(cleanQuery);
         dbResults = await sql`
@@ -113,6 +114,9 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
           FROM certificates c
           LEFT JOIN dealers d ON c.dealer_id = d.id
           WHERE c.deleted_at IS NULL
+            AND c.status = 'ISSUED'
+            AND c.start_date <= CURRENT_DATE
+            AND c.end_date >= CURRENT_DATE
             AND (d.company_name ILIKE ${containPattern}
              OR split_part(c.auth_scope, ' | ', 1) ILIKE ${containPattern})
           ORDER BY c.end_date DESC
@@ -121,15 +125,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       }
 
       if (dbResults && dbResults.length > 0) {
-        results = dbResults.map((r: Record<string, unknown>) => ({
-          cert_number: String(r.cert_number),
-          start_date: r.start_date instanceof Date ? formatDateISO(r.start_date) : String(r.start_date),
-          end_date: r.end_date instanceof Date ? formatDateISO(r.end_date) : String(r.end_date),
-          auth_scope: r.auth_scope == null ? undefined : String(r.auth_scope),
-          status: r.status == null ? undefined : String(r.status),
-          final_image_url: r.final_image_url == null ? undefined : String(r.final_image_url),
-          dealers: { company_name: String(r.company_name || '未知经销商') }
-        })) as DbCertRow[];
+        results = mapRows(dbResults as Record<string, unknown>[]);
       }
     }
 
@@ -137,20 +133,10 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       return { success: false, error: "未检索到有效的官方授权记录" };
     }
 
-    const now = new Date();
+    const today = getTodayISO();
     const finalData: CertificateVerifyResult[] = [];
 
     for (const data of results) {
-      const rawStatus = String(data.status || '').toUpperCase();
-
-      // 仅 ISSUED 且在有效期内的证书才对公众可见
-      if (rawStatus === 'REVOKED' || rawStatus === 'EXPIRED') {
-        continue;
-      }
-      if (rawStatus !== 'ISSUED') {
-        continue;
-      }
-
       const endDateStr = typeof data.end_date === 'string' ? data.end_date : formatDateISO(data.end_date);
       const startDateStr = typeof data.start_date === 'string' ? data.start_date : formatDateISO(data.start_date);
       const parsedStart = parseDateOnly(startDateStr.slice(0, 10));
@@ -158,10 +144,14 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
       if (!parsedStart || !parsedEnd) {
         continue;
       }
-      if (isFutureDate(parsedStart.iso, now)) {
-        continue;
-      }
-      if (now > getEndOfDay(parsedEnd.iso)) {
+
+      const effectiveStatus = getEffectiveCertificateStatus(
+        data.status,
+        parsedStart.iso,
+        parsedEnd.iso,
+        today
+      );
+      if (!effectiveStatus) {
         continue;
       }
 
@@ -181,7 +171,7 @@ export async function verifyCertificateAction(query: string): Promise<VerifyActi
         companyName: parsed.companyName || '',
         duration: `${parsedStart.iso.replace(/-/g, '.')} - ${parsedEnd.iso.replace(/-/g, '.')}`,
         scope: parsed.scopeText || data.auth_scope || '-',
-        status: rawStatus,
+        status: effectiveStatus,
         final_image_url: data.final_image_url || undefined
       });
     }
@@ -235,11 +225,7 @@ async function getClientIP(): Promise<string> {
 function isInternalUploadUrls(urls?: string[]): boolean {
   if (!urls || urls.length === 0) return true;
   if (!Array.isArray(urls) || urls.length > 5) return false;
-  return urls.every((url) => (
-    typeof url === 'string'
-    && url.length <= 512
-    && url.startsWith('/api/files/complaints/')
-  ));
+  return urls.every((url) => isSafeEvidenceUrl(url));
 }
 
 export async function submitComplaintAction(formData: {

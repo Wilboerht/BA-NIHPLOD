@@ -10,29 +10,16 @@ import { useToast } from "@/hooks/useToast";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { Html5Qrcode } from "html5-qrcode";
 
-const getDurationStatus = (durationStr?: string) => {
-  if (!durationStr) return null;
-  try {
-    const parts = durationStr.split('-');
-    if (parts.length !== 2) return null;
-    
-    // 将 YYYY.MM.DD 转换为 Safari 安全解析格式 YYYY/MM/DD
-    const startStr = parts[0].trim().replace(/\./g, '/');
-    const endStr = parts[1].trim().replace(/\./g, '/');
-    
-    const startDate = new Date(startStr);
-    const endDate = new Date(endStr);
-    endDate.setHours(23, 59, 59, 999);
-    
-    const now = new Date();
-    
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
-    
-    if (now < startDate) return { text: '未生效', style: 'bg-amber-50 text-amber-600 border-amber-200' };
-    if (now > endDate) return { text: '已过期', style: 'bg-slate-100 text-slate-500 border-slate-200' };
-    return { text: '生效中', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
-  } catch {
-    return null;
+const getResultStatus = (status?: string) => {
+  switch (status) {
+    case 'REVOKED':
+      return { text: '已吊销', style: 'bg-rose-50 text-rose-600 border-rose-200' };
+    case 'EXPIRED':
+      return { text: '已过期', style: 'bg-slate-100 text-slate-500 border-slate-200' };
+    case 'UPCOMING':
+      return { text: '未生效', style: 'bg-amber-50 text-amber-600 border-amber-200' };
+    default:
+      return { text: '生效中', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
   }
 };
 
@@ -659,8 +646,7 @@ export default function HomeClient() {
                           <div className="flex items-center gap-3">
                             <p className="text-sm md:text-[15px] text-[#2C2A29] tracking-wider font-semibold">{result.duration}</p>
                             {(() => {
-                              const status = getDurationStatus(result.duration);
-                              if (!status) return null;
+                              const status = getResultStatus(result.status);
                               return (
                                 <span className={`text-[10px] md:text-[11px] px-2.5 py-0.5 rounded-md border font-bold tracking-widest leading-relaxed whitespace-nowrap ${status.style}`}>
                                   {status.text}

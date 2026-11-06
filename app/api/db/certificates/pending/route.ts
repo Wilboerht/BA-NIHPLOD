@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const parsedLimit = limit ? parseInt(limit, 10) : NaN;
     const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0
       ? Math.min(parsedLimit, 1000)
-      : undefined;
+      : 1000;
 
     const { data, error } = await getPendingCertificates(
       limitNum,

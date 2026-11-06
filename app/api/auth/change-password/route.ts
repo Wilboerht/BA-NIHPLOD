@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sql, checkActionRateLimit } from '@/lib/db';
-import { requireAuth, validatePassword } from '@/lib/auth';
+import { createToken, requireAuth, setAuthCookie, validatePassword } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { isUuid } from '@/lib/validation';
@@ -92,17 +92,23 @@ export async function POST(req: Request) {
         );
       }
 
-      // 3. 哈希新密码并更新数据库；token_version +1 使旧 Token 全部失效（需重新登录）
+      // 3. 哈希新密码并更新数据库；token_version +1 使旧 Token 全部失效
       const newPasswordHash = await bcrypt.hash(newPassword, 12);
+      let nextTokenVersion = 0;
       await sql.begin(async (tx) => {
-        await tx`
+        const updated = await tx`
           UPDATE profiles
           SET password_hash = ${newPasswordHash},
               is_first_login = false,
               updated_at = NOW(),
               token_version = token_version + 1
           WHERE id = ${userId} AND deleted_at IS NULL
+          RETURNING token_version
         `;
+        if (!updated || updated.length === 0) {
+          throw new Error('USER_NOT_FOUND');
+        }
+        nextTokenVersion = Number(updated[0].token_version);
         await writeAudit(tx, {
           actor: actorFromUser(user),
           action: 'CHANGE_PASSWORD',
@@ -114,11 +120,24 @@ export async function POST(req: Request) {
         });
       });
 
+      const token = await createToken({
+        id: user!.id,
+        username: user!.username,
+        phone: user!.phone,
+        full_name: user!.full_name,
+        role: user!.role,
+        is_banned: false,
+        is_first_login: false,
+        token_version: nextTokenVersion,
+      });
+
       console.log('[change-password] 密码已修改');
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: true, message: '密码修改成功' },
         { headers: { 'Cache-Control': 'no-store' } }
       );
+      response.headers.set('Set-Cookie', setAuthCookie(token));
+      return response;
     } catch (err: unknown) {
       console.error('[change-password] 数据库操作失败:', err);
       return NextResponse.json(

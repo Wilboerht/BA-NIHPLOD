@@ -90,14 +90,25 @@ export default function WorkbenchPage() {
       const statsData = await statsRes.json();
       
       // 获取最近的待处理投诉（PENDING + INVESTIGATING）
-      const complaintsRes = await fetchWithTimeout('/api/db/complaints');
-      const complaintsData = await complaintsRes.json();
-      const recentComplaints = (complaintsData.data || [])
-        .filter((c: Complaint) => c.status === 'PENDING' || c.status === 'INVESTIGATING')
+      const [pendingComplaintsRes, investigatingRes] = await Promise.all([
+        fetchWithTimeout('/api/db/complaints?status=PENDING&pageSize=50'),
+        fetchWithTimeout('/api/db/complaints?status=INVESTIGATING&pageSize=50'),
+      ]);
+      const [pendingComplaintsData, investigatingData] = await Promise.all([
+        pendingComplaintsRes.json(),
+        investigatingRes.json(),
+      ]);
+      const recentComplaints = [
+        ...(pendingComplaintsData.data || []),
+        ...(investigatingData.data || []),
+      ]
+        .sort((a: Complaint, b: Complaint) => (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ))
         .slice(0, 4);
       
       // 获取待审证书
-      const pendingRes = await fetchWithTimeout('/api/db/certificates/pending?limit=10000');
+      const pendingRes = await fetchWithTimeout('/api/db/certificates/pending?limit=1000');
       const pendingData = await pendingRes.json();
       const pendingCerts = pendingData.data || [];
 
@@ -105,7 +116,7 @@ export default function WorkbenchPage() {
         certs: statsData.data?.totalCertificates || 0,
         validCerts: statsData.data?.issuedValid || 0,
         pendingComplaints: statsData.data?.pendingComplaints || 0,
-        pendingCerts: pendingData.total || pendingCerts.length,
+        pendingCerts: statsData.data?.pendingCertificates || 0,
       });
       
       setRecentComplaints(recentComplaints);
@@ -149,7 +160,7 @@ export default function WorkbenchPage() {
       companyLabel: "公司名称",
       shopName: cert.dealers?.company_name || "",
       shopLabel: "店铺或平台名称",
-      scopeText: parsed.scopeText || "品牌官方经销授权",
+      scopeText: parsed.scopeText,
       duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
       authorizer: parsed.authorizer || COMPANY_FULL_NAME,
       sealImage: cert.seal_url || "/default-seal.png",
@@ -172,7 +183,7 @@ export default function WorkbenchPage() {
       companyLabel: "公司名称",
       shopName: cert.dealers?.company_name || "",
       shopLabel: "店铺或平台名称",
-      scopeText: parsed.scopeText || "品牌官方经销授权",
+      scopeText: parsed.scopeText,
       duration: `${cert.start_date?.replace(/-/g, '.')} - ${cert.end_date?.replace(/-/g, '.')}`,
       authorizer: parsed.authorizer || COMPANY_FULL_NAME,
       sealImage: cert.seal_url || "/default-seal.png",

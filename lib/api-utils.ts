@@ -94,26 +94,73 @@ export async function readFormDataWithLimit(
   }
 }
 
+const MAX_JSON_BODY_BYTES = 256 * 1024;
+
 /**
  * 安全解析 JSON 请求体
+ * - 限制请求体大小，防止匿名请求造成内存/CPU 消耗
  * - 解析失败或非对象结构时返回 400，而不是抛出 500
  */
 export async function readJsonBody<T extends Record<string, unknown>>(
   req: Request
 ): Promise<{ data: T | null; response: NextResponse | null }> {
+  const contentLength = Number(req.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
+    return {
+      data: null,
+      response: NextResponse.json({ error: '请求体过大' }, { status: 413 }),
+    };
+  }
+
+  if (!req.body) {
+    return {
+      data: null,
+      response: NextResponse.json({ error: '请求格式错误' }, { status: 400 }),
+    };
+  }
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
   try {
-    const data = await req.json();
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return {
-        data: null,
-        response: NextResponse.json({ error: '请求格式错误' }, { status: 400 }),
-      };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_JSON_BODY_BYTES) {
+        await reader.cancel().catch(() => {});
+        return {
+          data: null,
+          response: NextResponse.json({ error: '请求体过大' }, { status: 413 }),
+        };
+      }
+      chunks.push(value);
     }
-    return { data: data as T, response: null };
+  } catch {
+    return {
+      data: null,
+      response: NextResponse.json({ error: '请求读取失败' }, { status: 400 }),
+    };
+  }
+
+  let data: unknown;
+  try {
+    const text = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), total).toString('utf8');
+    data = JSON.parse(text);
   } catch {
     return {
       data: null,
       response: NextResponse.json({ error: '请求格式错误' }, { status: 400 }),
     };
   }
+
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return {
+      data: null,
+      response: NextResponse.json({ error: '请求格式错误' }, { status: 400 }),
+    };
+  }
+  return { data: data as T, response: null };
 }

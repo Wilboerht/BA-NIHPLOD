@@ -118,10 +118,11 @@ export async function PUT(
               updated_at = NOW()
           WHERE id = ${id}
             AND deleted_at IS NULL
+            AND status = ${currentStatus}
           RETURNING id
         `;
         if (!updateResult || updateResult.length === 0) {
-          throw new Error('工单不存在或已被删除');
+          throw new Error('COMPLAINT_STATUS_CONFLICT');
         }
 
         await writeAudit(tx, {
@@ -141,6 +142,12 @@ export async function PUT(
 
       return NextResponse.json({ success: true });
     } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'COMPLAINT_STATUS_CONFLICT') {
+        return NextResponse.json(
+          { error: '工单状态已变化，请刷新后重试' },
+          { status: 409 }
+        );
+      }
       console.error('[complaints-update] 数据库错误:', err);
       const errorMessage = err instanceof Error ? err.message : String(err);
       const isDev = process.env.NODE_ENV !== 'production';

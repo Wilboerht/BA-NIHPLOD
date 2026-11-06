@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { isValidEmail } from './validation';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -16,16 +17,23 @@ interface MailOptions {
  * 生产环境需要配置 RESEND_API_KEY，否则只打印日志
  */
 export async function sendMail(options: MailOptions): Promise<void> {
+  const recipients = (Array.isArray(options.to) ? options.to : [options.to])
+    .filter((email) => isValidEmail(email));
+  if (recipients.length === 0) {
+    console.warn('[Mail] 没有有效的收件邮箱，邮件未发送');
+    return;
+  }
+
   if (!resend) {
     console.warn('[Mail] RESEND_API_KEY 未配置，邮件未发送');
-    console.warn('[Mail] To:', options.to, '| Subject:', options.subject);
+    console.warn('[Mail] To:', recipients, '| Subject:', options.subject);
     return;
   }
 
   try {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
-      to: options.to,
+      to: recipients,
       subject: options.subject,
       text: options.text,
       html: options.html,

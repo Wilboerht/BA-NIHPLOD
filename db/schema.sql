@@ -199,7 +199,8 @@ CREATE TABLE IF NOT EXISTS login_rate_limits (
 CREATE TABLE IF NOT EXISTS action_rate_limits (
     key TEXT PRIMARY KEY,
     attempts INT NOT NULL DEFAULT 1,
-    window_start TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    window_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================================
@@ -306,15 +307,26 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_request_id ON audit_logs(request_id);
 
 -- action_rate_limits 表索引
 CREATE INDEX IF NOT EXISTS idx_action_rate_limits_window ON action_rate_limits(window_start);
+CREATE INDEX IF NOT EXISTS idx_action_rate_limits_expires ON action_rate_limits(expires_at);
 
 -- 2026-07-14: 全文搜索性能优化（三角模糊匹配索引）
 -- 依赖 pg_trgm 扩展，需先 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_dealers_company_name_trgm ON dealers USING gin (company_name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_certificates_auth_scope_company_trgm ON certificates USING gin (split_part(auth_scope, ' | ', 1) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_certificates_cert_number_trgm ON certificates USING gin (cert_number gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_profiles_full_name_trgm ON profiles USING gin (full_name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_profiles_username_trgm ON profiles USING gin (username gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_profiles_phone_trgm ON profiles USING gin (phone gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_comment_trgm ON audit_logs USING gin (comment gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_reason_trgm ON audit_logs USING gin (reason gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_target_ref_trgm ON audit_logs USING gin (target_ref gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_certificate_ref_trgm ON audit_logs USING gin (certificate_ref gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_complaint_ref_trgm ON audit_logs USING gin (complaint_ref gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action_trgm ON audit_logs USING gin (action gin_trgm_ops);
 
 -- 2026-07-14: 搜索计数
-ALTER TABLE certificates ADD COLUMN IF NOT EXISTS search_count INT DEFAULT 0;
+ALTER TABLE certificates ADD COLUMN IF NOT EXISTS search_count INT NOT NULL DEFAULT 0;
 
 -- ============================================================================
 -- 12. 迁移记录表（配合 scripts/apply-migrations.mjs 使用）

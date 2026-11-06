@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireSuperAdmin } from '@/lib/auth';
+import { buildContainsPattern } from '@/lib/validation';
 
 export async function GET(req: Request) {
   try {
@@ -10,20 +11,25 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Math.max(parseInt(searchParams.get('page') || '1', 10), 1);
-    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50', 10), 1), 200);
+    const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50', 10) || 1, 1), 200);
     const offset = (page - 1) * pageSize;
+    const q = searchParams.get('q')?.trim() || '';
+    const likePattern = q ? buildContainsPattern(q) : null;
+    const searchCondition = likePattern
+      ? sql` AND (full_name ILIKE ${likePattern} OR username ILIKE ${likePattern} OR phone ILIKE ${likePattern})`
+      : sql``;
 
     try {
       const [result, countRes] = await Promise.all([
         sql`
           SELECT id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at
           FROM profiles
-          WHERE deleted_at IS NULL
+          WHERE deleted_at IS NULL ${searchCondition}
           ORDER BY role ASC
           LIMIT ${pageSize} OFFSET ${offset}
         `,
-        sql`SELECT COUNT(*) as count FROM profiles WHERE deleted_at IS NULL`,
+        sql`SELECT COUNT(*) as count FROM profiles WHERE deleted_at IS NULL ${searchCondition}`,
       ]);
 
       const total = parseInt(String(countRes[0]?.count || 0), 10);

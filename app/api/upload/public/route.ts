@@ -57,10 +57,6 @@ export async function POST(req: Request) {
       );
     }
 
-    if (await wouldExceedPrivateQuota(file.size)) {
-      return NextResponse.json({ error: '证据存储空间已满，请联系管理员' }, { status: 507 });
-    }
-
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // 生成安全文件名
@@ -68,14 +64,28 @@ export async function POST(req: Request) {
     const safeExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '') ? fileExt : 'bin';
     const fileName = `${crypto.randomUUID()}.${safeExt}`;
 
-    const { path, error } = await uploadFile(
-      'complaints',
-      fileName,
-      buffer,
-      file.type || 'application/octet-stream',
-      'private'
-    );
+    const uploadResult = await sql.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(20261107)`;
+      invalidateStorageUsageCache();
+      if (await wouldExceedPrivateQuota(buffer.byteLength)) {
+        return { quota: true as const, path: '', error: null };
+      }
+      const result = await uploadFile(
+        'complaints',
+        fileName,
+        buffer,
+        file.type || 'application/octet-stream',
+        'private'
+      );
+      invalidateStorageUsageCache();
+      return { quota: false as const, ...result };
+    });
 
+    if (uploadResult.quota) {
+      return NextResponse.json({ error: '证据存储空间已满，请联系管理员' }, { status: 507 });
+    }
+
+    const { path, error } = uploadResult;
     if (error) {
       console.error('[Public Upload] File upload failed:', error);
       const status = error.includes('文件类型') ? 400 : 500;
@@ -84,7 +94,6 @@ export async function POST(req: Request) {
         { status }
       );
     }
-    invalidateStorageUsageCache();
 
     const publicUrl = getPrivateFileUrl('complaints', path);
 

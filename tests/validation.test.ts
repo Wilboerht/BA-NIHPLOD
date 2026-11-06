@@ -6,6 +6,7 @@ import {
   escapeLikePattern,
   getTodayISO,
   isFutureDate,
+  isSafeEvidenceUrl,
   isUuid,
   parseDateOnly,
 } from '../lib/validation.ts';
@@ -30,11 +31,35 @@ test('parseDateOnly rejects normalized invalid dates', () => {
   assert.equal(parseDateOnly('2026-2-1'), null);
 });
 
-test('date helpers use local date strings', () => {
-  const now = new Date(2026, 10, 6, 12, 0, 0);
-  assert.equal(getTodayISO(now), '2026-11-06');
-  assert.equal(isFutureDate('2026-11-07', now), true);
-  assert.equal(isFutureDate('2026-11-06', now), false);
+test('date helpers use the business timezone', () => {
+  const noonShanghai = new Date(Date.UTC(2026, 10, 6, 4, 0, 0));
+  assert.equal(getTodayISO(noonShanghai), '2026-11-06');
+  assert.equal(isFutureDate('2026-11-07', noonShanghai), true);
+  assert.equal(isFutureDate('2026-11-06', noonShanghai), false);
+
+  const beforeMidnight = new Date(Date.UTC(2026, 10, 5, 15, 59, 0));
+  const afterMidnight = new Date(Date.UTC(2026, 10, 5, 16, 0, 0));
+  assert.equal(getTodayISO(beforeMidnight), '2026-11-05');
+  assert.equal(getTodayISO(afterMidnight), '2026-11-06');
+});
+
+test('isSafeEvidenceUrl only accepts private complaint evidence paths', () => {
+  assert.equal(
+    isSafeEvidenceUrl('/api/files/complaints/4f6c7d8e-1234-4abc-8def-0123456789ab.png'),
+    true
+  );
+  assert.equal(
+    isSafeEvidenceUrl('/api/files/complaints/../../../.env.local'),
+    false
+  );
+  assert.equal(
+    isSafeEvidenceUrl('/api/files/complaints/4f6c7d8e-1234-4abc-8def-0123456789ab.svg'),
+    false
+  );
+  assert.equal(
+    isSafeEvidenceUrl('https://evil.example.com/a.png'),
+    false
+  );
 });
 
 test('validateFileMagic accepts ICC JPEG and rejects fake webp', () => {
