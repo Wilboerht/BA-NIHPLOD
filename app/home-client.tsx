@@ -472,21 +472,18 @@ export default function HomeClient() {
     <main className="home-canvas relative min-h-[calc(100dvh-var(--site-header-h))] w-full flex flex-col justify-between items-center overflow-x-hidden font-sans">
 
       {/* 核心内容区 */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8 relative z-10">
-        <div className="w-full flex flex-col items-center">
+      <div className="relative z-10 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 md:px-8">
+        <div className="flex w-full flex-col items-center">
           <motion.div
             initial={false}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-4 md:space-y-6 mb-4 md:mb-6"
+            className="mb-5 text-center md:mb-7"
           >
-            <div className="space-y-4 md:space-y-6">
-              <p className="text-[10px] md:text-[11px] font-medium tracking-[0.35em] uppercase text-[#8B7355]/80">
-                Official Authorization Verification
-              </p>
+            <div className="space-y-4 md:space-y-5">
               <h1 className="text-[36px] sm:text-[44px] md:text-[52px] font-normal leading-[1.1] tracking-tight text-[#1A1A1A]">
                 授权资质官方核查
               </h1>
-              <p className="text-[#5C5855]/90 text-sm sm:text-base max-w-xl mx-auto leading-[1.9] tracking-wide font-light">
+              <p className="mx-auto max-w-2xl text-sm font-light leading-[1.9] tracking-wide text-[#5C5855]/90 sm:text-base">
                 输入授权证书编号 (SN)、店铺名称或公司名称，<br className="hidden md:inline" /> 核实官方资质及合法经营区域。
               </p>
             </div>
@@ -496,7 +493,7 @@ export default function HomeClient() {
           {/* 搜索框区 */}
           <motion.div 
             initial={false} animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-2xl px-2"
+            className="w-full max-w-3xl px-2"
           >
             <form 
               onSubmit={handleSearch} 
@@ -1011,7 +1008,7 @@ export default function HomeClient() {
 
       {/* 页脚 */}
       <footer className="w-full shrink-0 border-t border-[#E8E0D5]/60 bg-[#F3F0EA]/40">
-        <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col items-center gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between md:px-12 md:py-7 lg:px-20">
+        <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col items-center gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8 md:py-7 lg:px-12">
           <div className="flex flex-col items-center gap-2 md:items-start">
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] font-normal tracking-normal text-[#5F5A54]">
               <a

@@ -105,7 +105,7 @@ export function WebsiteNavbar() {
       {/* ========== 桌面端 + 移动端导航栏 ========== */}
       <nav
         aria-label="主导航"
-        className={`fixed top-0 left-0 right-0 z-[100] grid h-[var(--site-header-h)] place-items-center px-6 md:px-12 lg:px-20 transition-[background-color,border-color,box-shadow] duration-500 ${
+        className={`fixed top-0 left-0 right-0 z-[100] grid h-[var(--site-header-h)] place-items-center px-6 md:px-8 lg:px-12 transition-[background-color,border-color,box-shadow] duration-500 ${
           scrolled
             ? "bg-[#F6F4F0]/80 backdrop-blur-md border-b border-[#8B7355]/10"
             : "bg-[#F6F4F0] border-b border-transparent"

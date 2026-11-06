@@ -32,7 +32,7 @@
   --notion-green: #0b6e4f;
 
   --site-header-h: 72px;
-  --content-max: 1440px;
+  --content-max: 1600px;
 }
 
 @media (min-width: 768px) {
