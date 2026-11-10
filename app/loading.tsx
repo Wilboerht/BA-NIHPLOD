@@ -1,6 +1,6 @@
 export default function HomeLoading() {
   return (
-    <main className="min-h-screen bg-[#F6F4F0] flex flex-col items-center justify-center">
+    <main className="min-h-[calc(100dvh-var(--site-header-h))] bg-[#F6F4F0] flex flex-col items-center justify-center">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-5 md:px-8">
         <div className="w-full flex flex-col items-center gap-8">
           {/* 标题骨架 */}

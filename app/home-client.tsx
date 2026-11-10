@@ -7,8 +7,9 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { verifyCertificateAction, submitComplaintAction, type CertificateVerifyResult } from "@/app/actions";
 import { useToast } from "@/hooks/useToast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { fetchWithTimeout } from "@/lib/fetch";
-import { Html5Qrcode } from "html5-qrcode";
+import type { Html5Qrcode } from "html5-qrcode";
 
 const getResultStatus = (status?: string) => {
   switch (status) {
@@ -55,6 +56,40 @@ function EvidenceThumb({ file, onRemove }: { file: File; onRemove: () => void })
       </button>
     </div>
   );
+}
+
+function useModalA11y(open: boolean, ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusTimer = window.setTimeout(() => ref.current?.focus({ preventScroll: true }), 50);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !ref.current) return;
+      const focusable = Array.from(
+        ref.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus?.({ preventScroll: true });
+    };
+  }, [open, ref]);
 }
 
 export default function HomeClient() {
@@ -215,6 +250,31 @@ export default function HomeClient() {
     withScannerLock(() => setScannerTrigger(prev => prev + 1));
   }, [withScannerLock]);
 
+  const isResultOpen = !!(result || error) && !isSearching;
+
+  // 弹窗可访问性：打开时聚焦、Tab 焦点圈定、关闭还原焦点
+  const resultDialogRef = useRef<HTMLDivElement>(null);
+  const reportDialogRef = useRef<HTMLDivElement>(null);
+  const scannerDialogRef = useRef<HTMLDivElement>(null);
+  useModalA11y(isResultOpen, resultDialogRef);
+  useModalA11y(showReportModal, reportDialogRef);
+  useModalA11y(showScanner, scannerDialogRef);
+
+  // Esc 关闭弹窗
+  useEscapeKey(() => { setResults(null); setCurrentIndex(0); setError(null); }, isResultOpen);
+  useEscapeKey(() => { setShowReportModal(false); resetReportForm(); }, showReportModal);
+  useEscapeKey(closeScanner, showScanner);
+
+  // 弹窗打开时锁定背景滚动
+  useEffect(() => {
+    if (!isResultOpen && !showReportModal && !showScanner) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isResultOpen, showReportModal, showScanner]);
+
   // 从 URL 参数自动验证证书
   useEffect(() => {
     if (!certParam || autoVerified.current) return;
@@ -268,7 +328,8 @@ export default function HomeClient() {
     if (showScanner) {
       const startScanner = async () => {
         try {
-          html5QrCode = new Html5Qrcode("qr-scanner-container");
+          const { Html5Qrcode: Html5QrcodeClass } = await import("html5-qrcode");
+          html5QrCode = new Html5QrcodeClass("qr-scanner-container");
           scannerRef.current = html5QrCode;
           
           await html5QrCode.start(
@@ -378,7 +439,11 @@ export default function HomeClient() {
       }
     }
 
-    const html5QrCode = scannerRef.current || new Html5Qrcode("qr-scanner-container");
+    let html5QrCode = scannerRef.current;
+    if (!html5QrCode) {
+      const { Html5Qrcode: Html5QrcodeClass } = await import("html5-qrcode");
+      html5QrCode = new Html5QrcodeClass("qr-scanner-container");
+    }
     
     try {
       const decodedText = await html5QrCode.scanFile(file, true);
@@ -416,7 +481,7 @@ export default function HomeClient() {
     if (isSearching) return; 
 
     // 2. 清洗数据
-    const cleanQuery = query.trim();
+    const cleanQuery = query.trim().replace(/\s+/g, " ");
     if (!cleanQuery) return;
 
     if (cleanQuery.length < 2) {
@@ -456,10 +521,11 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="home-canvas relative min-h-[calc(100dvh-var(--site-header-h))] w-full flex flex-col justify-between items-center overflow-x-hidden font-sans">
+    <>
+      <div className="home-canvas relative flex min-h-[calc(100dvh-var(--site-header-h))] w-full flex-col justify-between items-center overflow-x-hidden font-sans">
 
       {/* 核心内容区 */}
-      <div className="relative z-10 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 md:px-8">
+      <main className="relative z-10 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 md:px-8">
         <div className="flex w-full flex-col items-center">
           <motion.div
             initial={false}
@@ -492,6 +558,10 @@ export default function HomeClient() {
                   type="text" 
                   aria-label="搜索授权证书"
                   placeholder={placeholderText} 
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   className="w-full min-w-0 bg-transparent border-none outline-none p-0 text-[#2C2A29] text-[15px] md:text-base placeholder:text-sm md:placeholder:text-base placeholder:text-[#8B7355]/70 hover:placeholder:text-[#8B7355]/85 focus:ring-0 transition-all font-medium truncate"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -533,19 +603,30 @@ export default function HomeClient() {
                 </button>
               </div>
             </form>
+            <p className="mt-3 px-2 text-center text-[11px] font-light tracking-wide text-[#8B7355]/65 md:mt-4 md:text-xs">
+              证书编号位于授权书右上角，格式如 BAVP-2026-A1B2C3D4
+            </p>
           </motion.div>
+          <p role="status" aria-live="polite" className="sr-only">
+            {isSearching
+              ? "正在查询授权信息"
+              : isResultOpen
+                ? (error ? error : `已找到 ${results?.length ?? 0} 条授权记录`)
+                : ""}
+          </p>
         </div>
-      </div>
+      </main>
 
       {/* 结果模态框 */}
       <AnimatePresence>
         {(result || error) && !isSearching && (
           <div
+            ref={resultDialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={error ? "查询结果" : "授权证书详情"}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-6 md:p-12"
-            onKeyDown={(e) => { if (e.key === "Escape") { setResults(null); setCurrentIndex(0); setError(null); } }}>
+            className="fixed inset-0 z-[110] flex items-center justify-center p-6 outline-none md:p-12">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
@@ -558,7 +639,7 @@ export default function HomeClient() {
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
               className="relative w-full max-w-2xl flex flex-col gap-4 md:gap-6 z-10"
             >
-              <div className="relative w-full max-h-[85vh] overflow-y-auto bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14">
+              <div className="relative w-full max-h-[calc(100dvh-8rem)] md:max-h-[85vh] overflow-y-auto bg-[#FDFBF7] border border-[#E8E0D5]/40 rounded-[24px] md:rounded-[32px] shadow-2xl p-6 md:p-14">
                 <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50">
                   <button 
                     onClick={() => { setResults(null); setCurrentIndex(0); setError(null); }}
@@ -629,7 +710,9 @@ export default function HomeClient() {
                            <p 
                              className="text-[#8B7355] text-xs md:text-[13px] font-medium tracking-widest font-mono cursor-pointer hover:underline decoration-dotted transition-all"
                               onClick={() => {
-                                navigator.clipboard.writeText(result.id).catch(() => {});
+                                navigator.clipboard.writeText(result.id)
+                                  .then(() => toast({ message: "证书编号已复制", type: "success" }))
+                                  .catch(() => toast({ message: "复制失败，请长按选择并复制", type: "warning" }));
                               }}
                              title="点击复制编号"
                            >
@@ -671,17 +754,40 @@ export default function HomeClient() {
                   <button 
                     onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
                     disabled={currentIndex === 0}
-                    className="absolute top-1/2 left-3 md:-left-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-colors z-[60]"
+                    aria-label="上一条授权记录"
+                    className="hidden md:flex absolute top-1/2 md:-left-16 -translate-y-1/2 items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-colors z-[60]"
                   >
                     <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 -ml-0.5" />
                   </button>
                   <button 
                     onClick={() => setCurrentIndex(Math.min(results.length - 1, currentIndex + 1))}
                     disabled={currentIndex === results.length - 1}
-                    className="absolute top-1/2 right-3 md:-right-16 -translate-y-1/2 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-colors z-[60]"
+                    aria-label="下一条授权记录"
+                    className="hidden md:flex absolute top-1/2 md:-right-16 -translate-y-1/2 items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-white/80 backdrop-blur-md text-[#8B7355] disabled:opacity-0 disabled:pointer-events-none hover:text-[#2C2A29] hover:bg-white rounded-full shadow-lg border border-slate-200/50 transition-colors z-[60]"
                   >
                     <ChevronRight className="w-5 h-5 md:w-6 md:h-6 -mr-0.5" />
                   </button>
+                  <div className="flex md:hidden items-center justify-center gap-5">
+                    <button
+                      onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+                      disabled={currentIndex === 0}
+                      aria-label="上一条授权记录"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/60 bg-white/80 text-[#8B7355] shadow-sm transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <span className="text-[11px] font-medium tracking-[0.2em] text-[#8B7355]/80">
+                      {currentIndex + 1} / {results.length}
+                    </span>
+                    <button
+                      onClick={() => setCurrentIndex(Math.min(results.length - 1, currentIndex + 1))}
+                      disabled={currentIndex === results.length - 1}
+                      aria-label="下一条授权记录"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/60 bg-white/80 text-[#8B7355] shadow-sm transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </>
               )}
             </motion.div>
@@ -693,12 +799,12 @@ export default function HomeClient() {
       <AnimatePresence>
         {showReportModal && (
           <div
+            ref={reportDialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="官方维权申诉"
             tabIndex={-1}
-            className="fixed inset-0 z-[110] flex md:items-center md:justify-center"
-            onKeyDown={(e) => { if (e.key === "Escape") { setShowReportModal(false); resetReportForm(); } }}>
+            className="fixed inset-0 z-[110] flex outline-none md:items-center md:justify-center">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={() => { setShowReportModal(false); resetReportForm(); }}
@@ -865,12 +971,12 @@ export default function HomeClient() {
       <AnimatePresence>
         {showScanner && (
           <div
+            ref={scannerDialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="扫码验证"
             tabIndex={-1}
-            className="fixed inset-0 z-[110] flex md:items-center md:justify-center"
-            onKeyDown={(e) => { if (e.key === "Escape") closeScanner(); }}>
+            className="fixed inset-0 z-[110] flex outline-none md:items-center md:justify-center">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                onClick={closeScanner}
@@ -1037,6 +1143,7 @@ export default function HomeClient() {
           </div>
         </div>
       </footer>
-    </main>
+      </div>
+    </>
   );
 }

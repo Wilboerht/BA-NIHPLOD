@@ -54,7 +54,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="h-screen bg-[#F6F4F0]" />}>
+    <Suspense fallback={<div className="min-h-[calc(100dvh-var(--site-header-h))] bg-[#F6F4F0]" />}>
       <HomeClient />
     </Suspense>
   );

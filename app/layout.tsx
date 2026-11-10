@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -61,6 +61,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#F6F4F0",
+};
+
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({
@@ -114,43 +118,6 @@ export default async function RootLayout({
                 price: "0",
                 priceCurrency: "CNY",
               },
-            }),
-          }}
-        />
-        {/* JSON-LD 结构化数据：FAQ（优化 Google SGE 展示）*/}
-        <script
-          type="application/ld+json"
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              mainEntity: [
-                {
-                  "@type": "Question",
-                  name: `如何验证${BRAND_NAME}经销商授权书的真伪？`,
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: `在 ${BRAND_NAME} 授权核验平台（${BASE_URL}）输入授权证书编号（SN）、店铺名称或公司名称，即可实时查询授权状态、有效期及经营范围。`,
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: `${BRAND_NAME}授权证书编号格式是什么？`,
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: `${BRAND_NAME} 授权证书编号格式为 BAVP-YYYY-XXXXXXXX，例如 BAVP-2026-A1B2C3D4。您可以在证书图片或授权书上找到此编号。`,
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: `${BRAND_NAME}是哪个国家的品牌？`,
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text: `${BRAND_NAME}（${BRAND_NAME_CN}）由 ${COMPANY_FULL_NAME} 运营，是一个专注于护肤/美妆领域的品牌。`,
-                  },
-                },
-              ],
             }),
           }}
         />
