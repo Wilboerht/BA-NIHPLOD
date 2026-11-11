@@ -105,6 +105,8 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [includeQrCode, setIncludeQrCode] = useState(true);
+  const [qrCodeError, setQrCodeError] = useState(false);
   const [isFontLoaded, setIsFontLoaded] = useState(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
@@ -165,6 +167,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
     const currentId = ++renderRequestId.current;
     setIsGenerating(true);
+    setQrCodeError(false);
 
     try {
     const ctx = canvas.getContext("2d");
@@ -435,28 +438,32 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     // CERT_DEBUG 已移除
     offCtx.fillText(data.authorizer || "", sealCenterX, authorizerY);
 
-    // 二维码：底部对齐（与公章同一水平线），稍微上移
-    const qrX = leftMargin;
-    const qrY = bottomAlignY - qrSize - 12 * scale;
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-      const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
-      const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
-        width: 80,
-        margin: 1,
-        color: { dark: '#000000', light: '#ffffff' },
-        errorCorrectionLevel: 'M'
-      });
-      const qrImg = await loadImage(qrDataUrl);
-      if (qrImg) {
+    if (includeQrCode) {
+      const qrX = leftMargin;
+      const qrY = bottomAlignY - qrSize - 12 * scale;
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+        const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
+        const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+          width: 80,
+          margin: 1,
+          color: { dark: '#000000', light: '#ffffff' },
+          errorCorrectionLevel: 'M'
+        });
+        const qrImg = await loadImage(qrDataUrl);
+        if (!qrImg) throw new Error('二维码图片加载失败');
         offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
         offCtx.font = `500 ${11 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
         offCtx.fillStyle = "#666666";
         offCtx.textAlign = "center";
         offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
+      } catch (err) {
+        console.warn("QR code generation failed:", err);
+        if (currentId === renderRequestId.current) {
+          setQrCodeError(true);
+          toast({ message: "二维码生成失败，已阻止导出；请重试或选择不包含二维码", type: "error" });
+        }
       }
-    } catch (err) {
-      console.warn("QR code generation failed:", err);
     }
 
     if (!isIssued || isVoided || showPending) {
@@ -515,10 +522,26 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const h = setTimeout(() => renderCertificate(), 300);
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, isFontLoaded, isIssued, isVoided, isPending, pendingSubmitted]);
+  }, [data, isFontLoaded, isIssued, isVoided, isPending, pendingSubmitted, includeQrCode]);
+
+  const getExportCanvas = (): HTMLCanvasElement | null => {
+    if (isGenerating) {
+      toast({ message: "证书正在重新生成，请稍后再保存", type: "info" });
+      return null;
+    }
+    if (includeQrCode && qrCodeError) {
+      toast({ message: "二维码生成失败，无法导出带二维码版本；请重试或关闭二维码选项", type: "error" });
+      return null;
+    }
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      toast({ message: "证书预览尚未就绪，请稍后重试", type: "error" });
+    }
+    return canvas;
+  };
 
   const handleDownload = () => {
-    const canvas = canvasRef.current;
+    const canvas = getExportCanvas();
     if (!canvas) return;
     const link = document.createElement("a");
     link.download = `授权书_${data.shopName}.png`;
@@ -527,10 +550,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   };
 
   const handleDownloadPDF = async () => {
+    const canvas = getExportCanvas();
+    if (!canvas) return;
     try {
       setIsDownloading(true);
-      const canvas = canvasRef.current;
-      if (!canvas) return;
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pdfWidth = 210;
@@ -917,6 +940,25 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         </div>
 
         <div className="pt-12 pb-2 flex items-center gap-6 flex-wrap">
+          <label className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeQrCode}
+              onChange={(e) => {
+                renderRequestId.current += 1;
+                setIncludeQrCode(e.target.checked);
+                setQrCodeError(false);
+                setIsGenerating(true);
+              }}
+              className="h-4 w-4 accent-slate-900"
+            />
+            导出时包含验证二维码
+          </label>
+          {includeQrCode && qrCodeError && (
+            <span role="alert" className="text-[12px] font-medium text-rose-600">
+              二维码生成失败，请重试或关闭该选项
+            </span>
+          )}
           {!isVoided && !isIssued && !isPending && mode !== 'create' && (
             <>
               <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
