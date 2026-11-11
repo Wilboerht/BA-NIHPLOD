@@ -450,6 +450,18 @@ const badSeal = await req('/api/certificates', {
   },
 });
 assert('外链签章被拒 400', badSeal.status === 400, `status=${badSeal.status}`);
+const pdfSeal = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: {
+    action: 'approve_issue',
+    certData: {
+      shopName: 'PDF 签章测试店', companyName: 'X', phone: '', scopeText: '淘宝',
+      duration: '2026.11.01 - 2027.11.01', authorizer: 'ignored',
+      sealImage: '/uploads/certificates/not-an-image.pdf',
+    },
+  },
+});
+assert('PDF 不得作为证书签章', pdfSeal.status === 400, `status=${pdfSeal.status}`);
 const emptyScope = await req('/api/certificates', {
   method: 'POST', token: superToken,
   body: {
@@ -473,11 +485,29 @@ const expiredIssue = await req('/api/certificates', {
 });
 assert('已过期证书不得直接核发', expiredIssue.status === 400, `status=${expiredIssue.status}`);
 const approve = await req('/api/certificates', {
-  method: 'POST', token: superToken, body: { action: 'approve_issue', certId: pendingCertRow.id },
+  method: 'POST', token: superToken,
+  body: {
+    action: 'approve_issue', certId: pendingCertRow.id,
+    certData: {
+      shopName: '原子核发测试店', companyName: '原子核发测试公司', phone: '13900000015',
+      scopeText: '原子核发授权范围', duration: '2026.10.03 - 2027.10.03',
+      authorizer: 'ignored', sealImage: '',
+    },
+  },
 });
 assert('核发返回同编号', approve.status === 200 && approve.json?.certNumber === newCertNumber);
-const [approvedRow] = await db`SELECT status, manager_id FROM certificates WHERE id = ${pendingCertRow.id}`;
-assert('核发后 ISSUED 且记录 manager', approvedRow?.status === 'ISSUED' && approvedRow?.manager_id === superAdmin.id);
+const [approvedRow] = await db`
+  SELECT c.status, c.manager_id, c.auth_scope, d.company_name AS dealer_name
+  FROM certificates c JOIN dealers d ON c.dealer_id = d.id WHERE c.id = ${pendingCertRow.id}
+`;
+assert(
+  '修改与核发同事务完成并记录 manager',
+  approvedRow?.status === 'ISSUED'
+    && approvedRow?.manager_id === superAdmin.id
+    && approvedRow?.dealer_name === '原子核发测试店'
+    && String(approvedRow?.auth_scope).includes('原子核发授权范围'),
+  JSON.stringify(approvedRow)
+);
 
 const updateAfterApprove = await req('/api/certificates', {
   method: 'POST', token: auditorToken2,
@@ -504,7 +534,7 @@ assert('按公司名搜索(3)', searchList.json?.total === 3, `total=${searchLis
 const page2 = await req('/api/db/certificates?status=invalid&page=2&pageSize=2', { token: superToken });
 assert('invalid 第 2 页 2 条', page2.json?.total === 4 && page2.json?.data?.length === 2);
 const stats = await req('/api/db/stats', { token: superToken });
-assert('统计 totalCertificates=7', stats.json?.data?.totalCertificates === 7, `total=${stats.json?.data?.totalCertificates}`);
+assert('累计核发仅统计曾核发记录', stats.json?.data?.totalCertificates === 5, `total=${stats.json?.data?.totalCertificates}`);
 assert('统计包含待审计数', typeof stats.json?.data?.pendingCertificates === 'number');
 assert(
   '统计接口禁止缓存',

@@ -46,7 +46,8 @@ function generateUniqueCertNumber(): string {
 function isAllowedSealUrl(url: string | undefined | null): boolean {
   if (url === undefined || url === null || url === '') return true;
   if (typeof url !== 'string' || url.length > 512 || url.includes('..')) return false;
-  return url.startsWith('/uploads/') || url === '/default-seal.png';
+  return url === '/default-seal.png'
+    || (url.startsWith('/uploads/') && /\.(png|jpe?g|webp)$/i.test(url));
 }
 
 // 辅助函数：带重试的唯一证书编号生成
@@ -282,7 +283,7 @@ export async function POST(req: Request) {
             const auditorResult = await sql`SELECT full_name FROM profiles WHERE id = ${operatorId} AND deleted_at IS NULL LIMIT 1`;
             const auditorName = ((auditorResult[0] as unknown) as { full_name?: string })?.full_name || '审核员';
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ba.nihplod.cn';
-            sendPendingCertNotification({
+            await sendPendingCertNotification({
               adminEmails,
               shopName: certData.shopName || '未知店铺',
               companyName: certData.companyName,
@@ -322,27 +323,40 @@ export async function POST(req: Request) {
         `;
         if (!result || result.length === 0) throw new ValidationError(`未找到待审核证书 (ID: ${certId})`);
         certDataDb = result[0] as Record<string, unknown>;
-        dealerPhone = typeof certDataDb.phone === 'string' ? certDataDb.phone : undefined;
+        dealerPhone = certData ? certData.phone : (typeof certDataDb.phone === 'string' ? certDataDb.phone : undefined);
         certNumber = String(certDataDb.cert_number);
         auditCertId = certId;
 
-        // 旧待审数据可能携带客户端伪造的授权方，核发前强制纠正
         const parsedScope = parseAuthScope(
           typeof certDataDb.auth_scope === 'string' ? certDataDb.auth_scope : ''
         );
-        if (!parsedScope.scopeText.trim()) {
+        if (!certData && !parsedScope.scopeText.trim()) {
           throw new ValidationError('授权范围不能为空，请先修改待审核资料');
         }
         const existingStart = formatDateISO(certDataDb.start_date as string | Date);
         const existingEnd = formatDateISO(certDataDb.end_date as string | Date);
-        parseDuration(`${existingStart.replace(/-/g, '.')} - ${existingEnd.replace(/-/g, '.')}`);
-        const correctedAuthScope = `${sanitizeForAuthScope(parsedScope.companyName)} | ${parsedScope.scopeText} | ${sanitizeForAuthScope(effectiveAuthorizer)}`;
+        const issueDuration = certData
+          ? parseDuration(certData.duration)
+          : parseDuration(`${existingStart.replace(/-/g, '.')} - ${existingEnd.replace(/-/g, '.')}`);
+        const correctedAuthScope = certData
+          ? `${sanitizeForAuthScope(certData.companyName)} | ${certData.scopeText} | ${sanitizeForAuthScope(effectiveAuthorizer)}`
+          : `${sanitizeForAuthScope(parsedScope.companyName)} | ${parsedScope.scopeText} | ${sanitizeForAuthScope(effectiveAuthorizer)}`;
+        const existingDealerId = String(certDataDb.dealer_id);
+        const existingSealUrl = certDataDb.seal_url == null ? null : String(certDataDb.seal_url);
+        const issueSealUrl = certData ? effectiveSealImage : existingSealUrl;
 
         await sql.begin(async (tx) => {
+          const targetDealerId = certData
+            ? String(await getOrCreateDealer(certData.phone, certData.shopName, tx))
+            : existingDealerId;
           const updateResult = await tx`
             UPDATE certificates
             SET status = 'ISSUED',
+                dealer_id = ${targetDealerId},
                 auth_scope = ${correctedAuthScope},
+                start_date = ${issueDuration.start},
+                end_date = ${issueDuration.end},
+                seal_url = ${issueSealUrl},
                 manager_id = ${operatorId},
                 updated_at = NOW()
             WHERE id = ${certId}
@@ -353,6 +367,15 @@ export async function POST(req: Request) {
           if (!updateResult || updateResult.length === 0) {
             throw new ValidationError('该证书不是待审核状态，无法核发');
           }
+          if (targetDealerId !== existingDealerId) {
+            await tx`
+              DELETE FROM dealers d
+              WHERE d.id = ${existingDealerId}
+                AND NOT EXISTS (
+                  SELECT 1 FROM certificates c WHERE c.dealer_id = ${existingDealerId}
+                )
+            `;
+          }
           await writeAudit(tx, {
             actor,
             action: 'ISSUE_CERTIFICATE',
@@ -360,8 +383,23 @@ export async function POST(req: Request) {
             targetId: certId,
             certificateId: certId,
             certificateRef: certId,
-            before: { status: certDataDb?.status ?? 'PENDING', auth_scope: certDataDb?.auth_scope ?? null },
-            after: { status: 'ISSUED', auth_scope: correctedAuthScope, manager_id: operatorId },
+            before: {
+              status: certDataDb!.status,
+              dealer_id: existingDealerId,
+              auth_scope: certDataDb!.auth_scope,
+              start_date: existingStart,
+              end_date: existingEnd,
+              seal_url: existingSealUrl,
+            },
+            after: {
+              status: 'ISSUED',
+              dealer_id: targetDealerId,
+              auth_scope: correctedAuthScope,
+              start_date: issueDuration.start,
+              end_date: issueDuration.end,
+              seal_url: issueSealUrl,
+              manager_id: operatorId,
+            },
             comment: `核发证书 ${certNumber}，经销商：${dealerPhone || '未填写电话'}`,
             request: req,
           });

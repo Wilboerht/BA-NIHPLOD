@@ -298,7 +298,7 @@ export async function getDashboardStats(
     : sql``;
 
   const [certCountRes, complaintCountRes, issuedCountRes, pendingCertCountRes] = await Promise.all([
-    sql`SELECT COUNT(*) as count FROM certificates WHERE deleted_at IS NULL`,
+    sql`SELECT COUNT(*) as count FROM certificates WHERE status IN ('ISSUED', 'EXPIRED', 'REVOKED') AND deleted_at IS NULL`,
     sql`SELECT COUNT(*) as count FROM complaints WHERE status IN ('PENDING', 'INVESTIGATING') AND deleted_at IS NULL`,
     sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'ISSUED' AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND deleted_at IS NULL`,
     sql`SELECT COUNT(*) as count FROM certificates WHERE status = 'PENDING' AND deleted_at IS NULL ${pendingCertAuditorCondition}`

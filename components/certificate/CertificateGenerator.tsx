@@ -107,6 +107,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [isGenerating, setIsGenerating] = useState(false);
   const [includeQrCode, setIncludeQrCode] = useState(true);
   const [qrCodeError, setQrCodeError] = useState(false);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
   const [isFontLoaded, setIsFontLoaded] = useState(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
@@ -122,8 +123,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   useEscapeKey(() => { setShowFullPreview(false); setZoomScale(1); }, showFullPreview);
 
   const renderRequestId = useRef(0);
+  const renderedKeyRef = useRef<string | null>(null);
   const submittedRef = useRef(false);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 8) : Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0')).toUpperCase()}`);
+  const renderKey = JSON.stringify({ data, isFontLoaded, isIssued, isVoided, showPending, includeQrCode });
 
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -168,6 +171,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const currentId = ++renderRequestId.current;
     setIsGenerating(true);
     setQrCodeError(false);
+    setLayoutError(null);
 
     try {
     const ctx = canvas.getContext("2d");
@@ -410,6 +414,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       currentY + 125 * scale,
       height - 30 * scale
     );
+    const contentBottomLimit = height - 30 * scale
+      - Math.max(qrSize + 12 * scale, sealDrawHeight - 20 * scale);
+    if (currentY > contentBottomLimit && currentId === renderRequestId.current) {
+      setLayoutError('授权内容过长，已超出证书可用区域，请精简后再提交或导出');
+    }
 
     // 证书编号：优先使用服务端返回的真实编号
     const certNumber = data.cert_number || (initialData?.cert_number as string) || tempCertNumberRef.current;
@@ -507,6 +516,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       canvas.height = height;
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(offCanvas, 0, 0);
+      renderedKeyRef.current = renderKey;
     }
     } catch (err) {
       console.error('[CertificateGenerator] 证书渲染失败:', err instanceof Error ? err.message : String(err));
@@ -522,11 +532,15 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const h = setTimeout(() => renderCertificate(), 300);
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, isFontLoaded, isIssued, isVoided, isPending, pendingSubmitted, includeQrCode]);
+  }, [renderKey]);
 
   const getExportCanvas = (): HTMLCanvasElement | null => {
-    if (isGenerating) {
+    if (isGenerating || renderedKeyRef.current !== renderKey) {
       toast({ message: "证书正在重新生成，请稍后再保存", type: "info" });
+      return null;
+    }
+    if (layoutError) {
+      toast({ message: layoutError, type: "error" });
       return null;
     }
     if (includeQrCode && qrCodeError) {
@@ -588,11 +602,19 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     const hasDuration = !!data.duration && data.duration.includes(' - ');
     const selectedChannels = getChannelsFromScopeText(data.scopeText);
     const hasChannels = selectedChannels.length > 0;
-    return hasName && hasDuration && hasChannels;
-  }, [data.shopName, data.duration, data.scopeText, mode]);
+    return hasName && hasDuration && hasChannels && !layoutError;
+  }, [data.shopName, data.duration, data.scopeText, mode, layoutError]);
 
   const handleIssueSubmit = async () => {
     if (previewOnly || !canSubmit || submittedRef.current) return;
+    if (isGenerating || renderedKeyRef.current !== renderKey) {
+      toast({ message: "证书预览正在更新，请等待渲染完成后再提交", type: "info" });
+      return;
+    }
+    if (layoutError) {
+      toast({ message: layoutError, type: "error" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const isManager = userRole === 'SUPER_ADMIN';
@@ -602,35 +624,22 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const shouldApprove = mode === 'edit' && isPending && pendingAction === 'approve' && isManager;
 
       if (mode === 'edit' && isPending) {
-        const updateRes = await fetchWithTimeout("/api/certificates", {
+        const response = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "update_certificate",
+            action: shouldApprove ? "approve_issue" : "update_certificate",
             certId: initialData?.id,
             certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
           })
         });
-        const updateData = await updateRes.json().catch(() => ({}));
-        if (!updateRes.ok) throw new Error(updateData.error || "更新失败");
-        if (updateData.certNumber) serverCertNumber = updateData.certNumber;
-
-        if (shouldApprove) {
-          const approveRes = await fetchWithTimeout("/api/certificates", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "approve_issue",
-              certId: initialData?.id,
-            })
-          });
-          const approveData = await approveRes.json().catch(() => ({}));
-          if (!approveRes.ok) throw new Error(approveData.error || "核发失败");
-          if (approveData.certNumber) serverCertNumber = approveData.certNumber;
-          toast({ message: "授权信息已更新并核发成功", type: "success" });
-        } else {
-          toast({ message: "修改已保存，等待超级管理员审核", type: "success" });
-        }
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || (shouldApprove ? "核发失败" : "更新失败"));
+        if (result.certNumber) serverCertNumber = result.certNumber;
+        toast({
+          message: shouldApprove ? "授权信息已更新并核发成功" : "修改已保存，等待超级管理员审核",
+          type: "success"
+        });
       } else {
         const action = mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending");
         const response = await fetchWithTimeout("/api/certificates", {
@@ -954,6 +963,11 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             />
             导出时包含验证二维码
           </label>
+          {layoutError && (
+            <span role="alert" className="text-[12px] font-medium text-rose-600">
+              {layoutError}
+            </span>
+          )}
           {includeQrCode && qrCodeError && (
             <span role="alert" className="text-[12px] font-medium text-rose-600">
               二维码生成失败，请重试或关闭该选项

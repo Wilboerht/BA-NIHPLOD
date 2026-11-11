@@ -97,7 +97,8 @@ export default function ComplaintsPage() {
 
   // 审计日志
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [, setIsLoadingLogs] = useState(false);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const auditRequestRef = useRef(0);
 
   useEffect(() => {
     setPage(1);
@@ -114,8 +115,11 @@ export default function ComplaintsPage() {
   }, [page, total, pageSize]);
 
   useEffect(() => {
+    setAuditLogs([]);
     if (activeReviewId) {
       fetchAuditLogs(activeReviewId);
+    } else {
+      auditRequestRef.current += 1;
     }
   }, [activeReviewId]);
 
@@ -148,17 +152,19 @@ export default function ComplaintsPage() {
   };
 
   const fetchAuditLogs = async (complaintId: string) => {
+    const requestId = ++auditRequestRef.current;
     setIsLoadingLogs(true);
     try {
       const res = await fetchWithTimeout(`/api/db/complaints/${complaintId}/logs`);
-      if (res.ok) {
-        const data = await res.json();
-        setAuditLogs(data.data || []);
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '获取审核历史失败');
+      if (requestId === auditRequestRef.current) setAuditLogs(data.data || []);
     } catch (err) {
+      if (requestId !== auditRequestRef.current) return;
       console.error('Failed to fetch audit logs:', err);
+      setAuditLogs([]);
     } finally {
-      setIsLoadingLogs(false);
+      if (requestId === auditRequestRef.current) setIsLoadingLogs(false);
     }
   };
 
@@ -538,6 +544,11 @@ export default function ComplaintsPage() {
                  </div>
 
                  {/* 历史审核记录 */}
+                 {isLoadingLogs && (
+                   <div className="flex items-center gap-2 text-[12px] text-slate-400">
+                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> 正在加载审核历史...
+                   </div>
+                 )}
                  {auditLogs.length > 0 && (
                    <div className="space-y-2">
                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">审核历史</span>

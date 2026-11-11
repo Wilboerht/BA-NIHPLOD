@@ -52,7 +52,7 @@ export async function sendMail(options: MailOptions): Promise<void> {
 /**
  * 新提报邮件通知管理员
  */
-export function sendPendingCertNotification(params: {
+export async function sendPendingCertNotification(params: {
   adminEmails: string[];
   shopName: string;
   companyName?: string;
@@ -62,7 +62,7 @@ export function sendPendingCertNotification(params: {
   auditorName: string;
   duration: string;
   baseUrl: string;
-}): void {
+}): Promise<void> {
   const { adminEmails, shopName, companyName, phone, scopeText, certNumber, auditorName, duration, baseUrl } = params;
   if (adminEmails.length === 0) return;
   console.log('[Mail] 准备发送待审核通知给:', adminEmails.join(', '));
@@ -85,12 +85,13 @@ ${dashboardUrl}
 
 —— NIHPLOD 品牌授权管理平台`;
 
-  // 异步发送，不阻塞主流程
-  sendMail({
-    to: adminEmails,
-    subject: `【待审核】${shopName} 提交了授权资质申请`,
-    text,
-  }).catch((err) => {
+  try {
+    await sendMail({
+      to: adminEmails,
+      subject: `【待审核】${shopName} 提交了授权资质申请`,
+      text,
+    });
+  } catch (err) {
     console.error('[Mail] 通知发送失败:', err);
-  });
+  }
 }

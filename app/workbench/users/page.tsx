@@ -53,6 +53,7 @@ export default function AdminsManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const listRequestRef = useRef(0);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -77,8 +78,13 @@ export default function AdminsManagementPage() {
 
   const fullNameRef = useRef<HTMLInputElement>(null);
   const resetPwdRef = useRef<HTMLInputElement>(null);
+  const createSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEscapeKey(() => { if (!isSubmitting) { setShowCreate(false); setCreateError(null); } }, showCreate);
+  useEffect(() => () => {
+    if (createSuccessTimerRef.current) clearTimeout(createSuccessTimerRef.current);
+  }, []);
+
+  useEscapeKey(() => { if (!isSubmitting) { closeCreate(); setCreateError(null); } }, showCreate);
   useEscapeKey(() => { if (!isResetting) closeResetPassword(); }, showResetPwd);
 
   useEffect(() => {
@@ -126,7 +132,15 @@ export default function AdminsManagementPage() {
     }
   };
 
+  const clearCreateSuccessTimer = () => {
+    if (createSuccessTimerRef.current) {
+      clearTimeout(createSuccessTimerRef.current);
+      createSuccessTimerRef.current = null;
+    }
+  };
+
   const openCreate = () => {
+    clearCreateSuccessTimer();
     setForm({ fullName: "", username: "", password: "", role: "AUDITOR" });
     setCreateError(null);
     setCreateSuccess(null);
@@ -136,6 +150,7 @@ export default function AdminsManagementPage() {
 
   const closeCreate = () => {
     if (isSubmitting) return;
+    clearCreateSuccessTimer();
     setShowCreate(false);
   };
 
@@ -156,9 +171,11 @@ export default function AdminsManagementPage() {
       setCreateSuccess(`账户已创建！登录邮箱：${result.email}（首次登录必须修改密码）`);
       await fetchData(); // 刷新列表
       // 2 秒后自动关闭弹窗
-      setTimeout(() => {
+      clearCreateSuccessTimer();
+      createSuccessTimerRef.current = setTimeout(() => {
         setShowCreate(false);
         setCreateSuccess(null);
+        createSuccessTimerRef.current = null;
       }, 2000);
     } catch (err: unknown) {
       setCreateError(err instanceof Error ? err.message : "创建失败");
@@ -167,22 +184,29 @@ export default function AdminsManagementPage() {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: string) => {
+  const updateUserRole = async (user: AdminUser, newRole: string) => {
+    if (user.role === newRole || updatingRoleId) return;
+    const nextRoleLabel = ROLE_OPTIONS.find((role) => role.value === newRole)?.label || newRole;
+    const ok = await confirm({
+      message: `确定将管理员 "${user.full_name}" 的角色改为“${nextRoleLabel}”吗？\n变更后该账号的现有登录状态将立即失效。`,
+    });
+    if (!ok) return;
+
+    setUpdatingRoleId(user.id);
     try {
       const res = await fetchWithTimeout('/api/admin/update-user-role', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, newRole })
+        body: JSON.stringify({ userId: user.id, newRole })
       });
-
-      if (res.ok) {
-        fetchData();
-      } else {
-        const data = await res.json();
-        toast({ message: "更新失败: " + (data.error || "未知错误"), type: "error" });
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '未知错误');
+      toast({ message: '角色已更新，该账号需要重新登录', type: 'success' });
+      await fetchData();
     } catch (err: unknown) {
       toast({ message: "更新出错: " + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    } finally {
+      setUpdatingRoleId(null);
     }
   };
 
@@ -408,11 +432,11 @@ export default function AdminsManagementPage() {
                         {ROLE_OPTIONS.find(r => r.value === user.role)?.label || user.role}
                       </span>
                       <select
-                        disabled={user.id === currentUser?.id}
+                        disabled={user.id === currentUser.id || updatingRoleId !== null}
                         value={user.role}
-                        onChange={(e) => updateUserRole(user.id, e.target.value)}
-                        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser?.id ? "cursor-not-allowed hidden" : ""} z-20`}
-                        title={user.id === currentUser?.id ? "无法修改当前登录账号的角色" : "点击修改权限等级"}
+                        onChange={(e) => updateUserRole(user, e.target.value)}
+                        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser.id || updatingRoleId !== null ? "cursor-not-allowed" : ""} z-20`}
+                        title={user.id === currentUser.id ? "无法修改当前登录账号的角色" : updatingRoleId ? "正在更新角色" : "点击修改权限等级"}
                       >
                         {ROLE_OPTIONS.map(r => (
                           <option key={r.value} value={r.value}>{r.label}</option>
