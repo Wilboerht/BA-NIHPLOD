@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
 import { fetchWithTimeout } from "@/lib/fetch";
+import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
 
 const ROLE_OPTIONS = [
   {
@@ -45,21 +46,14 @@ interface AdminUser {
   updated_at?: string;
 }
 
-interface UserSession {
-  id: string;
-  phone?: string;
-  username?: string;
-  full_name?: string;
-  role?: string;
-  is_first_login?: boolean;
-}
-
 export default function AdminsManagementPage() {
   const { toast, confirm } = useToast();
+  const currentUser = useWorkbenchUser();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const listRequestRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [total, setTotal] = useState(0);
@@ -92,6 +86,11 @@ export default function AdminsManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, debouncedSearch]);
 
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [page, total, pageSize]);
+
   // 弹窗打开时聚焦第一个输入框
   useEffect(() => {
     if (showCreate) {
@@ -101,32 +100,9 @@ export default function AdminsManagementPage() {
   }, [showCreate]);
 
   const fetchData = async () => {
+    const requestId = ++listRequestRef.current;
     setIsLoading(true);
-    
-    // 从服务端获取当前用户信息
-    try {
-      const res = await fetchWithTimeout('/api/auth/me');
-      if (res.ok) {
-        const data = await res.json();
-        const user = data.user;
-        // 仅超级管理员可访问账号管理
-        if (user?.role !== 'SUPER_ADMIN') {
-          window.location.href = "/workbench";
-          return;
-        }
-        setCurrentUser(user);
-      } else {
-        // 未登录，跳回首页
-        window.location.href = "/";
-        return;
-      }
-    } catch (e) {
-      console.error("Failed to fetch user:", e);
-      window.location.href = "/";
-      return;
-    }
-
-    // 获取所有管理员列表
+    setLoadError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -134,18 +110,19 @@ export default function AdminsManagementPage() {
       });
       if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
       const res = await fetchWithTimeout(`/api/admin/list?${params.toString()}`);
-      const result = await res.json();
-      
-      if (res.ok && result.data) {
-        setUsers(result.data);
-        setTotal(Number(result.total) || 0);
-      } else {
-        console.error('Failed to fetch admin list:', result.error);
-      }
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || '获取管理员列表失败');
+      if (requestId !== listRequestRef.current) return;
+      setUsers(result.data || []);
+      setTotal(Number(result.total) || 0);
     } catch (err: unknown) {
+      if (requestId !== listRequestRef.current) return;
       console.error('Fetch admin list error:', err);
+      setUsers([]);
+      setTotal(0);
+      setLoadError(err instanceof Error ? err.message : '获取管理员列表失败');
     } finally {
-      setIsLoading(false);
+      if (requestId === listRequestRef.current) setIsLoading(false);
     }
   };
 
@@ -237,7 +214,7 @@ export default function AdminsManagementPage() {
   };
 
   const deleteUser = async (id: string, name: string) => {
-    const ok = await confirm({ message: `确定要彻底移除管理员 "${name}" 吗？此操作不可逆。` });
+    const ok = await confirm({ message: `确定要移除管理员 "${name}" 吗？\n该账号将立即无法登录；关联业务数据与审计记录会保留。` });
     if (ok) {
       try {
         const res = await fetchWithTimeout("/api/admin/delete-user", {
@@ -381,6 +358,13 @@ export default function AdminsManagementPage() {
           </div>
         </div>
 
+        {loadError && (
+          <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <span>{loadError}</span>
+            <button onClick={fetchData} className="shrink-0 font-semibold hover:underline">重试</button>
+          </div>
+        )}
+
         <div className="overflow-auto flex-1 min-h-0 relative">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
@@ -485,7 +469,7 @@ export default function AdminsManagementPage() {
                           {user.is_banned ? <ShieldCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                         </button>
                       )}
-                      {user.id !== currentUser?.id && (
+                      {user.id !== currentUser.id && user.role !== 'SUPER_ADMIN' && (
                         <button
                           onClick={() => deleteUser(user.id, user.full_name)}
                           className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"

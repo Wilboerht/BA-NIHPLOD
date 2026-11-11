@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   ScrollText, Search, ChevronLeft, ChevronRight, Loader2, ShieldCheck, Megaphone, FileImage
 } from "lucide-react";
-import { useToast } from "@/hooks/useToast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { fetchWithTimeout } from "@/lib/fetch";
 
@@ -90,9 +89,10 @@ const CATEGORY_TABS = [
 ];
 
 export default function AuditLogsPage() {
-  const { toast } = useToast();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const listRequestRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
@@ -106,30 +106,19 @@ export default function AuditLogsPage() {
   }, [debouncedSearch, category]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const meRes = await fetchWithTimeout('/api/auth/me');
-        if (!meRes.ok) {
-          window.location.href = "/";
-          return;
-        }
-        const meData = await meRes.json();
-        if (meData?.user?.role !== 'SUPER_ADMIN') {
-          window.location.href = "/workbench";
-        }
-      } catch {
-        window.location.href = "/";
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, category, debouncedSearch]);
 
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [page, total, pageSize]);
+
   const fetchLogs = async () => {
+    const requestId = ++listRequestRef.current;
     setIsLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -139,19 +128,19 @@ export default function AuditLogsPage() {
       if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
 
       const res = await fetchWithTimeout(`/api/db/audit-logs?${params.toString()}`);
-      if (res.ok) {
-        const result = await res.json();
-        setLogs(result.data || []);
-        setTotal(result.total || 0);
-      } else if (res.status === 403) {
-        toast({ message: '无权访问，仅超级管理员可查看操作日志', type: 'error' });
-      } else {
-        console.error('Failed to fetch audit logs:', res.status);
-      }
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || '获取审计日志失败');
+      if (requestId !== listRequestRef.current) return;
+      setLogs(result.data || []);
+      setTotal(result.total || 0);
     } catch (err) {
+      if (requestId !== listRequestRef.current) return;
       console.error('Error fetching audit logs:', err);
+      setLogs([]);
+      setTotal(0);
+      setLoadError(err instanceof Error ? err.message : '获取审计日志失败');
     } finally {
-      setIsLoading(false);
+      if (requestId === listRequestRef.current) setIsLoading(false);
     }
   };
 
@@ -269,6 +258,13 @@ export default function AuditLogsPage() {
           </div>
         </div>
 
+        {loadError && (
+          <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <span>{loadError}</span>
+            <button onClick={fetchLogs} className="shrink-0 font-semibold hover:underline">重试</button>
+          </div>
+        )}
+
         <div className="overflow-auto flex-1 min-h-0 relative">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
@@ -327,7 +323,7 @@ export default function AuditLogsPage() {
             </tbody>
           </table>
 
-          {!isLoading && logs.length === 0 && (
+          {!isLoading && !loadError && logs.length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <ScrollText className="w-6 h-6" />

@@ -450,6 +450,28 @@ const badSeal = await req('/api/certificates', {
   },
 });
 assert('外链签章被拒 400', badSeal.status === 400, `status=${badSeal.status}`);
+const emptyScope = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: {
+    action: 'approve_issue',
+    certData: {
+      shopName: '空授权范围测试店', companyName: '', phone: '', scopeText: '  ',
+      duration: '2026.11.01 - 2027.11.01', authorizer: 'ignored', sealImage: '',
+    },
+  },
+});
+assert('空授权范围证书被拒 400', emptyScope.status === 400, `status=${emptyScope.status}`);
+const expiredIssue = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: {
+    action: 'approve_issue',
+    certData: {
+      shopName: '过期证书测试店', companyName: '', phone: '', scopeText: '淘宝',
+      duration: '2020.01.01 - 2020.12.31', authorizer: 'ignored', sealImage: '',
+    },
+  },
+});
+assert('已过期证书不得直接核发', expiredIssue.status === 400, `status=${expiredIssue.status}`);
 const approve = await req('/api/certificates', {
   method: 'POST', token: superToken, body: { action: 'approve_issue', certId: pendingCertRow.id },
 });
@@ -495,6 +517,25 @@ assert('投诉第 2 页 5 条 / 总 25', complaintsPage2.json?.total === 25 && c
 const complaintSearch = await req('/api/db/complaints?status=PENDING&q=' + encodeURIComponent('渠道13'), { token: superToken });
 assert('投诉搜索命中 1 条', complaintSearch.json?.total === 1, `total=${complaintSearch.json?.total}`);
 const complaintId = complaintsPage2.json.data[0].id;
+const reviewWithNote = await req(`/api/db/complaints/${complaintId}`, {
+  method: 'PUT', token: superToken,
+  body: { status: 'INVESTIGATING', review_note: '保留这条审核备注' },
+});
+const reviewWithoutNote = await req(`/api/db/complaints/${complaintId}`, {
+  method: 'PUT', token: superToken,
+  body: { status: 'RESOLVED' },
+});
+const [reviewedComplaint] = await db`
+  SELECT status, review_note FROM complaints WHERE id = ${complaintId}
+`;
+assert(
+  '未提交审核备注字段时保留原备注',
+  reviewWithNote.status === 200
+    && reviewWithoutNote.status === 200
+    && reviewedComplaint?.status === 'RESOLVED'
+    && reviewedComplaint?.review_note === '保留这条审核备注',
+  JSON.stringify(reviewedComplaint)
+);
 const delComplaint = await req(`/api/db/complaints/${complaintId}`, { method: 'DELETE', token: superToken });
 assert('删除投诉成功', delComplaint.status === 200, `status=${delComplaint.status}`);
 const [gone] = await db`
@@ -522,6 +563,21 @@ const cronHeader = await req('/api/cron/update-expired-certificates', {
 assert('cron 请求头更新 1 张', cronHeader.status === 200 && cronHeader.json?.updatedCount === 1, `status=${cronHeader.status} ${JSON.stringify(cronHeader.json)}`);
 const [expiredRow] = await db`SELECT status FROM certificates WHERE cert_number = 'BAVP-2026-BBBB0002'`;
 assert('到期证书已置 EXPIRED', expiredRow?.status === 'EXPIRED');
+const [naturallyExpired] = await db`
+  INSERT INTO certificates (cert_number, dealer_id, auth_scope, start_date, end_date, status)
+  VALUES (
+    'BAVP-2026-GGGG0007', ${dealerA.id}, '广东省测试公司 | 淘宝 | 旎柏（上海）商贸有限公司',
+    (CURRENT_DATE - 400 * INTERVAL '1 day')::date,
+    (CURRENT_DATE - 30 * INTERVAL '1 day')::date,
+    'ISSUED'
+  )
+  RETURNING id
+`;
+const deleteNaturallyExpired = await req('/api/certificates', {
+  method: 'POST', token: superToken,
+  body: { action: 'delete_certificate', certId: naturallyExpired.id },
+});
+assert('自然过期但尚未归档状态的证书可软删除', deleteNaturallyExpired.status === 200, `status=${deleteNaturallyExpired.status}`);
 
 const auditAsAuditor = await req('/api/db/audit-logs', { token: auditorToken2 });
 assert('AUDITOR 访问操作日志 403', auditAsAuditor.status === 403, `status=${auditAsAuditor.status}`);

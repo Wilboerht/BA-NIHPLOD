@@ -31,6 +31,7 @@ interface CertificateGeneratorProps {
   isPending?: boolean;
   pendingAction?: 'approve' | 'update';
   previewOnly?: boolean;
+  userRole?: string | null;
   onSuccess?: () => void;
   onReject?: () => void;
 }
@@ -80,7 +81,7 @@ function updateScopeTextChannels(text: string, channels: string[], custom: strin
   return lines.join('\n');
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, pendingAction = 'approve', previewOnly = false, onSuccess, onReject }: CertificateGeneratorProps) {
+export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, pendingAction = 'approve', previewOnly = false, userRole, onSuccess, onReject }: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -121,24 +122,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const renderRequestId = useRef(0);
   const submittedRef = useRef(false);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 8) : Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0')).toUpperCase()}`);
-
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      try {
-        const res = await fetchWithTimeout('/api/auth/me');
-        if (res.ok) {
-          const data = await res.json();
-          setUserRole(data.user?.role || 'AUDITOR');
-        }
-      } catch (err) {
-        console.warn("Failed to fetch user role:", err);
-        setUserRole('AUDITOR');
-      }
-    };
-    fetchUserRole();
-  }, []);
 
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -290,28 +273,32 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (hasShop && !hasCompany) {
       shopY = nameBaseY + totalNameBlockH / 2 - shopLineH / 2 + 4 * scale;
     }
+    let shopLineCount = 0;
     if (data.shopName) {
       const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
+      shopLineCount = shopLines.length;
       shopLines.forEach(line => {
         offCtx.fillText(line, leftMargin, shopY);
         shopY += shopLineH;
       });
     }
-    currentY += shopLineH;
+    currentY += Math.max(shopLineCount, 1) * shopLineH;
 
     // 公司名称（大字加粗，仅显示输入值）
     let companyY = currentY;
     if (!hasShop && hasCompany) {
       companyY = nameBaseY + totalNameBlockH / 2 - companyLineH / 2 + 4 * scale;
     }
+    let companyLineCount = 0;
     if (data.companyName) {
       const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
+      companyLineCount = companyLines.length;
       companyLines.forEach(line => {
         offCtx.fillText(line, leftMargin, companyY);
         companyY += companyLineH;
       });
     }
-    currentY += companyLineH;
+    currentY += Math.max(companyLineCount, 1) * companyLineH;
 
     currentY += 14 * scale;
     // CERT_DEBUG 已移除
@@ -574,22 +561,18 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   const canSubmit = useMemo(() => {
     if (mode === 'view') return false;
-    const hasName = !!(data.shopName.trim() || data.companyName.trim());
+    const hasName = !!data.shopName.trim();
     const hasDuration = !!data.duration && data.duration.includes(' - ');
     const selectedChannels = getChannelsFromScopeText(data.scopeText);
     const hasChannels = selectedChannels.length > 0;
     return hasName && hasDuration && hasChannels;
-  }, [data.shopName, data.companyName, data.duration, data.scopeText, mode]);
+  }, [data.shopName, data.duration, data.scopeText, mode]);
 
   const handleIssueSubmit = async () => {
     if (previewOnly || !canSubmit || submittedRef.current) return;
     setIsSubmitting(true);
     try {
-      const meRes = await fetchWithTimeout('/api/auth/me');
-      if (!meRes.ok) throw new Error("未找到登录信息");
-      const meData = await meRes.json();
-      const user = meData.user;
-      const isManager = user?.role === 'SUPER_ADMIN';
+      const isManager = userRole === 'SUPER_ADMIN';
 
       // 服务端返回的真实证书编号（用于替换预览图中的临时编号）
       let serverCertNumber: string | undefined;
@@ -603,7 +586,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             action: "update_certificate",
             certId: initialData?.id,
             certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
-            managerId: user?.id
           })
         });
         const updateData = await updateRes.json().catch(() => ({}));
@@ -617,7 +599,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             body: JSON.stringify({
               action: "approve_issue",
               certId: initialData?.id,
-              managerId: user?.id
             })
           });
           const approveData = await approveRes.json().catch(() => ({}));
@@ -636,7 +617,6 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             action,
             certId: initialData?.id,
             certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
-            managerId: user?.id
           })
         });
 

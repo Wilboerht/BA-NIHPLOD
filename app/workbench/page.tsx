@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { ADMIN_ROLES } from "@/types";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Clock, ExternalLink, ShieldCheck, Megaphone, CheckCircle2,
@@ -46,9 +46,12 @@ export default function WorkbenchPage() {
   const [stats, setStats] = useState({ certs: 0, validCerts: 0, pendingComplaints: 0, pendingCerts: 0 });
   const [recentComplaints, setRecentComplaints] = useState<Complaint[]>([]);
   const [pendingCerts, setPendingCerts] = useState<PendingCert[]>([]);
+  const user = useWorkbenchUser();
+  const userRole = user.role ?? null;
+  const userId = user.id;
   const [isLoading, setIsLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const dashboardRequestRef = useRef(0);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<CertData | undefined>(undefined);
@@ -58,46 +61,33 @@ export default function WorkbenchPage() {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const fetchUserRole = useCallback(async () => {
-    try {
-      const res = await fetchWithTimeout('/api/auth/me');
-      if (res.ok) {
-        const data = await res.json();
-        const user = data.user;
-        // workbench 只接受管理员用户
-        if (ADMIN_ROLES.includes(user?.role)) {
-          return { role: user.role, uid: user.id };
-        }
-      }
-    } catch (e) {
-      console.error('Failed to fetch user role:', e);
-    }
-    return null;
-  }, []);
-
-  const loadDashboard = useCallback(async (role?: string) => {
-    // 跳过非管理员的数据加载
-    if (!role || !ADMIN_ROLES.includes(role as typeof ADMIN_ROLES[number])) {
-      setIsLoading(false);
-      return;
-    }
-
+  const loadDashboard = useCallback(async () => {
+    const requestId = ++dashboardRequestRef.current;
     setIsLoading(true);
+    setLoadError(null);
 
     try {
-      // 获取统计数据
-      const statsRes = await fetchWithTimeout('/api/db/stats');
-      const statsData = await statsRes.json();
-      
-      // 获取最近的待处理投诉（PENDING + INVESTIGATING）
-      const [pendingComplaintsRes, investigatingRes] = await Promise.all([
-        fetchWithTimeout('/api/db/complaints?status=PENDING&pageSize=50'),
-        fetchWithTimeout('/api/db/complaints?status=INVESTIGATING&pageSize=50'),
+      const [statsRes, pendingComplaintsRes, investigatingRes, pendingRes] = await Promise.all([
+        fetchWithTimeout('/api/db/stats'),
+        fetchWithTimeout('/api/db/complaints?status=PENDING&page=1&pageSize=4'),
+        fetchWithTimeout('/api/db/complaints?status=INVESTIGATING&page=1&pageSize=4'),
+        fetchWithTimeout('/api/db/certificates/pending?limit=5'),
       ]);
-      const [pendingComplaintsData, investigatingData] = await Promise.all([
+      const failedResponse = [statsRes, pendingComplaintsRes, investigatingRes, pendingRes]
+        .find((res) => !res.ok);
+      if (failedResponse) {
+        const result = await failedResponse.json().catch(() => ({}));
+        throw new Error(result.error || '工作台数据加载失败');
+      }
+
+      const [statsData, pendingComplaintsData, investigatingData, pendingData] = await Promise.all([
+        statsRes.json(),
         pendingComplaintsRes.json(),
         investigatingRes.json(),
+        pendingRes.json(),
       ]);
+      if (requestId !== dashboardRequestRef.current) return;
+
       const recentComplaints = [
         ...(pendingComplaintsData.data || []),
         ...(investigatingData.data || []),
@@ -106,11 +96,6 @@ export default function WorkbenchPage() {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         ))
         .slice(0, 4);
-      
-      // 获取待审证书
-      const pendingRes = await fetchWithTimeout('/api/db/certificates/pending?limit=1000');
-      const pendingData = await pendingRes.json();
-      const pendingCerts = pendingData.data || [];
 
       setStats({
         certs: statsData.data?.totalCertificates || 0,
@@ -118,26 +103,20 @@ export default function WorkbenchPage() {
         pendingComplaints: statsData.data?.pendingComplaints || 0,
         pendingCerts: statsData.data?.pendingCertificates || 0,
       });
-      
       setRecentComplaints(recentComplaints);
-      setPendingCerts(pendingCerts);
+      setPendingCerts(pendingData.data || []);
     } catch (err: unknown) {
+      if (requestId !== dashboardRequestRef.current) return;
       console.error('Failed to load dashboard:', err);
+      setLoadError(err instanceof Error ? err.message : '工作台数据加载失败');
     } finally {
-      setIsLoading(false);
+      if (requestId === dashboardRequestRef.current) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    (async () => {
-      const info = await fetchUserRole();
-      if (info) {
-        setUserRole(info.role);
-        setUserId(info.uid);
-        await loadDashboard(info.role);
-      }
-    })();
-  }, [fetchUserRole, loadDashboard]);
+    loadDashboard();
+  }, [loadDashboard]);
 
   const closeIssueModal = () => {
     setShowIssueModal(false);
@@ -210,7 +189,7 @@ export default function WorkbenchPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       toast({ message: "申请已退回", type: "success" });
-      await loadDashboard(userRole ?? undefined);
+      await loadDashboard();
     } catch (err: unknown) {
       toast({ message: "退回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
@@ -234,7 +213,7 @@ export default function WorkbenchPage() {
       if (!response.ok) throw new Error(result.error);
       toast({ message: "申请已退回", type: "success" });
       closeIssueModal();
-      await loadDashboard(userRole ?? undefined);
+      await loadDashboard();
     } catch (err: unknown) {
       toast({ message: "退回操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {
@@ -257,6 +236,13 @@ export default function WorkbenchPage() {
         </h1>
         <p className="text-slate-500 text-[11px] md:text-[13px]">欢迎来到 NIHPLOD 品牌授权管理大盘。</p>
       </motion.div>
+
+      {loadError && (
+        <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <span>{loadError}</span>
+          <button onClick={loadDashboard} className="shrink-0 font-semibold hover:underline">重新加载</button>
+        </div>
+      )}
 
       {/* 统计卡片 */}
       <div className={`grid grid-cols-2 gap-4 md:gap-6 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
@@ -548,9 +534,10 @@ export default function WorkbenchPage() {
                     isVoided={isViewVoided}
                     isPending={!!pendingApproveId}
                     pendingAction={pendingAction}
+                    userRole={userRole}
                     onSuccess={() => {
                       closeIssueModal();
-                      loadDashboard(userRole ?? undefined);
+                      loadDashboard();
                     }}
                     onReject={isAdmin && pendingAction === 'approve' ? handleRejectFromModal : undefined}
                   />

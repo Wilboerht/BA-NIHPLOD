@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, UserCog, Globe, AlertCircle, ScrollText } from "lucide-react";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
 import { PLATFORM_NAME } from "@/lib/config";
 
 export default function Sidebar({
@@ -18,29 +19,14 @@ export default function Sidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const [userName, setUserName] = useState("User");
-  const [userEmail, setUserEmail] = useState("admin@nihplod.cn");
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const user = useWorkbenchUser();
+  const userName = user.full_name || user.username || "User";
+  const userEmail = user.username || user.phone || "admin@nihplod.cn";
+  const userRole = user.role;
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEscapeKey(() => setShowLogoutModal(false), showLogoutModal);
-
-  useEffect(() => {
-    // 从服务端获取当前登录用户信息
-    fetchWithTimeout('/api/auth/me')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.user) {
-          const user = data.user;
-          setUserName(user.full_name || user.username || "User");
-          setUserEmail(user.username || user.phone || "admin@nihplod.cn");
-          setUserRole(user.role);
-          if (process.env.NODE_ENV !== 'production') console.log("✅ User info loaded from API:", user);
-        }
-      })
-      .catch(e => console.error("❌ Failed to fetch user:", e));
-  }, []);
 
   const handleLogout = async () => {
     try {

@@ -54,7 +54,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
       {children}
 
       {/* Toast Container */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[400] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence mode="popLayout">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto">

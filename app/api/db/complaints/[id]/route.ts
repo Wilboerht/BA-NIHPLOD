@@ -56,6 +56,7 @@ export async function PUT(
     if (bodyError) return bodyError;
 
     const { status, review_note } = body!;
+    const hasReviewNote = Object.prototype.hasOwnProperty.call(body!, 'review_note');
 
     if (!isUuid(id) || !status || typeof status !== 'string') {
       return NextResponse.json(
@@ -87,7 +88,7 @@ export async function PUT(
 
     // 查询当前状态（软删除工单不可再流转）
     const currentRows = await sql`
-      SELECT status
+      SELECT status, review_note
       FROM complaints
       WHERE id = ${id}
         AND deleted_at IS NULL
@@ -97,6 +98,8 @@ export async function PUT(
       return NextResponse.json({ error: '工单不存在' }, { status: 404 });
     }
     const currentStatus = String(currentRows[0].status);
+    const currentReviewNote = currentRows[0].review_note == null ? null : String(currentRows[0].review_note);
+    const nextReviewNote = hasReviewNote ? review_note || null : currentReviewNote;
 
     // 状态流转校验
     const allowedNextStatuses = VALID_STATUS_TRANSITIONS[currentStatus] || [];
@@ -113,7 +116,7 @@ export async function PUT(
         const updateResult = await tx`
           UPDATE complaints 
           SET status = ${status},
-              review_note = ${review_note || null},
+              review_note = ${nextReviewNote},
               handler_id = ${user!.id},
               updated_at = NOW()
           WHERE id = ${id}
@@ -132,10 +135,10 @@ export async function PUT(
           targetId: id,
           complaintId: id,
           complaintRef: id,
-          before: { status: currentStatus },
-          after: { status, review_note: review_note || null },
-          comment: review_note || null,
-          reason: review_note || null,
+          before: { status: currentStatus, review_note: currentReviewNote },
+          after: { status, review_note: nextReviewNote },
+          comment: hasReviewNote ? review_note || null : null,
+          reason: hasReviewNote ? review_note || null : null,
           request: req,
         });
       });

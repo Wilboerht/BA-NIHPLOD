@@ -2,11 +2,11 @@ import { NextResponse, after } from 'next/server';
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { COMPANY_FULL_NAME } from '@/lib/config';
-import { parseAuthScope } from '@/lib/utils';
+import { formatDateISO, parseAuthScope } from '@/lib/utils';
 import { sendPendingCertNotification } from '@/lib/mail';
 import { apiError, readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
-import { isRecord, isUuid, isValidEmail, parseDateOnly } from '@/lib/validation';
+import { getTodayISO, isRecord, isUuid, isValidEmail, parseDateOnly } from '@/lib/validation';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 
@@ -79,6 +79,9 @@ function parseDuration(duration: string | undefined): { start: string; end: stri
   }
   if (startDate.iso > endDate.iso) {
     throw new ValidationError('有效期无效：结束日期不能早于开始日期');
+  }
+  if (endDate.iso < getTodayISO()) {
+    throw new ValidationError('有效期无效：不能提报或核发已经过期的证书');
   }
   return { start: startDate.iso, end: endDate.iso };
 }
@@ -187,8 +190,8 @@ export async function POST(req: Request) {
       if (certData.phone !== undefined && typeof certData.phone !== 'string') {
         return NextResponse.json({ error: '手机号格式无效' }, { status: 400 });
       }
-      if (certData.scopeText !== undefined && typeof certData.scopeText !== 'string') {
-        return NextResponse.json({ error: '授权范围格式无效' }, { status: 400 });
+      if (typeof certData.scopeText !== 'string' || !certData.scopeText.trim()) {
+        return NextResponse.json({ error: '授权范围不能为空' }, { status: 400 });
       }
       if (certData.companyName !== undefined && typeof certData.companyName !== 'string') {
         return NextResponse.json({ error: '公司名称格式无效' }, { status: 400 });
@@ -327,9 +330,13 @@ export async function POST(req: Request) {
         const parsedScope = parseAuthScope(
           typeof certDataDb.auth_scope === 'string' ? certDataDb.auth_scope : ''
         );
-        const correctedAuthScope = parsedScope.companyName
-          ? `${sanitizeForAuthScope(parsedScope.companyName)} | ${parsedScope.scopeText || ''} | ${sanitizeForAuthScope(effectiveAuthorizer)}`
-          : (typeof certDataDb.auth_scope === 'string' ? certDataDb.auth_scope : null);
+        if (!parsedScope.scopeText.trim()) {
+          throw new ValidationError('授权范围不能为空，请先修改待审核资料');
+        }
+        const existingStart = formatDateISO(certDataDb.start_date as string | Date);
+        const existingEnd = formatDateISO(certDataDb.end_date as string | Date);
+        parseDuration(`${existingStart.replace(/-/g, '.')} - ${existingEnd.replace(/-/g, '.')}`);
+        const correctedAuthScope = `${sanitizeForAuthScope(parsedScope.companyName)} | ${parsedScope.scopeText} | ${sanitizeForAuthScope(effectiveAuthorizer)}`;
 
         await sql.begin(async (tx) => {
           const updateResult = await tx`
@@ -521,7 +528,10 @@ export async function POST(req: Request) {
           SET deleted_at = NOW(), deleted_by = ${operatorId}, updated_at = NOW()
           WHERE id = ${certId}
             AND deleted_at IS NULL
-            AND status IN ('EXPIRED', 'REVOKED', 'REJECTED')
+            AND (
+              status IN ('EXPIRED', 'REVOKED', 'REJECTED')
+              OR (status = 'ISSUED' AND end_date < CURRENT_DATE)
+            )
           RETURNING cert_number, status
         `;
 

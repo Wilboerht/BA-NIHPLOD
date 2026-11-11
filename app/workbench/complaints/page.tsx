@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
 import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -43,26 +44,23 @@ interface AuditLog {
 
 export default function ComplaintsPage() {
   const { toast, confirm } = useToast();
+  const user = useWorkbenchUser();
+  const userRole = user.role ?? null;
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const listRequestRef = useRef(0);
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("ALL"); // ALL, PENDING, INVESTIGATING
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [reviewComplaint, setReviewComplaint] = useState<Complaint | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
-
-  useEffect(() => {
-    fetchWithTimeout('/api/auth/me')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setUserRole(data?.user?.role ?? null))
-      .catch(() => setUserRole(null));
-  }, []);
 
   // 支持工作台首页 /workbench/complaints?id=... 深链
   useEffect(() => {
@@ -75,7 +73,10 @@ export default function ComplaintsPage() {
       .then(async (res) => {
         if (!res.ok) throw new Error('fetch complaint failed');
         const data = await res.json();
-        if (!cancelled && data?.data) setReviewComplaint(data.data);
+        if (!cancelled && data?.data) {
+          setReviewComplaint(data.data);
+          setReviewNote(data.data.review_note || '');
+        }
       })
       .catch(() => {
         if (!cancelled) setActiveReviewId(null);
@@ -89,7 +90,7 @@ export default function ComplaintsPage() {
   useEscapeKey(() => setSelectedImageUrls([]), selectedImageUrls.length > 0);
   useEscapeKey(() => setActiveReviewId(null), !!activeReviewId);
 
-  // 前端分页
+  // 服务端分页
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [total, setTotal] = useState(0);
@@ -108,13 +109,20 @@ export default function ComplaintsPage() {
   }, [activeTab, page, debouncedSearch]);
 
   useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [page, total, pageSize]);
+
+  useEffect(() => {
     if (activeReviewId) {
       fetchAuditLogs(activeReviewId);
     }
   }, [activeReviewId]);
 
   const fetchComplaints = async () => {
+    const requestId = ++listRequestRef.current;
     setIsLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -123,19 +131,19 @@ export default function ComplaintsPage() {
       if (activeTab !== 'ALL') params.set('status', activeTab);
       if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
       const response = await fetchWithTimeout(`/api/db/complaints?${params.toString()}`);
-      if (response.ok) {
-        const result = await response.json();
-        setComplaints(result.data || []);
-        setTotal(result.total || 0);
-      } else if (response.status === 403) {
-        toast({ message: '无权访问，需要管理员权限', type: 'error' });
-      } else {
-        console.error('Failed to fetch complaints:', response.status);
-      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || '获取投诉列表失败');
+      if (requestId !== listRequestRef.current) return;
+      setComplaints(result.data || []);
+      setTotal(result.total || 0);
     } catch (err) {
+      if (requestId !== listRequestRef.current) return;
       console.error('Error fetching complaints:', err);
+      setComplaints([]);
+      setTotal(0);
+      setLoadError(err instanceof Error ? err.message : '获取投诉列表失败');
     } finally {
-      setIsLoading(false);
+      if (requestId === listRequestRef.current) setIsLoading(false);
     }
   };
 
@@ -155,27 +163,29 @@ export default function ComplaintsPage() {
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
-    if (!activeReviewId) return;
+    if (!activeReviewId || isUpdating) return;
+    setIsUpdating(true);
     try {
       const response = await fetchWithTimeout(`/api/db/complaints/${activeReviewId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, review_note: reviewNote })
       });
+      const result = await response.json().catch(() => ({}));
       if (response.ok) {
         toast({ message: "工单状态已更新！", type: "success" });
         setActiveReviewId(null);
+        setReviewComplaint(null);
         setReviewNote("");
         setAuditLogs([]);
         fetchComplaints();
-      } else if (response.status === 403) {
-        toast({ message: "无权操作，需要管理员权限", type: "error" });
       } else {
-        const result = await response.json().catch(() => ({}));
         toast({ message: result.error || "更新失败", type: "error" });
       }
     } catch (err: unknown) {
       toast({ message: "更新失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -271,6 +281,13 @@ export default function ComplaintsPage() {
           </div>
         </div>
 
+        {loadError && (
+          <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <span>{loadError}</span>
+            <button onClick={fetchComplaints} className="shrink-0 font-semibold hover:underline">重试</button>
+          </div>
+        )}
+
         <div className="overflow-auto flex-1 min-h-0 relative text-center">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
@@ -360,7 +377,7 @@ export default function ComplaintsPage() {
             </tbody>
           </table>
 
-          {!isLoading && complaints.length === 0 && (
+          {!isLoading && !loadError && complaints.length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <CheckCircle2 className="w-6 h-6" />
@@ -564,20 +581,22 @@ export default function ComplaintsPage() {
                       <>
                         <button 
                           onClick={() => handleStatusUpdate('INVESTIGATING')} 
-                          disabled={activeComplaint.status === 'INVESTIGATING'}
+                          disabled={isUpdating || activeComplaint.status === 'INVESTIGATING'}
                           className="w-full py-3 bg-blue-50 text-blue-700 hover:bg-blue-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                            <AlertTriangle className="w-4 h-4" /> 标记为“调查中”
                         </button>
                         <button 
                           onClick={() => handleStatusUpdate('RESOLVED')} 
-                          className="w-full py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                          disabled={isUpdating}
+                          className="w-full py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                            <CheckCircle2 className="w-4 h-4" /> 确认违规，标记已解决
                         </button>
                         <button 
                           onClick={() => handleStatusUpdate('REJECTED')} 
-                          className="w-full py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2"
+                          disabled={isUpdating}
+                          className="w-full py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-[0.98] font-bold text-[13px] rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                            <X className="w-4 h-4" /> 证据不足，拒绝工单
                         </button>

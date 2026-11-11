@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
 import { Search, CheckCircle2, XCircle, FileImage, ShieldCheck, ShieldOff, X, Award, ChevronLeft, ChevronRight, Filter, Trash2, Clock } from "lucide-react";
 import CertificateGenerator, { CertData } from "@/components/certificate/CertificateGenerator";
 import { useToast } from "@/hooks/useToast";
@@ -29,11 +30,14 @@ interface Certificate {
 
 export default function CertificatesPage() {
   const { toast, confirm } = useToast();
+  const user = useWorkbenchUser();
+  const userRole = user.role ?? null;
+  const userId = user.id;
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const listRequestRef = useRef(0);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedCertData, setSelectedCertData] = useState<CertData | undefined>(undefined);
   const [isViewOnly, setIsViewOnly] = useState(false);
@@ -79,10 +83,6 @@ export default function CertificatesPage() {
   useEscapeKey(closeIssueModal, showIssueModal);
 
   useEffect(() => {
-    fetchUserRole();
-  }, []);
-
-  useEffect(() => {
     setPage(1);
   }, [debouncedSearch, statusFilter]);
 
@@ -91,22 +91,14 @@ export default function CertificatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, statusFilter, debouncedSearch]);
 
-  const fetchUserRole = async () => {
-    try {
-      const res = await fetchWithTimeout('/api/auth/me');
-      if (res.ok) {
-        const data = await res.json();
-        setUserRole(data.user?.role ?? null);
-        setUserId(data.user?.id ?? null);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch user role:", err);
-    }
-  };
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [page, total, pageSize]);
 
   const fetchPendingCount = async () => {
     try {
-      const res = await fetchWithTimeout('/api/db/certificates?status=PENDING&pageSize=1');
+      const res = await fetchWithTimeout('/api/db/certificates?status=PENDING&page=1&pageSize=1');
       if (res.ok) {
         const data = await res.json();
         setPendingCount(data.total || 0);
@@ -117,7 +109,9 @@ export default function CertificatesPage() {
   };
 
   const fetchCertificates = async () => {
+    const requestId = ++listRequestRef.current;
     setIsLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -127,10 +121,10 @@ export default function CertificatesPage() {
       if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
 
       const response = await fetchWithTimeout(`/api/db/certificates?${params.toString()}`);
-      const result = await response.json();
-      
+      const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '获取证书失败');
-      
+      if (requestId !== listRequestRef.current) return;
+
       setCertificates(result.data || []);
       setTotal(result.total || 0);
 
@@ -140,11 +134,13 @@ export default function CertificatesPage() {
         fetchPendingCount();
       }
     } catch (err: unknown) {
+      if (requestId !== listRequestRef.current) return;
       console.error('Failed to fetch certificates:', err);
       setCertificates([]);
       setTotal(0);
+      setLoadError(err instanceof Error ? err.message : '获取证书失败');
     } finally {
-      setIsLoading(false);
+      if (requestId === listRequestRef.current) setIsLoading(false);
     }
   };
 
@@ -305,6 +301,13 @@ export default function CertificatesPage() {
           </div>
         </div>
 
+        {loadError && (
+          <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <span>{loadError}</span>
+            <button onClick={fetchCertificates} className="shrink-0 font-semibold hover:underline">重试</button>
+          </div>
+        )}
+
         <div className="overflow-auto flex-1 min-h-0 relative">
           {isLoading && (
              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300 z-30 pointer-events-none">
@@ -332,7 +335,9 @@ export default function CertificatesPage() {
               </tr>
             </thead>
             <tbody className="text-slate-700 font-medium">
-              {!isLoading && certificates.map((cert) => (
+              {!isLoading && certificates.map((cert) => {
+                  const displayStatus = getCertDisplayStatus(cert);
+                  return (
                   <tr key={cert.id} className="hover:bg-slate-50/60 transition-all group duration-200">
                     <td className="px-6 py-6 font-mono text-[11px] text-slate-400 tracking-tighter uppercase tabular-nums">{cert.cert_number}</td>
                     <td className="px-6 py-6">
@@ -349,7 +354,6 @@ export default function CertificatesPage() {
                     )}
                     <td className="px-6 py-6 text-center">
                       {(() => {
-                        const displayStatus = getCertDisplayStatus(cert);
                         if (displayStatus === 'REVOKED') return (
                           <span title="已吊销" className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 text-rose-600 cursor-default">
                             <ShieldOff className="w-3.5 h-3.5" />
@@ -447,7 +451,7 @@ export default function CertificatesPage() {
                             修改
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && (
+                        {(displayStatus === 'ISSUED' || displayStatus === 'UPCOMING') && (
                           <button 
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -476,7 +480,7 @@ export default function CertificatesPage() {
                           </button>
                         )}
 
-                        {(cert.status === 'EXPIRED' || cert.status === 'REVOKED') && (
+                        {(displayStatus === 'EXPIRED' || displayStatus === 'REVOKED') && (
                           <button
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -503,7 +507,7 @@ export default function CertificatesPage() {
                             调阅档案
                           </button>
                         )}
-                        {(cert.status === 'EXPIRED' || cert.status === 'REVOKED' || cert.status === 'REJECTED') && userRole === 'SUPER_ADMIN' && (
+                        {(displayStatus === 'EXPIRED' || displayStatus === 'REVOKED' || displayStatus === 'REJECTED') && userRole === 'SUPER_ADMIN' && (
                           <button
                             onClick={() => deleteCertificate(cert.id)}
                             className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
@@ -512,7 +516,7 @@ export default function CertificatesPage() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {cert.status === 'ISSUED' && userRole === 'SUPER_ADMIN' && cert.end_date && cert.end_date.replace(/\./g, '-') >= getTodayISO() && (
+                        {(displayStatus === 'ISSUED' || displayStatus === 'UPCOMING') && userRole === 'SUPER_ADMIN' && (
                           <button
                             onClick={() => revokeCertificate(cert.id, cert.status)}
                             disabled={revokingId === cert.id}
@@ -529,12 +533,12 @@ export default function CertificatesPage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              }
+                  );
+                })}
             </tbody>
           </table>
 
-          {!isLoading && certificates.length === 0 && (
+          {!isLoading && !loadError && certificates.length === 0 && (
             <div className="absolute inset-0 top-12 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
               <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
                 <Search className="w-6 h-6" />
@@ -626,6 +630,7 @@ export default function CertificatesPage() {
                     isVoided={isViewVoided}
                     isPending={!!pendingApproveId}
                     pendingAction={pendingAction}
+                    userRole={userRole}
                     onSuccess={() => {
                       setShowIssueModal(false);
                       setSelectedCertData(undefined);
