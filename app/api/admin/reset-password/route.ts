@@ -46,6 +46,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // 不允许在 BA 重置主站 SSO 影子账号密码
+    const targetRows = await sql`
+      SELECT auth_source FROM profiles
+      WHERE id = ${userId} AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (targetRows.length === 0) {
+      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+    }
+    if (targetRows[0].auth_source === 'sso') {
+      return NextResponse.json(
+        { error: '该账号由主站统一管理，请在主站重置密码', code: 'MANAGED_BY_MAIN_SITE' },
+        { status: 409 }
+      );
+    }
+
     // 生成新密码哈希
     const passwordHash = await bcrypt.hash(newPassword, 12);
 

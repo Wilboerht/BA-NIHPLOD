@@ -604,7 +604,7 @@ export default function HomeClient() {
               </div>
             </form>
             <p className="mt-3 px-2 text-center text-[11px] font-light tracking-wide text-[#8B7355]/65 md:mt-4 md:text-xs">
-              证书编号位于授权书右上角，格式如 BAVP-2026-A1B2C3D4
+              证书编号位于授权书右下角，格式如 BAVP-2026-A1B2C3D4
             </p>
           </motion.div>
           <p role="status" aria-live="polite" className="sr-only">

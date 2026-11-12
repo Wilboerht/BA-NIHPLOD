@@ -1,4 +1,4 @@
-# NIHPLOD Brand Authorization & Verification Platform
+﻿# NIHPLOD Brand Authorization & Verification Platform
 
 品牌授权及验证平台：经销商授权管理、提报与终审流程、证书合成与公开防伪查询。
 
@@ -250,6 +250,52 @@ npm run start -- -p 3999
 npm run test:e2e -- --base http://127.0.0.1:3999 \
   --db postgresql://postgres@127.0.0.1:55432/sql_test \
   --cron-secret=test-cron-secret
+```
+
+### 主站管理员 SSO 与举报整合
+
+BA 管理员统一由主站（nihplod.cn）SSO 管理，BA 只保留影子账号。详见主站 `docs/sso-deployment.md` §2.11。
+
+- 主站入口：`/api/admin/auth/sso/start?return_to=/workbench`
+- BA 回调：`/api/admin/auth/sso/callback`
+- 同步 cron：`/api/cron/admin-sso-sync`
+- 举报通知重试：`/api/cron/retry-complaint-alerts`
+- 举报内部 API：`/api/internal/admin/complaints*`
+- 看板内部 API：`/api/internal/admin/dashboard`
+- 证据签名 URL：`/api/evidence/complaints/[id]/[index]?exp=&token=`
+
+新增环境变量（详见 `.env.local.example`）：
+
+```env
+ADMIN_SSO_ENABLED=false
+ADMIN_SSO_CLIENT_ID=ba-admin
+ADMIN_SSO_CLIENT_SECRET=...
+ADMIN_SSO_REDIRECT_URI=https://ba.nihplod.cn/api/admin/auth/sso/callback
+ADMIN_SSO_AUDIENCE=ba-admin
+ADMIN_SSO_LOCAL_LOGIN_MODE=all
+INTERNAL_API_KEYS='[{"project":"ba","key":"...","secret":"..."}]'
+MAIN_SITE_INTERNAL_BASE=http://127.0.0.1:3000
+BA_EVIDENCE_TOKEN_SECRET=...
+```
+
+本地应急账号：
+
+```bash
+npm run init:break-glass
+```
+
+按输出把 `BA_BREAK_GLASS_*` 写入 env，并妥善保存一次性打印的密码。
+
+迁移已有 BA 管理员到主站 ID（先绑定，验证 SSO 后再 cutover）：
+
+```bash
+cp scripts/admin-sso-mapping.example.json scripts/admin-sso-mapping.json
+# 1) 只绑定 external_admin_id，保留本地登录
+node scripts/admin-sso-migrate.mjs --mapping scripts/admin-sso-mapping.json
+node scripts/admin-sso-migrate.mjs --mapping scripts/admin-sso-mapping.json --apply
+# 2) 开启 SSO 并逐个验证；确认后强制切换并撤销旧会话
+node scripts/admin-sso-migrate.mjs --mapping scripts/admin-sso-mapping.json --apply --cutover
+node scripts/run-cron.mjs /api/cron/admin-sso-sync
 ```
 
 ---

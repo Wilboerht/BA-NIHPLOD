@@ -36,6 +36,8 @@ export interface AuthUser {
   is_banned?: boolean;
   is_first_login?: boolean;
   token_version?: number;
+  auth_source?: string;
+  external_admin_id?: string;
 }
 
 export interface TokenPayload extends JWTPayload {
@@ -47,15 +49,22 @@ export interface TokenPayload extends JWTPayload {
   is_banned?: boolean;
   is_first_login?: boolean;
   token_version?: number;
+  auth_source?: string;
+  external_admin_id?: string;
   jti?: string;
 }
 
 /**
  * 签发 JWT Token
+ * @param options.expiresInSeconds 自定义有效期；SSO 会话需封顶到主站会话剩余时间
  */
-export async function createToken(user: AuthUser): Promise<string> {
+export async function createToken(
+  user: AuthUser,
+  options: { expiresInSeconds?: number } = {}
+): Promise<string> {
   const secret = getSecret();
   const jti = crypto.randomUUID();
+  const expiresInSeconds = Math.max(60, Math.floor(options.expiresInSeconds ?? 8 * 60 * 60));
   return new SignJWT({
     id: user.id,
     username: user.username,
@@ -65,13 +74,15 @@ export async function createToken(user: AuthUser): Promise<string> {
     is_banned: user.is_banned ?? false,
     is_first_login: user.is_first_login ?? false,
     token_version: user.token_version ?? 0,
+    auth_source: user.auth_source ?? 'local',
+    external_admin_id: user.external_admin_id,
     jti,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setIssuer('nihplod-bavp')
     .setAudience('nihplod-bavp')
-    .setExpirationTime('8h')
+    .setExpirationTime(`${expiresInSeconds}s`)
     .sign(secret);
 }
 
@@ -157,7 +168,7 @@ export async function requireAuth(
   // 查询数据库确认用户存在、未被删除且未被禁用
   try {
     const rows = await sql`
-      SELECT id, username, full_name, phone, role, is_banned, is_first_login, token_version
+      SELECT id, username, full_name, phone, role, is_banned, is_first_login, token_version, auth_source, external_admin_id
       FROM profiles
       WHERE id = ${payload.id}
         AND deleted_at IS NULL
@@ -203,6 +214,8 @@ export async function requireAuth(
         phone: profile.phone ?? undefined,
         role: String(profile.role),
         is_first_login: Boolean(profile.is_first_login),
+        auth_source: profile.auth_source ? String(profile.auth_source) : 'local',
+        external_admin_id: profile.external_admin_id ? String(profile.external_admin_id) : undefined,
       } as AuthUser,
       response: null,
     };
@@ -258,7 +271,7 @@ export async function requireSuperAdmin(request: NextRequest | Request) {
 /**
  * 生成设置 Cookie 的响应头
  */
-export function setAuthCookie(token: string): string {
+export function setAuthCookie(token: string, maxAgeSeconds = 28800): string {
   const isSecure = process.env.NODE_ENV === 'production';
   const parts = [
     `${TOKEN_COOKIE}=${token}`,
@@ -266,7 +279,7 @@ export function setAuthCookie(token: string): string {
     isSecure ? 'Secure' : '',
     'SameSite=Lax',
     'Path=/',
-    'Max-Age=28800',
+    `Max-Age=${Math.max(60, Math.floor(maxAgeSeconds))}`,
   ].filter(Boolean);
   return parts.join('; ');
 }

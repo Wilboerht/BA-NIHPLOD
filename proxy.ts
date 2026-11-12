@@ -25,6 +25,7 @@ const SUPER_ADMIN_PATHS = [
 const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/logout',
+  '/api/admin/auth/sso',
   '/admin/login',
 ];
 

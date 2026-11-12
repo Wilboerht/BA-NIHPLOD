@@ -66,6 +66,12 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
+    if (targetProfile.auth_source === 'sso') {
+      return NextResponse.json(
+        { error: '该账号由主站统一管理，请在主站禁用/启用', code: 'MANAGED_BY_MAIN_SITE' },
+        { status: 409 }
+      );
+    }
 
     // 执行封禁/解封操作
     try {

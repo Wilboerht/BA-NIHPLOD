@@ -59,6 +59,12 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
+    if (userToDelete.auth_source === 'sso') {
+      return NextResponse.json(
+        { error: '该账号由主站统一管理，请在主站禁用/删除', code: 'MANAGED_BY_MAIN_SITE' },
+        { status: 409 }
+      );
+    }
 
     // 软删除用户：保留关联记录中的名字，仅标记删除时间
     const suffix = `.deleted.${Date.now()}`;

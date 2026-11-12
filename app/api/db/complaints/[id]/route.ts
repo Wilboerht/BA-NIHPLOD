@@ -4,6 +4,7 @@ import { requireAdmin, requireSuperAdmin } from '@/lib/auth';
 import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { isUuid } from '@/lib/validation';
+import { canTransitionComplaintStatus } from '@/lib/complaint-status';
 
 export async function GET(
   req: Request,
@@ -35,13 +36,7 @@ export async function GET(
   }
 }
 
-// 合法的状态流转图
-const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  'PENDING': ['INVESTIGATING', 'RESOLVED', 'REJECTED'],
-  'INVESTIGATING': ['RESOLVED', 'REJECTED'],
-  'RESOLVED': [], // 终态
-  'REJECTED': [], // 终态
-};
+// 合法状态迁移图由 lib/complaint-status.ts 统一维护
 
 export async function PUT(
   req: Request,
@@ -102,8 +97,7 @@ export async function PUT(
     const nextReviewNote = hasReviewNote ? review_note || null : currentReviewNote;
 
     // 状态流转校验
-    const allowedNextStatuses = VALID_STATUS_TRANSITIONS[currentStatus] || [];
-    if (!allowedNextStatuses.includes(status)) {
+    if (!canTransitionComplaintStatus(currentStatus, status)) {
       return NextResponse.json(
         { error: `状态流转不合法：${currentStatus} → ${status}` },
         { status: 400 }

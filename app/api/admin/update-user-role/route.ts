@@ -62,6 +62,12 @@ export async function PUT(req: Request) {
         { status: 403 }
       );
     }
+    if (targetProfile?.auth_source === 'sso') {
+      return NextResponse.json(
+        { error: '该账号由主站统一管理，请在主站修改角色/权限', code: 'MANAGED_BY_MAIN_SITE' },
+        { status: 409 }
+      );
+    }
 
     // 更新用户角色
     try {

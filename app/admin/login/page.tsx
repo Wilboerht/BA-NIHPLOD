@@ -26,6 +26,8 @@ function AdminLoginForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [showLocalForm, setShowLocalForm] = useState(false);
 
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
@@ -37,6 +39,26 @@ function AdminLoginForm() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (!code) return;
+    const map: Record<string, string> = {
+      sso_disabled: "主站管理员 SSO 未启用",
+      sso_not_configured: "主站管理员 SSO 配置不完整",
+      sso_denied: "主站授权被拒绝",
+      sso_state: "登录状态校验失败，请重试",
+      sso_expired: "主站登录已过期，请重新登录",
+      sso_unreachable: "主站认证服务暂时不可用",
+      sso_totp_required: "请先在主站开启二次验证",
+      sso_conflict: "该邮箱已存在本地管理员账号，请联系主站超管完成绑定",
+      sso_forbidden: "当前主站账号没有 BA 证书平台权限",
+      sso_rate_limited: "操作过于频繁，请稍后再试",
+      sso_failed: "主站管理员登录失败，请重试",
+      sso_required: "请使用主站管理员账号登录",
+    };
+    setError(map[code] || "登录失败，请重试");
   }, []);
 
   // 面包屑下拉：点击外部关闭 + Escape 关闭
@@ -114,6 +136,7 @@ function AdminLoginForm() {
           body: JSON.stringify({
             phone: username,
             password,
+            totpCode,
             loginType: "admin",
           }),
         });
@@ -137,7 +160,7 @@ function AdminLoginForm() {
         setIsLoading(false);
       }
     },
-    [username, password, router, validateForm]
+    [username, password, totpCode, router, validateForm]
   );
 
   const handleUsernameChange = useCallback(
@@ -248,6 +271,35 @@ function AdminLoginForm() {
 
               {/* 表单区域 */}
               <div className="px-8 pb-10 sm:px-10">
+                <a
+                  href="/api/admin/auth/sso/start?return_to=/workbench"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#8B7355]/40 bg-[#8B7355]/10 py-3.5 text-[13px] font-bold tracking-widest text-[#8B7355] transition-all duration-300 hover:border-[#8B7355]/70 hover:bg-[#8B7355]/20"
+                >
+                  使用 NIHPLOD 主站管理员账号登录
+                </a>
+                {error && !showLocalForm && (
+                  <div
+                    role="alert"
+                    className="mt-3 flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-4 py-3 text-xs text-slate-700 shadow-sm"
+                  >
+                    <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-500" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                <div className="my-5 flex items-center gap-3 text-xs text-slate-300">
+                  <span className="h-px flex-1 bg-slate-100" />
+                  或
+                  <span className="h-px flex-1 bg-slate-100" />
+                </div>
+                {!showLocalForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowLocalForm(true)}
+                    className="w-full text-center text-xs text-slate-400 underline underline-offset-4 transition-colors hover:text-slate-600"
+                  >
+                    使用本地应急账号登录
+                  </button>
+                ) : (
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                   {/* 账号 */}
                   <div>
@@ -326,6 +378,23 @@ function AdminLoginForm() {
                     </p>
                   </div>
 
+                  {/* 应急账号 TOTP（普通本地账号可留空） */}
+                  <div>
+                    <input
+                      id="totpCode"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={totpCode}
+                      onChange={(event) =>
+                        setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      disabled={isLoading}
+                      placeholder="应急账号 TOTP（普通账号留空）"
+                      className="block w-full rounded-xl border border-slate-100 bg-slate-50 py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-300 focus:border-[#C6A87C]/40 focus:bg-white focus:ring-4 focus:ring-[#C6A87C]/15 disabled:opacity-50"
+                    />
+                  </div>
+
                   {/* 错误提示 */}
                   {error && (
                     <div
@@ -354,6 +423,7 @@ function AdminLoginForm() {
                     )}
                   </button>
                 </form>
+                )}
               </div>
             </div>
           </OrbitalIcons>

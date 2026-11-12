@@ -38,6 +38,13 @@ export async function POST(req: Request) {
       return response;
     }
 
+    if (user!.auth_source === 'sso') {
+      return NextResponse.json(
+        { error: '主站管理员密码请在主站修改', code: 'MANAGED_BY_MAIN_SITE' },
+        { status: 409 }
+      );
+    }
+
     // 权限检查：用户只能修改自己的密码
     if (user!.id !== userId) {
       return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { findProfileForLogin, sql } from '@/lib/db';
 import { createToken, setAuthCookie } from '@/lib/auth';
+import { verifyBreakGlassTotp } from '@/lib/totp';
 import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { getClientIpFromRequest } from '@/lib/request-ip';
@@ -81,10 +82,10 @@ async function clearFailedAttempts(key: string): Promise<void> {
 
 export async function POST(req: Request) {
   try {
-    const { data: body, response: bodyError } = await readJsonBody<{ phone?: string; password?: string }>(req);
+    const { data: body, response: bodyError } = await readJsonBody<{ phone?: string; password?: string; totpCode?: string }>(req);
     if (bodyError) return bodyError;
 
-    const { phone, password } = body!;
+    const { phone, password, totpCode } = body!;
 
     if (
       typeof phone !== 'string'
@@ -151,6 +152,14 @@ export async function POST(req: Request) {
       username: typeof profile.username === 'string' ? profile.username : undefined,
     });
 
+    const authSource = typeof profile.auth_source === 'string' ? profile.auth_source : 'local';
+    if (authSource === 'sso') {
+      return NextResponse.json(
+        { error: '请使用 NIHPLOD 主站管理员账号登录', code: 'SSO_REQUIRED' },
+        { status: 403 }
+      );
+    }
+
     // 2. 验证密码（即使账号被封禁也先验证，避免通过响应差异枚举账号）
     const passwordHash = typeof profile.password_hash === 'string' && profile.password_hash
       ? profile.password_hash
@@ -177,6 +186,57 @@ export async function POST(req: Request) {
         { error: '账号或密码错误' },
         { status: 401 }
       );
+    }
+
+    const ssoEnabled = process.env.ADMIN_SSO_ENABLED === 'true';
+    const localMode = process.env.ADMIN_SSO_LOCAL_LOGIN_MODE || 'all';
+    const breakGlassUsername = process.env.BA_BREAK_GLASS_USERNAME || 'ba-emergency';
+    const breakGlassEnabled = process.env.BA_BREAK_GLASS_ENABLED === 'true';
+
+    if (ssoEnabled && localMode === 'disabled') {
+      return NextResponse.json(
+        { error: '本地密码登录已关闭，请使用主站管理员账号登录', code: 'SSO_REQUIRED' },
+        { status: 403 }
+      );
+    }
+    if (
+      ssoEnabled &&
+      localMode === 'break-glass' &&
+      (!breakGlassEnabled || profile.username !== breakGlassUsername)
+    ) {
+      return NextResponse.json(
+        { error: '本地密码登录仅限应急账号', code: 'SSO_REQUIRED' },
+        { status: 403 }
+      );
+    }
+
+    if (breakGlassEnabled && profile.username === breakGlassUsername) {
+      const totpSecret = process.env.BA_BREAK_GLASS_TOTP_SECRET;
+      if (!totpSecret) {
+        console.error('[login] BA_BREAK_GLASS_TOTP_SECRET 未配置');
+        return NextResponse.json({ error: '应急账号未完成 TOTP 配置' }, { status: 503 });
+      }
+      if (!totpCode || !verifyBreakGlassTotp(totpCode, totpSecret)) {
+        await recordFailedAttempt(clientIP);
+        await recordFailedAttempt(accountKey);
+        try {
+          await writeAudit(sql, {
+            actor: profileActor,
+            action: 'LOGIN_FAILED',
+            targetType: 'profile',
+            targetId: String(profile.id),
+            comment: '应急账号 TOTP 验证失败',
+            reason: 'totp_invalid',
+            request: req,
+          });
+        } catch (auditErr) {
+          console.error('[audit] LOGIN_FAILED 写入失败:', auditErr);
+        }
+        return NextResponse.json(
+          { error: 'TOTP 验证码错误', data: { totpRequired: true } },
+          { status: 401 }
+        );
+      }
     }
 
     // 3. 密码正确后再检查封禁状态
@@ -216,6 +276,9 @@ export async function POST(req: Request) {
       is_banned: Boolean(profile.is_banned),
       is_first_login: Boolean(profile.is_first_login),
       token_version: Number(profile.token_version ?? 0),
+      auth_source: typeof profile.auth_source === 'string' ? profile.auth_source : 'local',
+      external_admin_id:
+        typeof profile.external_admin_id === 'string' ? profile.external_admin_id : undefined,
     });
 
     try {

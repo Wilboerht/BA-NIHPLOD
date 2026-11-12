@@ -29,7 +29,9 @@ export async function GET(request: Request) {
           role: profile.role,
           is_first_login: profile.is_first_login,
           is_banned: profile.is_banned,
-        }
+          auth_source: profile.auth_source ?? "local",
+          external_admin_id: profile.external_admin_id ?? null,
+        },
       },
       { headers: { 'Cache-Control': 'no-store' } }
     );

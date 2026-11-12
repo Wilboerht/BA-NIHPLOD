@@ -50,6 +50,17 @@ model Profile {
   is_banned     Boolean   @default(false)
   deleted_at    DateTime? @db.Timestamptz(6)
   token_version Int @default(0)
+  /** 主站管理员 ID；SSO 影子账号使用 */
+  external_admin_id String? @unique
+  /** local | sso */
+  auth_source String @default("local")
+  /** 主站原始角色，仅审计/展示 */
+  external_role String?
+  /** 主站 tokenVersion */
+  external_token_version Int?
+  main_totp_enabled Boolean @default(false)
+  last_synced_at DateTime? @db.Timestamptz(6)
+  last_login_at DateTime? @db.Timestamptz(6)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
@@ -155,6 +166,14 @@ model Complaint {
   handler_id         String?         @db.Uuid
   review_note        String?
   contact_info       String?
+  /** 主站管理员处理人；不要求存在 BA 影子账号 */
+  handled_by_external_admin_id String?
+  handled_by_name    String?
+  handled_by_email   String?
+  /** 主站企业微信通知状态（失败可重试） */
+  main_alerted_at    DateTime? @db.Timestamptz(6)
+  main_alert_attempts Int      @default(0)
+  main_alert_last_error String?
   created_at         DateTime        @default(now()) @db.Timestamptz(6)
   updated_at         DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at         DateTime?       @db.Timestamptz(6)
@@ -168,6 +187,8 @@ model Complaint {
   @@index([status])
   @@index([status, created_at])
   @@index([deleted_at])
+  @@index([handled_by_external_admin_id])
+  @@index([main_alerted_at])
 }
 
 // ============================================================================
@@ -183,6 +204,9 @@ model AuditLog {
   actor_id       String?     @db.Uuid
   actor_role     String?
   actor_name     String?
+  /** ba | main | system */
+  actor_source   String?
+  actor_external_id String?
   action         String
   comment        String?
   target_type    String?

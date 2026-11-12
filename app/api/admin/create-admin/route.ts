@@ -14,6 +14,20 @@ export async function POST(req: Request) {
       return response;
     }
 
+    if (
+      process.env.ADMIN_SSO_ENABLED === 'true' &&
+      process.env.ADMIN_SSO_LOCAL_LOGIN_MODE === 'break-glass' &&
+      process.env.BA_ALLOW_LOCAL_ADMIN_CREATE !== 'true'
+    ) {
+      return NextResponse.json(
+        {
+          error: '管理员账号统一由主站创建；本地应急账号请使用初始化脚本',
+          code: 'MANAGED_BY_MAIN_SITE',
+        },
+        { status: 409 }
+      );
+    }
+
     // 速率限制
     const allowed = await checkActionRateLimit(`admin:create-admin:${adminUser!.id}`, 10);
     if (!allowed) {

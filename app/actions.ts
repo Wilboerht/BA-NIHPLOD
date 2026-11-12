@@ -4,6 +4,7 @@ import { sql, checkActionRateLimit } from '@/lib/db';
 import { parseAuthScope, formatDateISO } from '@/lib/utils';
 import { headers } from 'next/headers';
 import { writeAudit } from '@/lib/audit';
+import { notifyMainSiteComplaint } from '@/lib/complaint-notify';
 import {
   buildContainsPattern,
   buildPrefixPattern,
@@ -294,6 +295,31 @@ export async function submitComplaintAction(formData: {
           });
         } catch (auditErr) {
           console.error('[submitComplaintAction] 审计写入失败:', auditErr);
+        }
+
+        const notified = await notifyMainSiteComplaint({
+          complaintId: String(insertedId),
+          channel: cleanChannel,
+          contactInfo: cleanContact,
+          description: cleanDescription,
+          createdAt: new Date().toISOString(),
+        });
+        try {
+          if (notified.ok) {
+            await sql`
+              UPDATE complaints SET main_alerted_at = NOW() WHERE id = ${insertedId}
+            `;
+          } else {
+            await sql`
+              UPDATE complaints
+              SET main_alert_attempts = main_alert_attempts + 1,
+                  main_alert_last_error = ${notified.error.slice(0, 500)},
+                  updated_at = NOW()
+              WHERE id = ${insertedId}
+            `;
+          }
+        } catch (notifyError) {
+          console.error('[submitComplaintAction] 通知状态写入失败:', notifyError);
         }
       }
       return { success: true, id: insertedId };

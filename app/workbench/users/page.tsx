@@ -42,6 +42,7 @@ interface AdminUser {
   username: string;
   role: string;
   is_banned?: boolean;
+  auth_source?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -417,6 +418,9 @@ export default function AdminsManagementPage() {
                     <div className="flex flex-col gap-0.5">
                       <span className="font-bold text-slate-900 flex items-center gap-2 tracking-tight">
                         {user.full_name}
+                        {user.auth_source === 'sso' && (
+                          <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">主站管理</span>
+                        )}
                         {user.id === currentUser?.id && (
                           <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">当前账号</span>
                         )}
@@ -432,17 +436,17 @@ export default function AdminsManagementPage() {
                         {ROLE_OPTIONS.find(r => r.value === user.role)?.label || user.role}
                       </span>
                       <select
-                        disabled={user.id === currentUser.id || updatingRoleId !== null}
+                        disabled={user.id === currentUser.id || updatingRoleId !== null || user.auth_source === 'sso'}
                         value={user.role}
                         onChange={(e) => updateUserRole(user, e.target.value)}
-                        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser.id || updatingRoleId !== null ? "cursor-not-allowed" : ""} z-20`}
-                        title={user.id === currentUser.id ? "无法修改当前登录账号的角色" : updatingRoleId ? "正在更新角色" : "点击修改权限等级"}
+                        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser.id || updatingRoleId !== null || user.auth_source === 'sso' ? "cursor-not-allowed" : ""} z-20`}
+                        title={user.auth_source === 'sso' ? "该账号由主站统一管理" : user.id === currentUser.id ? "无法修改当前登录账号的角色" : updatingRoleId ? "正在更新角色" : "点击修改权限等级"}
                       >
                         {ROLE_OPTIONS.map(r => (
                           <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                       </select>
-                      {user.id !== currentUser?.id && (
+                      {user.id !== currentUser?.id && user.auth_source !== 'sso' && (
                         <ChevronDown className="w-3 h-3 text-slate-300 ml-2 transition-transform group-hover/select:translate-y-0.5" />
                       )}
                     </div>
@@ -468,8 +472,11 @@ export default function AdminsManagementPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
+                   <td className="px-6 py-4 text-right">
+                     {user.auth_source === 'sso' ? (
+                       <span className="text-[11px] text-slate-400 font-medium">主站统一管理</span>
+                     ) : (
+                     <div className="flex items-center justify-end gap-1">
                       {user.id !== currentUser?.id && (
                         <button
                           onClick={() => openResetPassword(user)}
@@ -502,9 +509,10 @@ export default function AdminsManagementPage() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
-                    </div>
-                  </td>
-                </tr>
+                     </div>
+                     )}
+                   </td>
+                 </tr>
               ))}
             </tbody>
           </table>

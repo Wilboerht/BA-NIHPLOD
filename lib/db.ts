@@ -92,7 +92,7 @@ export const sql = new Proxy(
  */
 export async function findProfileForLogin(identifier: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
-    SELECT id, username, full_name, phone, password_hash, role, is_banned, is_first_login, token_version
+    SELECT id, username, full_name, phone, password_hash, role, is_banned, is_first_login, token_version, auth_source, external_admin_id, main_totp_enabled
     FROM profiles
     WHERE deleted_at IS NULL
       AND (phone = ${identifier}
@@ -108,7 +108,7 @@ export async function findProfileForLogin(identifier: string): Promise<{ data: S
  */
 export async function getProfileById(id: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
-    SELECT id, username, full_name, phone, role, is_banned, is_first_login, created_at, updated_at
+    SELECT id, username, full_name, phone, role, is_banned, is_first_login, created_at, updated_at, auth_source, external_admin_id, main_totp_enabled
     FROM profiles WHERE id = ${id} AND deleted_at IS NULL LIMIT 1
   `;
   return { data: result[0] || null, error: null };

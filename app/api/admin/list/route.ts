@@ -23,7 +23,8 @@ export async function GET(req: Request) {
     try {
       const [result, countRes] = await Promise.all([
         sql`
-          SELECT id, username, full_name, phone, role, is_first_login, is_banned, created_at, updated_at
+          SELECT id, username, full_name, phone, role, is_first_login, is_banned,
+                 auth_source, created_at, updated_at
           FROM profiles
           WHERE deleted_at IS NULL ${searchCondition}
           ORDER BY role ASC

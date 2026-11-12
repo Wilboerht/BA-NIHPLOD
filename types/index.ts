@@ -16,6 +16,8 @@ export interface UserSession {
   role?: string;
   is_first_login?: boolean;
   is_banned?: boolean;
+  auth_source?: string;
+  external_admin_id?: string | null;
 }
 
 export interface AuthUser {

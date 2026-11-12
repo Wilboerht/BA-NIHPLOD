@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
-import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User, Loader2 } from "lucide-react";
+import { Megaphone, Search, AlertTriangle, CheckCircle2, Clock, Image as ImageIcon, ExternalLink, X, Trash2, ChevronLeft, ChevronRight, User, Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -19,6 +19,8 @@ interface Complaint {
   evidence_image_urls?: string[];
   review_note?: string;
   contact_info?: string;
+  handled_by_name?: string | null;
+  handled_by_email?: string | null;
 }
 
 // 兼容新旧字段获取图片列表
@@ -514,6 +516,18 @@ export default function ComplaintsPage() {
                        <div className="flex items-center gap-2 mt-1">
                          <User className="w-3.5 h-3.5 text-slate-400" />
                          <span className="text-[12px] text-slate-600 font-medium">{activeComplaint.contact_info}</span>
+                       </div>
+                     </div>
+                   )}
+                   {activeComplaint.handled_by_name && (
+                     <div>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">处理人</span>
+                       <div className="flex items-center gap-2 mt-1">
+                         <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                         <span className="text-[12px] text-slate-600 font-medium">
+                           {activeComplaint.handled_by_name}
+                           {activeComplaint.handled_by_email ? `（${activeComplaint.handled_by_email}）` : ""}
+                         </span>
                        </div>
                      </div>
                    )}

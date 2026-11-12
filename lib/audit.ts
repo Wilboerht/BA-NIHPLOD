@@ -12,6 +12,8 @@ export interface AuditActor {
   id?: string | null;
   role?: string | null;
   name?: string | null;
+  source?: 'ba' | 'main' | 'system' | null;
+  externalId?: string | null;
 }
 
 export interface AuditEvent {
@@ -96,6 +98,8 @@ export async function writeAudit(db: SqlLike, event: AuditEvent): Promise<void> 
   const actorId = event.actor?.id ?? null;
   const actorRole = event.actor?.role ?? null;
   const actorName = event.actor?.name ?? null;
+  const actorSource = event.actor?.source ?? null;
+  const actorExternalId = event.actor?.externalId ?? null;
 
   const certificateId = event.certificateId
     ?? (event.targetType === 'certificate' ? event.targetId ?? null : null);
@@ -116,6 +120,8 @@ export async function writeAudit(db: SqlLike, event: AuditEvent): Promise<void> 
       actorId,
       actorRole,
       actorName,
+      actorSource,
+      actorExternalId,
       comment: event.comment ?? null,
       reason: event.reason ?? null,
       before: event.before ?? null,
@@ -130,13 +136,13 @@ export async function writeAudit(db: SqlLike, event: AuditEvent): Promise<void> 
   await run`
     INSERT INTO audit_logs (
       certificate_id, certificate_ref, complaint_id, complaint_ref,
-      actor_id, actor_role, actor_name,
+      actor_id, actor_role, actor_name, actor_source, actor_external_id,
       action, comment, reason,
       target_type, target_id, target_ref, request_id, ip, user_agent,
       "before", "after", event_hash, created_at
     ) VALUES (
       ${certificateId}, ${certificateRef}, ${complaintId}, ${complaintRef},
-      ${actorId}, ${actorRole}, ${actorName},
+      ${actorId}, ${actorRole}, ${actorName}, ${actorSource}, ${actorExternalId},
       ${event.action}, ${event.comment ?? null}, ${event.reason ?? null},
       ${event.targetType ?? null}, ${event.targetId ?? null}, ${event.targetRef ?? null},
       ${meta.requestId}, ${meta.ip}, ${meta.userAgent},
