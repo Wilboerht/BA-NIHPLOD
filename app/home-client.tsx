@@ -49,6 +49,7 @@ function EvidenceThumb({ file, onRemove }: { file: File; onRemove: () => void })
       </div>
       <button
         onClick={onRemove}
+        aria-label={`移除 ${file.name}`}
         className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
         type="button"
       >
@@ -129,6 +130,21 @@ export default function HomeClient() {
     setReportContact("");
   };
 
+  const reportCloseTimerRef = useRef<number | null>(null);
+
+  const clearReportCloseTimer = () => {
+    if (reportCloseTimerRef.current !== null) {
+      window.clearTimeout(reportCloseTimerRef.current);
+      reportCloseTimerRef.current = null;
+    }
+  };
+
+  const closeReportModal = () => {
+    clearReportCloseTimer();
+    setShowReportModal(false);
+    resetReportForm();
+  };
+
   const handleReportSubmit = async () => {
     if (!reportDesc.trim()) {
       toast({ message: "请填写维权描述", type: "warning" });
@@ -194,8 +210,10 @@ export default function HomeClient() {
       if (!res.success) throw new Error(res.error);
       
       setReportSuccess(true);
-      // 成功展示2秒后自动清空数据并关闭弹窗
-      setTimeout(() => {
+      // 成功展示 2 秒后自动清空数据并关闭弹窗；组件卸载或手动关闭时会清除定时器
+      clearReportCloseTimer();
+      reportCloseTimerRef.current = window.setTimeout(() => {
+        reportCloseTimerRef.current = null;
         setShowReportModal(false);
         resetReportForm();
       }, 2000);
@@ -229,21 +247,19 @@ export default function HomeClient() {
   }, [withScannerLock]);
 
   const closeScanner = useCallback(() => {
-    withScannerLock(() => {
-      // 异步清理摄像头，但锁已加上防止并发
-      if (scannerRef.current) {
-        const scanner = scannerRef.current;
-        if (scanner.isScanning) {
-          scanner.stop().catch(err => console.error("Failed to stop scanner:", err));
-        }
-        scannerRef.current = null;
+    // 关闭不参与 800ms 打开防抖：打开后立即关闭/Esc 必须生效
+    if (scannerRef.current) {
+      const scanner = scannerRef.current;
+      if (scanner.isScanning) {
+        scanner.stop().catch(err => console.error("Failed to stop scanner:", err));
       }
-      setShowScanner(false);
-      setScannerReady(false);
-      setScanError(null);
-      setIsScanning(false);
-    });
-  }, [withScannerLock]);
+      scannerRef.current = null;
+    }
+    setShowScanner(false);
+    setScannerReady(false);
+    setScanError(null);
+    setIsScanning(false);
+  }, []);
 
   // 扫描失败后重启摄像头（带防抖）
   const retriggerScanner = useCallback(() => {
@@ -262,8 +278,16 @@ export default function HomeClient() {
 
   // Esc 关闭弹窗
   useEscapeKey(() => { setResults(null); setCurrentIndex(0); setError(null); }, isResultOpen);
-  useEscapeKey(() => { setShowReportModal(false); resetReportForm(); }, showReportModal);
+  useEscapeKey(closeReportModal, showReportModal);
   useEscapeKey(closeScanner, showScanner);
+
+  // 卸载时清理投诉成功后的自动关闭定时器
+  useEffect(() => () => {
+    if (reportCloseTimerRef.current !== null) {
+      window.clearTimeout(reportCloseTimerRef.current);
+      reportCloseTimerRef.current = null;
+    }
+  }, []);
 
   // 弹窗打开时锁定背景滚动
   useEffect(() => {
@@ -321,71 +345,98 @@ export default function HomeClient() {
     return () => clearTimeout(timer);
   }, [scanError]);
 
+  // 从其它页面跳转过来时直接打开申诉/扫码弹窗
+  const actionParam = searchParams.get("action");
+  useEffect(() => {
+    if (actionParam === "report") {
+      setShowReportModal(true);
+      setReportSuccess(false);
+      setEvidenceFiles([]);
+    } else if (actionParam === "scan") {
+      openScanner();
+    }
+  }, [actionParam, openScanner]);
+
   // 初始化和清理扫描器
   useEffect(() => {
+    let cancelled = false;
     let html5QrCode: Html5Qrcode | null = null;
 
-    if (showScanner) {
-      const startScanner = async () => {
-        try {
-          const { Html5Qrcode: Html5QrcodeClass } = await import("html5-qrcode");
-          html5QrCode = new Html5QrcodeClass("qr-scanner-container");
-          scannerRef.current = html5QrCode;
-          
-          await html5QrCode.start(
-            { facingMode: "environment" }, 
-            {
-              fps: 10,
-              qrbox: { width: 150, height: 150 },
-              aspectRatio: 1
-            },
-            (decodedText: string) => {
-              // 扫描成功
-              setScanError(null);
-              setIsScanning(true);
-              
-              // 从 URL 中提取证书编号
-              let certNumber = decodedText;
-              try {
-                const urlParams = new URL(decodedText, "http://localhost").searchParams;
-                if (urlParams.has("cert")) {
-                  certNumber = urlParams.get("cert") || decodedText;
-                }
-              } catch {
-                // Not a URL, use raw text
-              }
-              
-              // 停止扫描并执行验证
-              if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {}).catch(err => {
-                  console.error("Failed to stop scanner:", err);
-                }).finally(() => {
-                  handleScanVerify(certNumber);
-                });
-              } else {
-                handleScanVerify(certNumber);
-              }
-            },
-            () => {
-              // 扫描中的反馈，忽略
-            }
-          );
-          setScannerReady(true);
-        } catch (err: unknown) {
-          console.error("Failed to start scanner:", err);
-          const errStr = err instanceof Error ? err.message : String(err);
-          if (errStr.includes("NotAllowedError") || errStr.includes("PermissionDenied")) {
-            setScanError("摄像头权限未开启");
-          } else {
-            setScanError("无法启动摄像头，请检查设备连接。");
-          }
-        }
-      };
+    if (!showScanner) return;
 
-      startScanner();
-    }
+    const startScanner = async () => {
+      try {
+        const { Html5Qrcode: Html5QrcodeClass } = await import("html5-qrcode");
+        if (cancelled) return;
+
+        html5QrCode = new Html5QrcodeClass("qr-scanner-container");
+        if (cancelled) {
+          html5QrCode = null;
+          return;
+        }
+        scannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 150, height: 150 },
+            aspectRatio: 1
+          },
+          (decodedText: string) => {
+            if (cancelled) return;
+            // 扫描成功
+            setScanError(null);
+            setIsScanning(true);
+
+            // 从 URL 中提取证书编号
+            let certNumber = decodedText;
+            try {
+              const urlParams = new URL(decodedText, "http://localhost").searchParams;
+              if (urlParams.has("cert")) {
+                certNumber = urlParams.get("cert") || decodedText;
+              }
+            } catch {
+              // Not a URL, use raw text
+            }
+
+            // 停止扫描并执行验证
+            if (html5QrCode && html5QrCode.isScanning) {
+              html5QrCode.stop().then(() => {}).catch(err => {
+                console.error("Failed to stop scanner:", err);
+              }).finally(() => {
+                if (!cancelled) handleScanVerify(certNumber);
+              });
+            } else {
+              handleScanVerify(certNumber);
+            }
+          },
+          () => {
+            // 扫描中的反馈，忽略
+          }
+        );
+
+        if (cancelled) {
+          await html5QrCode.stop().catch(() => {});
+          return;
+        }
+        setScannerReady(true);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        console.error("Failed to start scanner:", err);
+        const errStr = err instanceof Error ? err.message : String(err);
+        if (errStr.includes("NotAllowedError") || errStr.includes("PermissionDenied")) {
+          setScanError("摄像头权限未开启");
+        } else {
+          setScanError("无法启动摄像头，请检查设备连接。");
+        }
+      }
+    };
+
+    startScanner();
 
     return () => {
+      cancelled = true;
       if (html5QrCode) {
         if (html5QrCode.isScanning) {
           html5QrCode.stop().catch(err => console.error("Failed to stop scanner in cleanup:", err));
@@ -707,17 +758,19 @@ export default function HomeClient() {
                          })()}
                          <div className="flex items-center gap-3 mt-3">
                            <span className="text-[10px] md:text-[10px] bg-[#8B7355]/10 text-[#8B7355] border border-[#8B7355]/20 px-2 py-0.5 rounded font-bold tracking-wider leading-relaxed">证书编号</span>
-                           <p 
-                             className="text-[#8B7355] text-xs md:text-[13px] font-medium tracking-widest font-mono cursor-pointer hover:underline decoration-dotted transition-all"
+                           <button
+                             type="button"
+                             className="text-[#8B7355] text-xs md:text-[13px] font-medium tracking-widest font-mono cursor-pointer hover:underline decoration-dotted transition-all bg-transparent border-0 p-0 text-left"
                               onClick={() => {
                                 navigator.clipboard.writeText(result.id)
                                   .then(() => toast({ message: "证书编号已复制", type: "success" }))
                                   .catch(() => toast({ message: "复制失败，请长按选择并复制", type: "warning" }));
                               }}
                              title="点击复制编号"
+                             aria-label={`复制证书编号 ${result.id}`}
                            >
                               {result.id}
-                           </p>
+                           </button>
                          </div>
                       </div>
                     </div>
@@ -807,7 +860,7 @@ export default function HomeClient() {
             className="fixed inset-0 z-[110] flex outline-none md:items-center md:justify-center">
             <motion.div 
                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               onClick={() => { setShowReportModal(false); resetReportForm(); }}
+               onClick={closeReportModal}
                className="absolute inset-0 bg-slate-900/30 backdrop-blur-xl"
             />
             <motion.div 
@@ -820,7 +873,7 @@ export default function HomeClient() {
               <div className="flex md:hidden items-center justify-center relative mt-4 mb-4">
                 <Image src="/NIHPLOD-logo.svg" alt="NIHPLOD" width={0} height={0} className="h-7 w-auto" unoptimized />
                 <button 
-                  onClick={() => { setShowReportModal(false); resetReportForm(); }}
+                  onClick={closeReportModal}
                   aria-label="关闭"
                   className="absolute right-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
@@ -831,7 +884,7 @@ export default function HomeClient() {
               {/* PC 端绝对定位关闭按钮 */}
               <div className="absolute top-4 right-4 md:top-6 md:right-6 hidden md:block">
                 <button 
-                  onClick={() => { setShowReportModal(false); resetReportForm(); }}
+                  onClick={closeReportModal}
                   aria-label="关闭"
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
@@ -849,8 +902,9 @@ export default function HomeClient() {
 
               <div className="space-y-6">
                  <div className="space-y-2">
-                    <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">涉嫌侵权描述 <span className="text-red-400">*</span></label>
+                    <label htmlFor="report-description" className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">涉嫌侵权描述 <span className="text-red-400">*</span></label>
                     <textarea 
+                       id="report-description"
                        value={reportDesc}
                        onChange={(e) => setReportDesc(e.target.value)}
                        placeholder="请简要描述您的维权申诉内容，我们将进行后台核查..."
@@ -859,8 +913,9 @@ export default function HomeClient() {
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div className="space-y-2">
-                       <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">涉嫌违规渠道/商铺 <span className="text-slate-300">(选填)</span></label>
+                       <label htmlFor="report-channel" className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">涉嫌违规渠道/商铺 <span className="text-slate-300">(选填)</span></label>
                        <input 
+                          id="report-channel"
                           type="text" 
                           value={reportChannel}
                           onChange={(e) => setReportChannel(e.target.value)}
@@ -869,8 +924,9 @@ export default function HomeClient() {
                        />
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">联系方式 <span className="text-red-400">*</span></label>
+                       <label htmlFor="report-contact" className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">联系方式 <span className="text-red-400">*</span></label>
                        <input 
+                          id="report-contact"
                           type="text" 
                           value={reportContact}
                           onChange={(e) => setReportContact(e.target.value)}
@@ -880,10 +936,12 @@ export default function HomeClient() {
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">证据图片 <span className="text-slate-300">(可选，最多 5 张，每张限 5MB)</span></label>
+                    <label htmlFor="report-evidence" className="text-[11px] font-medium text-slate-500 tracking-[0.05em] ml-1">证据图片 <span className="text-slate-300">(可选，最多 5 张，每张限 5MB)</span></label>
                     <label className="w-full h-[54px] bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 hover:text-slate-400 hover:border-slate-300 transition-[border-color,box-shadow] cursor-pointer relative overflow-hidden group">
                        <input 
+                         id="report-evidence"
                          type="file" 
+                         aria-label="选择证据图片"
                          accept="image/jpeg,image/png,image/gif,image/webp" 
                          multiple
                          className="hidden" 
@@ -958,7 +1016,7 @@ export default function HomeClient() {
 
               {/* 手机端底部版权栏 */}
               <div className="flex md:hidden items-center justify-center py-4 border-t border-[#E8E0D5]/30">
-                <p className="text-[10px] text-slate-400/50">
+                <p className="text-[10px] text-slate-400/50" suppressHydrationWarning>
                   &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
                 </p>
               </div>
@@ -1078,7 +1136,7 @@ export default function HomeClient() {
 
               {/* 手机端底部版权栏 */}
               <div className="flex md:hidden items-center justify-center py-4 border-t border-[#E8E0D5]/30">
-                <p className="text-[10px] text-slate-400/50">
+                <p className="text-[10px] text-slate-400/50" suppressHydrationWarning>
                   &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
                 </p>
               </div>
@@ -1117,9 +1175,9 @@ export default function HomeClient() {
               沪ICP备2026014764号-1
             </a>
             <span className="hidden h-3 w-px bg-[#8B7355]/25 md:block" />
-            <span className="whitespace-nowrap px-1 py-1">
-              &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
-            </span>
+             <span className="whitespace-nowrap px-1 py-1" suppressHydrationWarning>
+               &copy; {new Date().getFullYear()} NIHPLOD. All rights reserved
+             </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-normal tracking-wide text-[#8B7355]/80 md:justify-end">

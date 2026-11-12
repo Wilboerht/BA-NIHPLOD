@@ -92,7 +92,7 @@ export default function Sidebar({
           <span className={styles.icon}><Globe size={17} /></span>
           {!isCollapsed && "前往核验大厅"}
         </a>
-        <button className={styles.toggleBtn} onClick={onToggle}>
+        <button className={styles.toggleBtn} onClick={onToggle} aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}>
           {isCollapsed ? <PanelLeftOpen size={18} /> : (
             <div className={styles.toggleInner}>
               <PanelLeftClose size={17} />
@@ -101,7 +101,7 @@ export default function Sidebar({
           )}
         </button>
 
-        <div className={styles.userProfile} onClick={() => { }} style={{ cursor: 'pointer' }}>
+        <div className={styles.userProfile}>
           <div className={styles.userAvatar}>
             {userInitial}
           </div>
@@ -112,12 +112,14 @@ export default function Sidebar({
             </div>
           )}
           {!isCollapsed && (
-            <div
+            <button
+              type="button"
               className={styles.settingsBtn}
-              onClick={(e) => { e.stopPropagation(); setShowLogoutModal(true); }}
+              aria-label="退出登录"
+              onClick={() => setShowLogoutModal(true)}
             >
               <LogOut size={16} className={styles.settingsIcon} />
-            </div>
+            </button>
           )}
         </div>
       </footer>
@@ -136,12 +138,15 @@ export default function Sidebar({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-dialog-title"
               className="relative w-full max-w-[340px] bg-white rounded-[24px] p-8 shadow-2xl flex flex-col items-center text-center"
             >
               <div className="w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-5 text-[24px]">
                 <AlertCircle size={28} />
               </div>
-              <h3 className="text-base font-bold text-slate-900 tracking-wider mb-2">确认退出登录？</h3>
+              <h3 id="logout-dialog-title" className="text-base font-bold text-slate-900 tracking-wider mb-2">确认退出登录？</h3>
               <p className="text-[13px] text-slate-400 font-medium leading-relaxed mb-8">
                 退出后您将需要重新验证身份<br />才能访问管理后台。
               </p>
@@ -149,12 +154,14 @@ export default function Sidebar({
               <div className="flex flex-col w-full gap-3">
                 <button 
                   onClick={handleLogout}
+                  type="button"
                   className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[13px] font-bold tracking-widest transition-all active:scale-[0.98]"
                 >
                   确认退出
                 </button>
                 <button 
                   onClick={() => setShowLogoutModal(false)}
+                  type="button"
                   className="w-full py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl text-[13px] font-bold tracking-widest transition-all"
                 >
                   取消

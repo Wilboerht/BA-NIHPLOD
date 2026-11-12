@@ -33,7 +33,10 @@ if (!before || Number.isNaN(Date.parse(before))) {
 }
 
 const batchArg = process.argv.find((arg) => arg.startsWith('--batch='));
-const batchSize = Math.min(Math.max(Number(batchArg?.slice('--batch='.length) || 1000), 1), 5000);
+const batchRaw = Number(batchArg?.slice('--batch='.length) || 1000);
+const batchSize = Number.isFinite(batchRaw)
+  ? Math.min(Math.max(Math.trunc(batchRaw), 1), 5000)
+  : 1000;
 const apply = process.argv.includes('--apply');
 const archiveDir = path.resolve(
   process.env.AUDIT_ARCHIVE_DIR || path.join(process.cwd(), 'audit-archives')
@@ -68,7 +71,9 @@ try {
     archiveDir,
     `audit-logs-before-${beforeDate.toISOString().replace(/[:.]/g, '-')}.jsonl`
   );
-  await fs.writeFile(outputPath, '', 'utf8');
+  await fs.writeFile(outputPath, '', { encoding: 'utf8', mode: 0o600 });
+  // 归档含 IP/User-Agent，确保仅当前用户可读（mode 仅对新建文件生效）
+  await fs.chmod(outputPath, 0o600).catch(() => {});
 
   let archived = 0;
   while (true) {

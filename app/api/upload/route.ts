@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { uploadFile, getPublicUrl } from '@/lib/storage';
-import { requireAuth } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { readFormDataWithLimit } from '@/lib/api-utils';
@@ -14,6 +14,9 @@ const ALLOWED_TYPES = [
   'application/pdf',
 ];
 
+// 只允许写入固定桶，避免客户端指定任意 public 子目录
+const ALLOWED_BUCKETS = new Set(['certificates']);
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_BODY_SIZE = MAX_FILE_SIZE + 1024 * 1024;
 
@@ -24,8 +27,8 @@ function sanitizeFolder(folder: string): string {
 
 export async function POST(req: Request) {
   try {
-    // 认证检查
-    const { user, response } = await requireAuth(req);
+    // 认证检查：只有管理员可以上传公开文件
+    const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
     }
@@ -40,8 +43,13 @@ export async function POST(req: Request) {
     if (formError || !formData) return formError!;
 
     const file = formData.get('file') as File;
-    const bucket = (formData.get('bucket') as string) || 'certificates';
+    const bucketRaw = (formData.get('bucket') as string) || 'certificates';
+    const bucket = ALLOWED_BUCKETS.has(bucketRaw) ? bucketRaw : null;
     const folder = sanitizeFolder((formData.get('folder') as string) || '');
+
+    if (!bucket) {
+      return NextResponse.json({ error: '不支持的上传目录' }, { status: 400 });
+    }
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });

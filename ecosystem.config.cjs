@@ -1,8 +1,9 @@
 /**
  * BA PM2 生产启动配置
  *
- * 服务器文档要求 Node 24（/usr/local/bin/node）；旧配置通过 `pm2 start npm`
- * 继承了系统 Node 20，这里显式指定 interpreter，避免 Node 版本不一致。
+ * package.json 要求 Node >= 22.18（推荐 24）；这里显式指定 interpreter，
+ * 避免 `pm2 start npm` 继承系统旧版 Node。
+ * 可通过 BA_NODE_BIN 覆盖解释器路径。
  */
 module.exports = {
   apps: [

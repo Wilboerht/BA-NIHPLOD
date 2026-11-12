@@ -44,6 +44,12 @@ function getAdminPassword() {
   const randomPassword = crypto.randomBytes(12).toString('hex');
   const passwordFile = path.resolve(process.cwd(), 'admin-init-password.txt');
   fs.writeFileSync(passwordFile, `${randomPassword}\n`, { mode: 0o600 });
+  // mode 只在新建文件时生效；显式 chmod 保证覆盖已有文件时仍为 600
+  try {
+    fs.chmodSync(passwordFile, 0o600);
+  } catch {
+    // 非 POSIX 平台忽略
+  }
   console.log('⚠️  未设置 ADMIN_INIT_PASSWORD，已生成随机密码并写入 admin-init-password.txt');
   return { password: randomPassword, generated: true };
 }

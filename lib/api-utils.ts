@@ -1,6 +1,44 @@
 import { NextResponse } from 'next/server';
 
 /**
+ * 同源校验（防登录/登出 CSRF）。
+ * 无 Origin 的非浏览器请求（curl、服务端调用）放行；
+ * 浏览器跨站表单/请求返回 false。
+ */
+export function isSameOriginRequest(req: Request): boolean {
+  const secFetchSite = req.headers.get('sec-fetch-site');
+  if (secFetchSite && secFetchSite !== 'same-origin' && secFetchSite !== 'none') {
+    return false;
+  }
+
+  const origin = req.headers.get('origin');
+  if (!origin) return true;
+
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return false;
+  }
+
+  const allowedHosts = new Set<string>();
+  const host = req.headers.get('host');
+  if (host) allowedHosts.add(host);
+
+  // 反向代理可能改写 Host，因此同时接受显式配置的站点域名
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  if (baseUrl) {
+    try {
+      allowedHosts.add(new URL(baseUrl).host);
+    } catch {
+      // 忽略非法 BASE_URL，由启动/其他校验处理
+    }
+  }
+
+  return allowedHosts.has(originHost);
+}
+
+/**
  * 统一的 API 错误响应封装
  * - 生产环境只返回安全文案，避免泄露数据库/内部错误细节
  * - 开发环境返回原始错误与堆栈，便于排查

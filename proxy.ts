@@ -21,13 +21,16 @@ const SUPER_ADMIN_PATHS = [
   '/api/admin',
 ];
 
-// 公开路径（即使匹配到上面的前缀，也放行）
-const PUBLIC_PATHS = [
-  '/api/auth/login',
-  '/api/auth/logout',
-  '/api/admin/auth/sso',
-  '/admin/login',
-];
+// 公开路径（精确匹配；仅 SSO 前缀允许子路径）
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname === '/api/auth/login'
+    || pathname === '/api/auth/logout'
+    || pathname === '/admin/login'
+    || pathname === '/api/admin/auth/sso'
+    || pathname.startsWith('/api/admin/auth/sso/')
+  );
+}
 
 function createCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV !== 'production';
@@ -100,7 +103,7 @@ export async function proxy(request: NextRequest) {
   };
 
   // 公开路径放行（页面仍需要 nonce/CSP）
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
+  if (isPublicPath(pathname)) {
     return nextForRequest();
   }
 

@@ -50,12 +50,16 @@ export default function Toast({ id, message, type, duration = 3000, onClose }: T
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
+      role={type === "error" ? "alert" : "status"}
+      aria-atomic="true"
       className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm min-w-[280px] max-w-[480px] ${styles[type]}`}
     >
       <Icon className={`w-5 h-5 shrink-0 ${iconColors[type]}`} />
       <span className="text-sm font-medium flex-1">{message}</span>
       <button
         onClick={() => onClose(id)}
+        type="button"
+        aria-label="关闭提示"
         className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
       >
         <X className="w-4 h-4" />

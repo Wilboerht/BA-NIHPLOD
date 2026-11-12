@@ -21,7 +21,19 @@ const DB_STATEMENT_TIMEOUT_MS =
     : 15000;
 
 function createDbClient() {
-  const databaseUrl = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
+  const rawDatabaseUrl = process.env.DATABASE_URL?.replace(/^["']|["']$/g, '');
+  // 历史模板中的 ?schema=public 是 Prisma 专用参数；postgres.js 会把它
+  // 作为连接启动参数发送，导致 PostgreSQL 报 unknown parameter，这里主动剔除。
+  const databaseUrl = (() => {
+    if (!rawDatabaseUrl) return rawDatabaseUrl;
+    try {
+      const parsed = new URL(rawDatabaseUrl);
+      parsed.searchParams.delete('schema');
+      return parsed.toString();
+    } catch {
+      return rawDatabaseUrl;
+    }
+  })();
   if (!databaseUrl) {
     console.error('[db] FATAL: DATABASE_URL environment variable is not set.');
     const missingConfigError = (property: string) => {
@@ -88,16 +100,18 @@ export const sql = new Proxy(
 // ============================================================================
 
 /**
- * 根据账号查找用户信息 (兼容 phone 或 username)
+ * 根据账号查找用户信息 (兼容 phone、username 或 email)
  */
 export async function findProfileForLogin(identifier: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
-    SELECT id, username, full_name, phone, password_hash, role, is_banned, is_first_login, token_version, auth_source, external_admin_id, main_totp_enabled
+    SELECT id, username, full_name, phone, email, password_hash, role, is_banned, is_first_login, token_version, auth_source, external_admin_id, main_totp_enabled
     FROM profiles
     WHERE deleted_at IS NULL
       AND (phone = ${identifier}
        OR username = ${identifier}
-       OR username = ${identifier.toLowerCase()})
+       OR username = ${identifier.toLowerCase()}
+       OR email = ${identifier}
+       OR LOWER(email) = ${identifier.toLowerCase()})
     LIMIT 1
   `;
   return { data: result[0] || null, error: null };
@@ -467,7 +481,7 @@ export async function getAuditLogs(
 export async function getComplaintAuditLogs(complaintId: string): Promise<{ data: SqlRow[]; error: Error | null }> {
   try {
     const result = await sql`
-      SELECT a.*, p.full_name as actor_name, p.username as actor_username
+      SELECT a.*, p.full_name as actor_name_current, p.username as actor_username_current
       FROM audit_logs a
       LEFT JOIN profiles p ON a.actor_id = p.id
       WHERE a.complaint_id = ${complaintId}

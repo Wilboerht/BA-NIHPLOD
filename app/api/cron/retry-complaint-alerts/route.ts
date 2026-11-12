@@ -1,26 +1,17 @@
-import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { notifyMainSiteComplaint } from "@/lib/complaint-notify";
 import { logger } from "@/lib/logger";
+import { isCronRequestAuthorized } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
 const MAX_ATTEMPTS = 10;
 
-function authorized(request: Request): boolean {
-  const provided = request.headers.get("x-cron-secret") || "";
-  const expected = process.env.CRON_SECRET || "";
-  if (!expected) return false;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
-
 // GET /api/cron/retry-complaint-alerts
 // 重试 BA → 主站企业微信举报通知。
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!isCronRequestAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

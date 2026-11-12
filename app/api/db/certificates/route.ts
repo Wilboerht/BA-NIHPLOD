@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const page = request.nextUrl.searchParams.get('page');
     const pageSize = request.nextUrl.searchParams.get('pageSize');
     const rawStatus = request.nextUrl.searchParams.get('status');
-    const q = request.nextUrl.searchParams.get('q')?.trim() || undefined;
+    const q = request.nextUrl.searchParams.get('q')?.trim().slice(0, 200) || undefined;
 
     const ALLOWED_STATUS = ['ISSUED', 'PENDING', 'UPCOMING', 'invalid', 'REVOKED', 'EXPIRED'];
     if (rawStatus && !ALLOWED_STATUS.includes(rawStatus)) {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const status = rawStatus || undefined;
 
     const limitNum = limit ? Math.min(Math.max(parseInt(limit, 10) || 0, 1), 1000) : undefined;
-    const pageNum = page ? Math.max(parseInt(page, 10) || 1, 1) : undefined;
+    const pageNum = page ? Math.min(Math.max(parseInt(page, 10) || 1, 1), 10000) : undefined;
     const pageSizeNum = pageSize ? Math.min(Math.max(parseInt(pageSize, 10) || 1, 1), 200) : undefined;
 
     let data: unknown[] = [];

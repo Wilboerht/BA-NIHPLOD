@@ -1,7 +1,7 @@
-import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
+import { isCronRequestAuthorized } from '@/lib/cron-auth';
 
 /**
  * GET /api/cron/update-expired-certificates
@@ -11,29 +11,8 @@ import { writeAudit } from '@/lib/audit';
  */
 export async function GET(request: Request) {
   try {
-    // 只接受请求头，避免密钥出现在 URL、访问日志和 Referer 中
-    const secret = request.headers.get('x-cron-secret');
-    const expectedSecret = process.env.CRON_SECRET;
-
-    if (!expectedSecret) {
-      console.error('[cron] CRON_SECRET 环境变量未设置');
-      return NextResponse.json(
-        { error: '服务未配置定时任务密钥' },
-        { status: 500 }
-      );
-    }
-
-    const secretBuffer = Buffer.from(secret || '');
-    const expectedBuffer = Buffer.from(expectedSecret);
-    const secretValid =
-      secretBuffer.length === expectedBuffer.length
-      && crypto.timingSafeEqual(secretBuffer, expectedBuffer);
-
-    if (!secretValid) {
-      return NextResponse.json(
-        { error: '密钥校验失败' },
-        { status: 401 }
-      );
+    if (!isCronRequestAuthorized(request)) {
+      return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
 
     let updatedIds: string[] = [];

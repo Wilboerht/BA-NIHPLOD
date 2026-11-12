@@ -4,8 +4,8 @@ import { sql } from './db';
 import { ADMIN_ROLES } from '@/types';
 import { parse } from 'cookie';
 import crypto from 'crypto';
+import { AUTH_TOKEN_COOKIE } from './auth-cookie';
 
-const TOKEN_COOKIE = 'auth-token';
 const AUTH_SECRET = process.env.AUTH_SECRET;
 
 function getSecret(): Uint8Array {
@@ -96,7 +96,7 @@ export async function verifyTokenBasic(request: NextRequest | Request): Promise<
     if (!cookieHeader) return null;
 
     const cookies = parse(cookieHeader);
-    const token = cookies[TOKEN_COOKIE];
+    const token = cookies[AUTH_TOKEN_COOKIE];
     if (!token) return null;
 
     const secret = getSecret();
@@ -274,7 +274,7 @@ export async function requireSuperAdmin(request: NextRequest | Request) {
 export function setAuthCookie(token: string, maxAgeSeconds = 28800): string {
   const isSecure = process.env.NODE_ENV === 'production';
   const parts = [
-    `${TOKEN_COOKIE}=${token}`,
+    `${AUTH_TOKEN_COOKIE}=${token}`,
     'HttpOnly',
     isSecure ? 'Secure' : '',
     'SameSite=Lax',
@@ -290,7 +290,7 @@ export function setAuthCookie(token: string, maxAgeSeconds = 28800): string {
 export function clearAuthCookie(): string {
   const isSecure = process.env.NODE_ENV === 'production';
   const parts = [
-    `${TOKEN_COOKIE}=`,
+    `${AUTH_TOKEN_COOKIE}=`,
     'HttpOnly',
     isSecure ? 'Secure' : '',
     'SameSite=Lax',

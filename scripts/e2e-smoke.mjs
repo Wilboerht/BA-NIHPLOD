@@ -68,6 +68,15 @@ if (!isLocalDb && !FORCE) {
   process.exit(1);
 }
 
+// 即使数据库在本机，也要求库名看起来像一次性测试库，避免误清空本机生产库
+const dbName = decodeURIComponent(new URL(DB_URL).pathname.replace(/^\//, ''));
+if (!/(^|[_-])(test|e2e|smoke|ci)([_-]|$)/i.test(dbName) && !FORCE) {
+  console.error(
+    `❌ 目标库名 "${dbName}" 不像一次性测试库（需包含 test/e2e/smoke/ci）。如确认请加 --force`
+  );
+  process.exit(1);
+}
+
 const db = postgres(DB_URL, { max: 3 });
 let failures = 0;
 const assert = (name, cond, extra = '') => {
@@ -78,7 +87,7 @@ const assert = (name, cond, extra = '') => {
 async function req(pathname, { method = 'GET', body, token, rawBody, headers: extraHeaders } = {}) {
   const headers = { ...(extraHeaders || {}) };
   if (body !== undefined || rawBody !== undefined) headers['Content-Type'] = 'application/json';
-  if (token) headers.Cookie = `auth-token=${token}`;
+  if (token) headers.Cookie = `__Host-auth-token=${token}; auth-token=${token}`;
   const res = await fetch(BASE + pathname, {
     method,
     headers,
@@ -109,26 +118,32 @@ async function login(identifier, password) {
 const superHash = await bcrypt.hash('SuperPass123', 10);
 const auditHash = await bcrypt.hash('AuditPass123', 10);
 
-// 审计日志是 append-only：仅在一次性数据库中临时禁用 trigger 以便清空
-try {
-  await db`ALTER TABLE audit_logs DISABLE TRIGGER trg_audit_logs_no_mutation`;
-} catch {
-  // 旧库可能还没有该 trigger
-}
+// 审计日志是 append-only：仅在一次性数据库中临时禁用 trigger 以便清空。
+// DDL 与删除放在同一事务中，异常时会自动恢复 trigger 状态。
+const triggerRows = await db`
+  SELECT 1 FROM pg_trigger
+  WHERE tgname = 'trg_audit_logs_no_mutation' AND NOT tgisinternal
+  LIMIT 1
+`;
+const hasAuditTrigger = triggerRows.length > 0;
 
-await db`DELETE FROM audit_logs`;
-await db`DELETE FROM certificates`;
-await db`DELETE FROM complaints`;
-await db`DELETE FROM dealers`;
-await db`DELETE FROM profiles`;
-await db`DELETE FROM login_rate_limits`;
-await db`DELETE FROM action_rate_limits`;
+await db.begin(async (tx) => {
+  if (hasAuditTrigger) {
+    await tx`ALTER TABLE audit_logs DISABLE TRIGGER trg_audit_logs_no_mutation`;
+  }
 
-try {
-  await db`ALTER TABLE audit_logs ENABLE TRIGGER trg_audit_logs_no_mutation`;
-} catch {
-  // 旧库可能还没有该 trigger
-}
+  await tx`DELETE FROM audit_logs`;
+  await tx`DELETE FROM certificates`;
+  await tx`DELETE FROM complaints`;
+  await tx`DELETE FROM dealers`;
+  await tx`DELETE FROM profiles`;
+  await tx`DELETE FROM login_rate_limits`;
+  await tx`DELETE FROM action_rate_limits`;
+
+  if (hasAuditTrigger) {
+    await tx`ALTER TABLE audit_logs ENABLE TRIGGER trg_audit_logs_no_mutation`;
+  }
+});
 
 const [superAdmin] = await db`
   INSERT INTO profiles (username, full_name, email, password_hash, role, is_first_login)

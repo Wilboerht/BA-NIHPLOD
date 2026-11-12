@@ -312,6 +312,7 @@ function AdminLoginForm() {
                       autoComplete="username"
                       disabled={isLoading}
                       placeholder="用户名"
+                      aria-label="用户名"
                       aria-invalid={!!fieldErrors.username}
                       aria-describedby={fieldErrors.username ? "username-error" : undefined}
                       className={cn(
@@ -345,6 +346,7 @@ function AdminLoginForm() {
                       disabled={isLoading}
                       minLength={6}
                       placeholder="密码"
+                      aria-label="密码"
                       aria-invalid={!!fieldErrors.password}
                       aria-describedby={fieldErrors.password ? "password-error" : undefined}
                       className={cn(
@@ -391,6 +393,7 @@ function AdminLoginForm() {
                       }
                       disabled={isLoading}
                       placeholder="应急账号 TOTP（普通账号留空）"
+                      aria-label="应急账号 TOTP 验证码"
                       className="block w-full rounded-xl border border-slate-100 bg-slate-50 py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-300 focus:border-[#C6A87C]/40 focus:bg-white focus:ring-4 focus:ring-[#C6A87C]/15 disabled:opacity-50"
                     />
                   </div>
@@ -432,7 +435,7 @@ function AdminLoginForm() {
 
       {/* 页脚 */}
       <div className="absolute bottom-6 left-0 right-0 z-20 flex flex-col items-center gap-1 px-6">
-        <p className="text-[10px] font-light tracking-widest text-brand-charcoal/40">
+        <p className="text-[10px] font-light tracking-widest text-brand-charcoal/40" suppressHydrationWarning>
           &copy; {new Date().getFullYear()} NIHPLOD. All Rights Reserved.
         </p>
         <div className="flex items-center justify-center gap-2 text-[9px] font-light tracking-normal text-brand-charcoal/40 whitespace-nowrap">

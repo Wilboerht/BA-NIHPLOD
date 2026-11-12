@@ -76,9 +76,15 @@ function assertHttpsOrLoopback(name: string, value: string): void {
   }
 }
 
-function parseLocalLoginMode(raw: string | undefined): LocalLoginMode {
-  if (raw === "break-glass" || raw === "disabled" || raw === "all") return raw;
-  return "all";
+export function parseLocalLoginMode(raw: string | undefined): LocalLoginMode {
+  const value = raw?.trim();
+  if (!value) return "all";
+  if (value === "break-glass" || value === "disabled" || value === "all") return value;
+  // 安全开关不允许 fail-open：拼写错误时按最严格的 disabled 处理
+  console.error(
+    `[AdminSSO] ADMIN_SSO_LOCAL_LOGIN_MODE 非法值 ${JSON.stringify(raw)}，已按 disabled 处理`
+  );
+  return "disabled";
 }
 
 export function getAdminSsoConfig(): AdminSsoConfig {
@@ -110,6 +116,7 @@ export function getAdminSsoConfig(): AdminSsoConfig {
   }
 
   for (const [name, value] of [
+    ["ADMIN_SSO_AUTHORIZE_URL", authorizeUrl],
     ["ADMIN_SSO_TOKEN_URL", tokenUrl],
     ["ADMIN_SSO_STATUS_URL", statusUrl],
     ["ADMIN_SSO_JWKS_URL", jwksUrl],
@@ -122,6 +129,9 @@ export function getAdminSsoConfig(): AdminSsoConfig {
   const legacySecret = process.env.ADMIN_SSO_SECRET || null;
   const allowLegacyHs256 =
     Boolean(legacySecret) && process.env.ADMIN_SSO_ALLOW_LEGACY_HS256 === "true";
+  if (allowLegacyHs256 && legacySecret && legacySecret.length < 32) {
+    throw new Error("[AdminSSO] ADMIN_SSO_SECRET 至少需要 32 位");
+  }
 
   return {
     enabled,

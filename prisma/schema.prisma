@@ -146,7 +146,6 @@ model Certificate {
   @@index([status])
   @@index([dealer_id])
   @@index([end_date])
-  @@index([cert_number])
   @@index([status, end_date])
   @@index([status, created_at])
   @@index([deleted_at])
@@ -161,7 +160,7 @@ model Complaint {
   description        String
   channel            String?
   evidence_image_url  String? // 兼容旧数据，已废弃
-  evidence_image_urls String[]
+  evidence_image_urls String[]        @default([])
   status             ComplaintStatus @default(PENDING)
   handler_id         String?         @db.Uuid
   review_note        String?
@@ -224,7 +223,7 @@ model AuditLog {
   // 关系
   certificate Certificate? @relation(fields: [certificate_id], references: [id], onDelete: SetNull)
   complaint   Complaint?   @relation(fields: [complaint_id], references: [id], onDelete: SetNull)
-  actor       Profile?    @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  actor       Profile?    @relation(fields: [actor_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@map("audit_logs")
   @@index([certificate_id])

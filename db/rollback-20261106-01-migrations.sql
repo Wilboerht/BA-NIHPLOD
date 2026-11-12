@@ -20,5 +20,14 @@ CREATE INDEX IF NOT EXISTS audit_logs_certificate_id_idx ON audit_logs(certifica
 CREATE INDEX IF NOT EXISTS audit_logs_complaint_id_idx ON audit_logs(complaint_id);
 
 DROP INDEX IF EXISTS idx_certificates_status_start_end;
+DROP INDEX IF EXISTS idx_profiles_deleted_at;
+
+-- 从迁移 ledger 中移除，允许修复后重新执行
+DO $$
+BEGIN
+    IF to_regclass('public.schema_migrations') IS NOT NULL THEN
+        DELETE FROM schema_migrations WHERE filename = 'migrate-20261106-01-idempotent-columns.sql';
+    END IF;
+END $$;
 
 COMMIT;

@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
     // 不允许在 BA 重置主站 SSO 影子账号密码
     const targetRows = await sql`
-      SELECT auth_source FROM profiles
+      SELECT auth_source, role FROM profiles
       WHERE id = ${userId} AND deleted_at IS NULL
       LIMIT 1
     `;
@@ -59,6 +59,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: '该账号由主站统一管理，请在主站重置密码', code: 'MANAGED_BY_MAIN_SITE' },
         { status: 409 }
+      );
+    }
+    // 防止超管横向接管：不允许重置其他 SUPER_ADMIN 的密码
+    if (targetRows[0].role === 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: '不能重置超级管理员账号的密码' },
+        { status: 403 }
       );
     }
 
@@ -72,7 +79,10 @@ export async function POST(req: Request) {
             is_first_login = true,
             updated_at = NOW(),
             token_version = token_version + 1
-        WHERE id = ${userId} AND deleted_at IS NULL
+        WHERE id = ${userId}
+          AND deleted_at IS NULL
+          AND role <> 'SUPER_ADMIN'
+          AND auth_source <> 'sso'
         RETURNING id, username, full_name
       `;
       if (!result || result.length === 0) {

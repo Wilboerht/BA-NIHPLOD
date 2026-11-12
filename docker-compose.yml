@@ -7,13 +7,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: nihplod
-      POSTGRES_PASSWORD: devpassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       POSTGRES_DB: ba_nihplod_db
       POSTGRES_HOST_AUTH_METHOD: md5
       TZ: Asia/Shanghai
       PGTZ: Asia/Shanghai
     ports:
-      - "5433:5432"
+      # 仅绑定本机回环，避免开发库暴露到局域网/公网
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

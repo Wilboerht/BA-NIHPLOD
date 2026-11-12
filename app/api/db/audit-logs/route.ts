@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
+    const page = Math.min(Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1), 10000);
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50', 10) || 1, 1), 100);
 
     const rawCategory = searchParams.get('category');
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: '无效的日志分类' }, { status: 400 });
     }
     const category = rawCategory || undefined;
-    const q = searchParams.get('q')?.trim() || undefined;
+    const q = searchParams.get('q')?.trim().slice(0, 200) || undefined;
 
     const { data, total, error } = await getAuditLogs(page, pageSize, category, q);
 

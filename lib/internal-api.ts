@@ -36,20 +36,36 @@ export function getInternalApiKeys(): ParsedKeys {
       const parsed = JSON.parse(envValue) as InternalApiKeyConfig[];
       if (Array.isArray(parsed)) {
         for (const item of parsed) {
-          if (!item?.project || !item?.key || !item?.secret) continue;
-          if (item.secret.length < MIN_SECRET_LENGTH) continue;
+          if (!item?.project || !item?.key || !item?.secret) {
+            console.error('[internal-api] INTERNAL_API_KEYS 存在缺少 project/key/secret 的条目，已忽略');
+            continue;
+          }
+          if (item.secret.length < MIN_SECRET_LENGTH) {
+            console.error(
+              `[internal-api] INTERNAL_API_KEYS 中 key=${item.key} 的 secret 少于 ${MIN_SECRET_LENGTH} 字符，已忽略`
+            );
+            continue;
+          }
           const previousSecrets = Array.isArray(item.previousSecrets)
             ? item.previousSecrets.filter(
                 (secret): secret is string =>
-                  typeof secret === "string" && secret.length >= MIN_SECRET_LENGTH
+                  typeof secret === 'string' && secret.length >= MIN_SECRET_LENGTH
               )
             : undefined;
           keys.set(item.key, { ...item, previousSecrets });
         }
       }
-    } catch {
-      // 解析失败按未配置处理
+    } catch (err) {
+      console.error(
+        '[internal-api] INTERNAL_API_KEYS 不是合法 JSON，已按未配置处理:',
+        err instanceof Error ? err.message : String(err)
+      );
     }
+  }
+  if (!envValue) {
+    console.warn('[internal-api] INTERNAL_API_KEYS 未配置，内部 API 与投诉通知将不可用');
+  } else if (keys.size === 0) {
+    console.error('[internal-api] INTERNAL_API_KEYS 中没有可用条目（secret 至少 32 字符）');
   }
   cachedParsedKeys = { keys };
   lastEnvValue = envValue;

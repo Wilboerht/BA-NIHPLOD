@@ -119,9 +119,10 @@ export default function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">当前密码</label>
+                  <label htmlFor="old-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">当前密码</label>
                   <div className="relative">
                     <input
+                      id="old-password"
                       type={showOldPassword ? "text" : "password"}
                       required
                       placeholder="请输入当前密码"
@@ -132,6 +133,7 @@ export default function ResetPasswordPage() {
                     <button
                       type="button"
                       onClick={() => setShowOldPassword(!showOldPassword)}
+                      aria-label={showOldPassword ? "隐藏当前密码" : "显示当前密码"}
                       className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-slate-900 transition-colors"
                     >
                       {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -141,9 +143,10 @@ export default function ResetPasswordPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">设置新密码</label>
+                    <label htmlFor="new-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">设置新密码</label>
                     <div className="relative">
                       <input 
+                        id="new-password"
                         type={showPassword ? "text" : "password"} 
                         required 
                         placeholder="请输入新密码"
@@ -154,6 +157,7 @@ export default function ResetPasswordPage() {
                       <button 
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? "隐藏新密码" : "显示新密码"}
                         className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-slate-900 transition-colors"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -162,9 +166,10 @@ export default function ResetPasswordPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">确认新密码</label>
+                    <label htmlFor="confirm-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">确认新密码</label>
                     <div className="relative">
                       <input 
+                        id="confirm-password"
                         type={showPassword ? "text" : "password"} 
                         required 
                         placeholder="再次输入以确认"

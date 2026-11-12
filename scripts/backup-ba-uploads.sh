@@ -15,17 +15,28 @@ set -euo pipefail
 umask 077
 
 ENV_FILE="${BA_ENV_FILE:-/var/www/BA-NIHPLOD/.env.local}"
-if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
-fi
 
-APP_DIR="${BA_APP_DIR:-/var/www/BA-NIHPLOD}"
-DEST="${BA_UPLOAD_BACKUP_DIR:-/var/backups/ba}"
-RETENTION_DAYS="${BA_UPLOAD_BACKUP_RETENTION_DAYS:-30}"
-OFFSITE_TARGET="${BA_OFFSITE_TARGET:-}"
+# 只解析白名单键，绝不 source .env.local（避免配置文件中的命令被执行）
+read_env_value() {
+  local key="$1"
+  [[ -f "$ENV_FILE" ]] || return 0
+  local line
+  line="$(grep -E "^[[:space:]]*${key}=" "$ENV_FILE" | tail -n 1 || true)"
+  [[ -n "$line" ]] || return 0
+  local value="${line#*=}"
+  value="${value%$'\r'}"
+  value="${value#\"}"; value="${value%\"}"
+  value="${value#\'}"; value="${value%\'}"
+  printf '%s' "$value"
+}
+
+APP_DIR="${BA_APP_DIR:-$(read_env_value BA_APP_DIR)}"
+APP_DIR="${APP_DIR:-/var/www/BA-NIHPLOD}"
+DEST="${BA_UPLOAD_BACKUP_DIR:-$(read_env_value BA_UPLOAD_BACKUP_DIR)}"
+DEST="${DEST:-/var/backups/ba}"
+RETENTION_DAYS="${BA_UPLOAD_BACKUP_RETENTION_DAYS:-$(read_env_value BA_UPLOAD_BACKUP_RETENTION_DAYS)}"
+RETENTION_DAYS="${RETENTION_DAYS:-30}"
+OFFSITE_TARGET="${BA_OFFSITE_TARGET:-$(read_env_value BA_OFFSITE_TARGET)}"
 
 mkdir -p "$DEST"
 chmod 700 "$DEST"

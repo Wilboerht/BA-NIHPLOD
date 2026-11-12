@@ -48,12 +48,28 @@ if (password.length < 16) {
 const sql = postgres(databaseUrl);
 const passwordHash = await bcrypt.hash(password, 12);
 
+async function writeBreakGlassAudit(action, profileId, targetUsername) {
+  if (!profileId) return;
+  try {
+    await sql`
+      INSERT INTO audit_logs (
+        target_type, target_id, actor_role, actor_name, action, comment, reason
+      ) VALUES (
+        'profile', ${profileId}, 'SYSTEM', 'initBreakGlassAdmin',
+        ${action}, ${`应急管理员账号 ${targetUsername}`}, 'break_glass_init'
+      )
+    `;
+  } catch (err) {
+    console.warn('⚠️  审计日志写入失败:', err instanceof Error ? err.message : err);
+  }
+}
+
 try {
   const existing = await sql`
     SELECT id FROM profiles WHERE username = ${username} LIMIT 1
   `;
   if (existing.length > 0) {
-    await sql`
+    const updated = await sql`
       UPDATE profiles
       SET password_hash = ${passwordHash},
           full_name = 'BA 应急管理员',
@@ -69,10 +85,12 @@ try {
           token_version = token_version + 1,
           updated_at = NOW()
       WHERE id = ${existing[0].id}
+      RETURNING id
     `;
+    await writeBreakGlassAudit('INIT_BREAK_GLASS_RESET', updated[0]?.id ?? existing[0].id, username);
     console.log(`已更新本地应急账号：${username}`);
   } else {
-    await sql`
+    const inserted = await sql`
       INSERT INTO profiles (
         username, full_name, email, password_hash, role,
         is_first_login, is_banned, token_version, auth_source
@@ -80,7 +98,9 @@ try {
         ${username}, 'BA 应急管理员', NULL, ${passwordHash}, 'SUPER_ADMIN',
         FALSE, FALSE, 0, 'local'
       )
+      RETURNING id
     `;
+    await writeBreakGlassAudit('INIT_BREAK_GLASS_CREATE', inserted[0]?.id, username);
     console.log(`已创建本地应急账号：${username}`);
   }
 
@@ -90,6 +110,7 @@ try {
   console.log(`BA_BREAK_GLASS_USERNAME="${username}"`);
   console.log(`BA_BREAK_GLASS_TOTP_SECRET="${totpSecret}"`);
   console.log("");
+  console.log("⚠️  以下密码/TOTP 密钥会输出到终端，请勿在 CI 或日志采集环境中执行本脚本");
   console.log("应急账号密码（只显示一次，请立即保存到密码管理器）：");
   console.log(password);
   console.log("");

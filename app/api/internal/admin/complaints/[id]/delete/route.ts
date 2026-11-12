@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@/lib/db";
-import { authenticateInternalApi } from "@/lib/internal-auth";
+import { authenticateInternalApi, isMainSiteSuperAdminRole } from "@/lib/internal-auth";
 import { writeAudit } from "@/lib/audit";
 import { isUuid } from "@/lib/validation";
 import { logger } from "@/lib/logger";
@@ -52,6 +52,13 @@ export async function POST(
   }
 
   const { actor } = parsed.data;
+
+  if (!isMainSiteSuperAdminRole(actor.role)) {
+    return NextResponse.json(
+      { success: false, error: { code: "FORBIDDEN", message: "仅主站超级管理员可删除举报" } },
+      { status: 403 }
+    );
+  }
 
   try {
     const result = await sql.begin(async (tx) => {

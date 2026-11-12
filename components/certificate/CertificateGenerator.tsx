@@ -3,12 +3,21 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Download, CheckCircle2, XCircle, X, ZoomIn, ZoomOut, File, FileImage } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import jsPDF from 'jspdf';
-import QRCode from "qrcode";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
+import { getDateISOInBusinessTimeZone } from "@/lib/date";
+
+function buildDefaultDuration(): string {
+  const today = getDateISOInBusinessTimeZone();
+  const [year, month, day] = today.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const endDate = new Date(Date.UTC(year, month - 1, day));
+  endDate.setUTCMonth(endDate.getUTCMonth() + 1);
+  const end = `${endDate.getUTCFullYear()}-${String(endDate.getUTCMonth() + 1).padStart(2, "0")}-${String(endDate.getUTCDate()).padStart(2, "0")}`;
+  return `${today.replace(/-/g, ".")} - ${end.replace(/-/g, ".")}`;
+}
 
 export interface CertData {
   id?: string;
@@ -91,14 +100,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     shopName: "",
     shopLabel: "店铺或平台名称",
     scopeText: `予以下渠道:\n\n运营我司代理的品牌 ${BRAND_NAME} (${BRAND_NAME_CN})\n全系列产品的 [合格经销资格]\n负责该品牌产品在上述相关渠道的商务推广及售后服务`,
-    duration: (() => {
-      const now = new Date();
-      const start = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
-      const endDate = new Date(now);
-      endDate.setMonth(endDate.getMonth() + 1);
-      const end = `${endDate.getFullYear()}.${String(endDate.getMonth() + 1).padStart(2, '0')}.${String(endDate.getDate()).padStart(2, '0')}`;
-      return `${start} - ${end}`;
-    })(),
+    duration: buildDefaultDuration(),
     authorizer: COMPANY_FULL_NAME,
     sealImage: "",
     phone: "",
@@ -125,6 +127,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const renderRequestId = useRef(0);
   const renderedKeyRef = useRef<string | null>(null);
   const submittedRef = useRef(false);
+  const successTimerRef = useRef<number | null>(null);
   const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 8) : Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0')).toUpperCase()}`);
   const renderKey = JSON.stringify({ data, isFontLoaded, isIssued, isVoided, showPending, includeQrCode });
 
@@ -132,6 +135,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     document.fonts.ready.then(() => {
       setIsFontLoaded(true);
     });
+  }, []);
+
+  useEffect(() => () => {
+    if (successTimerRef.current !== null) {
+      window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -451,6 +461,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       const qrX = leftMargin;
       const qrY = bottomAlignY - qrSize - 12 * scale;
       try {
+        const { default: QRCode } = await import("qrcode");
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
         const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
         const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
@@ -568,6 +579,7 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     if (!canvas) return;
     try {
       setIsDownloading(true);
+      const { default: jsPDF } = await import("jspdf");
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pdfWidth = 210;
@@ -676,7 +688,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       }
       // 提交成功后锁定，防止在弹窗关闭前重复提交产生重复工单
       submittedRef.current = true;
-      if (onSuccess) setTimeout(onSuccess, 800);
+      if (onSuccess) {
+        if (successTimerRef.current !== null) window.clearTimeout(successTimerRef.current);
+        successTimerRef.current = window.setTimeout(() => {
+          successTimerRef.current = null;
+          onSuccess();
+        }, 800);
+      }
     } catch (err: unknown) {
       toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
     } finally {

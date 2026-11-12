@@ -55,10 +55,10 @@ export async function PUT(req: Request) {
       );
     }
 
-    // 只有 SUPER_ADMIN 能修改现有 SUPER_ADMIN 的角色
-    if (targetProfile?.role === 'SUPER_ADMIN' && currentAdmin?.role !== 'SUPER_ADMIN') {
+    // 不允许修改其他超级管理员的角色（避免超管横向降级）
+    if (targetProfile?.role === 'SUPER_ADMIN') {
       return NextResponse.json(
-        { error: '无权修改超级管理员的角色' },
+        { error: '不能修改超级管理员的角色' },
         { status: 403 }
       );
     }
@@ -84,7 +84,10 @@ export async function PUT(req: Request) {
           SET role = ${newRole},
               token_version = token_version + 1,
               updated_at = NOW()
-          WHERE id = ${userId} AND deleted_at IS NULL
+          WHERE id = ${userId}
+            AND deleted_at IS NULL
+            AND role <> 'SUPER_ADMIN'
+            AND auth_source <> 'sso'
           RETURNING id
         `;
         if (!updateResult || updateResult.length === 0) {

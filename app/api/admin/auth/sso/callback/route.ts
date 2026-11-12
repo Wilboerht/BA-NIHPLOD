@@ -19,8 +19,12 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-function publicOrigin(request: NextRequest): string {
-  return (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/+$/, "");
+// 生产环境必须显式配置 NEXT_PUBLIC_BASE_URL，避免 Host 头影响重定向目标
+function publicOrigin(request: NextRequest): string | null {
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  if (process.env.NODE_ENV === "production") return null;
+  return new URL(request.url).origin.replace(/\/+$/, "");
 }
 
 function safeReturnTo(value: string | null | undefined): string {
@@ -54,6 +58,12 @@ function redirectToLogin(origin: string, code: string): NextResponse {
 // 校验 state/PKCE → 主站换断言 → 验签 → upsert 影子账号 → 返回本地会话。
 export async function GET(request: NextRequest) {
   const origin = publicOrigin(request);
+  if (!origin) {
+    return NextResponse.json(
+      { error: "sso_not_configured", message: "NEXT_PUBLIC_BASE_URL 未配置" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  }
   const ip = getClientIpFromRequest(request);
   const allowed = await checkActionRateLimit(`admin-sso-callback:${ip}`, 30, 60 * 1000).catch(
     () => false

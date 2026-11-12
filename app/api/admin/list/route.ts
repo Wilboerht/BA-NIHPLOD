@@ -11,10 +11,10 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
+    const page = Math.min(Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1), 10000);
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50', 10) || 1, 1), 200);
     const offset = (page - 1) * pageSize;
-    const q = searchParams.get('q')?.trim() || '';
+    const q = searchParams.get('q')?.trim().slice(0, 200) || '';
     const likePattern = q ? buildContainsPattern(q) : null;
     const searchCondition = likePattern
       ? sql` AND (full_name ILIKE ${likePattern} OR username ILIKE ${likePattern} OR phone ILIKE ${likePattern})`

@@ -77,13 +77,20 @@ export async function POST(req: Request) {
     try {
       const isBanned = action === "ban";
       await sql.begin(async (tx) => {
-        await tx`
+        const updateResult = await tx`
           UPDATE profiles
           SET is_banned = ${isBanned},
               token_version = token_version + 1,
               updated_at = NOW()
-          WHERE id = ${profileId} AND deleted_at IS NULL
+          WHERE id = ${profileId}
+            AND deleted_at IS NULL
+            AND role <> 'SUPER_ADMIN'
+            AND auth_source <> 'sso'
+          RETURNING id
         `;
+        if (!updateResult || updateResult.length === 0) {
+          throw new Error('TARGET_CHANGED');
+        }
         await writeAudit(tx, {
           actor: actorFromUser(adminUser),
           action: isBanned ? 'BAN_USER' : 'UNBAN_USER',
@@ -103,6 +110,12 @@ export async function POST(req: Request) {
       });
     } catch (err: unknown) {
       console.error("[ban-user] 数据库操作失败:", err);
+      if (err instanceof Error && err.message === 'TARGET_CHANGED') {
+        return NextResponse.json(
+          { error: '目标账号状态已变更，请刷新后重试' },
+          { status: 409 }
+        );
+      }
       const errorMessage = err instanceof Error ? err.message : String(err);
       const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(

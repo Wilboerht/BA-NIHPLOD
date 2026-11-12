@@ -562,18 +562,23 @@ export default function AdminsManagementPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 15 }}
               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="create-user-title"
               className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100/80"
             >
               {/* 弹窗头部 */}
               <div className="px-10 pt-12 pb-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 className="text-xl font-black text-slate-900 tracking-[0.05em]">开通管理权限</h2>
+                    <h2 id="create-user-title" className="text-xl font-black text-slate-900 tracking-[0.05em]">开通管理权限</h2>
                     <p className="text-[12px] text-slate-400 font-medium tracking-wide">配置新成员的访问凭标与职裁范围</p>
                   </div>
                   <button
                     onClick={closeCreate}
                     disabled={isSubmitting}
+                    type="button"
+                    aria-label="关闭"
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
                   >
                     <X size={18} strokeWidth={2.5} />
@@ -586,8 +591,9 @@ export default function AdminsManagementPage() {
                 <div className="space-y-5">
                   {/* 姓名 */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">真实姓名</label>
+                    <label htmlFor="create-full-name" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">真实姓名</label>
                     <input
+                      id="create-full-name"
                       ref={fullNameRef}
                       type="text"
                       required
@@ -601,8 +607,9 @@ export default function AdminsManagementPage() {
 
                   {/* 用户名 */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">系统识别号 (USERNAME)</label>
+                    <label htmlFor="create-username" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">系统识别号 (USERNAME)</label>
                     <input
+                      id="create-username"
                       type="text"
                       required
                       placeholder="zhangsan@admin.nihplod.cn"
@@ -615,9 +622,10 @@ export default function AdminsManagementPage() {
 
                   {/* 密码 */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">初始登录密码</label>
+                    <label htmlFor="create-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">初始登录密码</label>
                     <div className="relative">
                       <input
+                        id="create-password"
                         type={showPwd ? "text" : "password"}
                         required
                         minLength={8}
@@ -630,6 +638,7 @@ export default function AdminsManagementPage() {
                       <button
                         type="button"
                         onClick={() => setShowPwd(v => !v)}
+                        aria-label={showPwd ? "隐藏密码" : "显示密码"}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
                       >
                         {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -639,14 +648,15 @@ export default function AdminsManagementPage() {
 
                   {/* 角色 */}
                   <div className="space-y-2.5 pt-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">角色权限分配</label>
-                    <div className="space-y-2.5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1" id="create-role-label">角色权限分配</label>
+                    <div className="space-y-2.5" role="group" aria-labelledby="create-role-label">
                       {ROLE_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
                           type="button"
                           onClick={() => setForm(f => ({ ...f, role: opt.value }))}
                           disabled={isSubmitting || !!createSuccess}
+                          aria-pressed={form.role === opt.value}
                           className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left ${
                             form.role === opt.value
                               ? "border-slate-900 bg-slate-900/5 shadow-sm"
@@ -729,12 +739,15 @@ export default function AdminsManagementPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 15 }}
               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reset-password-title"
               className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100/80"
             >
               <div className="px-10 pt-12 pb-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 className="text-xl font-black text-slate-900 tracking-[0.05em]">重置登录密码</h2>
+                    <h2 id="reset-password-title" className="text-xl font-black text-slate-900 tracking-[0.05em]">重置登录密码</h2>
                     <p className="text-[12px] text-slate-400 font-medium tracking-wide">
                       为 <span className="text-slate-700 font-bold">{resetPwdTarget.full_name}</span> 强制设置新密码
                     </p>
@@ -742,6 +755,8 @@ export default function AdminsManagementPage() {
                   <button
                     onClick={closeResetPassword}
                     disabled={isResetting}
+                    type="button"
+                    aria-label="关闭"
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-90"
                   >
                     <X size={18} strokeWidth={2.5} />
@@ -752,9 +767,10 @@ export default function AdminsManagementPage() {
               <div className="px-10 pb-12 space-y-7">
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">新密码</label>
+                    <label htmlFor="reset-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">新密码</label>
                     <div className="relative">
                       <input
+                        id="reset-password"
                         ref={resetPwdRef}
                         type={showResetPwdVisible ? "text" : "password"}
                         placeholder="至少 8 位，含大小写字母和数字"
@@ -767,6 +783,7 @@ export default function AdminsManagementPage() {
                       <button
                         type="button"
                         onClick={() => setShowResetPwdVisible(v => !v)}
+                        aria-label={showResetPwdVisible ? "隐藏密码" : "显示密码"}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
                       >
                         {showResetPwdVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

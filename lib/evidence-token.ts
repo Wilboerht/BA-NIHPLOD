@@ -1,10 +1,23 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 const TTL_SECONDS = 5 * 60;
+const MIN_SECRET_LENGTH = 32;
+
+let warnedWeakSecret = false;
 
 function secret(): string | null {
-  const value = process.env.BA_EVIDENCE_TOKEN_SECRET;
-  return value && value.trim() ? value.trim() : null;
+  const value = process.env.BA_EVIDENCE_TOKEN_SECRET?.trim();
+  if (!value) return null;
+  if (value.length < MIN_SECRET_LENGTH) {
+    if (!warnedWeakSecret) {
+      warnedWeakSecret = true;
+      console.error(
+        `[evidence-token] BA_EVIDENCE_TOKEN_SECRET 至少需要 ${MIN_SECRET_LENGTH} 字符，证据签名 URL 已禁用`
+      );
+    }
+    return null;
+  }
+  return value;
 }
 
 function sign(payload: string): string {

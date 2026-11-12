@@ -3,10 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, ExternalLink, ShieldAlert, QrCode, ChevronDown, X } from "lucide-react";
 import { BRAND_NAME_CN } from "@/lib/config";
 
 export function WebsiteNavbar() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wechatExpanded, setWechatExpanded] = useState(false);
@@ -90,15 +93,21 @@ export function WebsiteNavbar() {
   }, [withLock]);
 
   const closeMenu = useCallback(() => {
-    withLock(() => setMobileMenuOpen(false));
-  }, [withLock]);
+    // 关闭不参与 420ms 打开防抖：打开后立即关闭必须生效
+    setMobileMenuOpen(false);
+  }, []);
 
-  const handleMenuAction = useCallback((eventName: string) => {
+  const handleMenuAction = useCallback((eventName: string, action: "scan" | "report") => {
     withLock(() => {
       setMobileMenuOpen(false);
-      window.dispatchEvent(new CustomEvent(eventName));
+      if (pathname === "/") {
+        window.dispatchEvent(new CustomEvent(eventName));
+      } else {
+        // 非首页没有弹窗监听器，跳回首页并自动打开对应弹窗
+        router.push(`/?action=${action}`);
+      }
     });
-  }, [withLock]);
+  }, [pathname, router, withLock]);
 
   return (
     <>
@@ -233,7 +242,7 @@ export function WebsiteNavbar() {
             {/* 菜单项 */}
             <nav className="flex flex-col gap-1 mt-auto pb-6">
               <button
-                onClick={() => handleMenuAction('open-scanner-modal')}
+                onClick={() => handleMenuAction('open-scanner-modal', 'scan')}
                 className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
               >
                 <QrCode className="w-4 h-4" />
@@ -241,7 +250,7 @@ export function WebsiteNavbar() {
               </button>
 
               <button
-                onClick={() => handleMenuAction('open-report-modal')}
+                onClick={() => handleMenuAction('open-report-modal', 'report')}
                 className="flex items-center gap-3 px-4 py-3.5 text-[15px] font-medium tracking-[0.1em] text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
               >
                 <ShieldAlert className="w-4 h-4" />

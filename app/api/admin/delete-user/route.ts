@@ -83,7 +83,10 @@ export async function POST(req: Request) {
             phone = ${originalPhone ? originalPhone + suffix : null},
             token_version = token_version + 1,
             updated_at = NOW()
-        WHERE id = ${userId} AND deleted_at IS NULL
+        WHERE id = ${userId}
+          AND deleted_at IS NULL
+          AND role <> 'SUPER_ADMIN'
+          AND auth_source <> 'sso'
         RETURNING id
       `;
       if (!updateResult || updateResult.length === 0) {

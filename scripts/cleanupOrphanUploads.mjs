@@ -86,11 +86,22 @@ function resolveInside(root, relative) {
 
 function urlToFilePath(url) {
   if (typeof url !== 'string') return null;
-  if (url.startsWith('/uploads/')) {
-    return resolveInside(publicRoot, url.slice('/uploads/'.length));
+
+  // 兼容历史绝对 URL（http(s)://host/uploads/... 或 /api/files/...）
+  let pathname = url;
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      pathname = new URL(url).pathname;
+    } catch {
+      return null;
+    }
   }
-  if (url.startsWith('/api/files/')) {
-    const relative = url.slice('/api/files/'.length);
+
+  if (pathname.startsWith('/uploads/')) {
+    return resolveInside(publicRoot, pathname.slice('/uploads/'.length));
+  }
+  if (pathname.startsWith('/api/files/')) {
+    const relative = pathname.slice('/api/files/'.length);
     if (!PRIVATE_EVIDENCE_PATTERN.test(relative)) return null;
     return resolveInside(privateRoot, relative);
   }
@@ -183,6 +194,27 @@ try {
       console.log(`   - 工单 ${row.id}: ${urls.length} 个证据`);
       if (!shouldDelete) continue;
 
+      // 先更新数据库，再删除文件：即使删文件失败，也只会留下可被孤儿清理回收的文件，
+      // 不会出现数据库仍引用已删除文件的悬空状态。
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE complaints
+          SET evidence_image_url = NULL,
+              evidence_image_urls = '{}',
+              updated_at = NOW()
+          WHERE id = ${row.id}
+        `;
+        await tx`
+          INSERT INTO audit_logs (
+            complaint_id, complaint_ref, action, target_type, target_id,
+            comment, reason, created_at
+          ) VALUES (
+            ${row.id}, ${row.id}, 'PURGE_COMPLAINT_EVIDENCE', 'complaint', ${row.id},
+            ${`按保留策略清理 ${urls.length} 个证据文件`}, 'retention_cleanup', NOW()
+          )
+        `;
+      });
+
       for (const url of new Set(urls)) {
         const file = urlToFilePath(url);
         if (!file) continue;
@@ -198,14 +230,6 @@ try {
           if (err.code !== 'ENOENT') console.error(`删除失败 ${file}:`, err.message);
         });
       }
-
-      await sql`
-        UPDATE complaints
-        SET evidence_image_url = NULL,
-            evidence_image_urls = '{}',
-            updated_at = NOW()
-        WHERE id = ${row.id}
-      `;
     }
 
     if (!shouldDelete) {

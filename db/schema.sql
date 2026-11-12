@@ -238,15 +238,16 @@ BEGIN
         RAISE EXCEPTION 'audit_logs is append-only; DELETE is not allowed';
     END IF;
 
-    -- 允许 FK ON DELETE SET NULL 只把 certificate_id/complaint_id 置空
+    -- 允许 FK ON DELETE SET NULL 只把 certificate_id/complaint_id/actor_id 置空
     IF TG_OP = 'UPDATE'
+       AND (to_jsonb(NEW) - 'certificate_id' - 'complaint_id' - 'actor_id')
+           IS NOT DISTINCT FROM
+           (to_jsonb(OLD) - 'certificate_id' - 'complaint_id' - 'actor_id')
        AND (
            (NEW.certificate_id IS NULL AND OLD.certificate_id IS NOT NULL)
            OR (NEW.complaint_id IS NULL AND OLD.complaint_id IS NOT NULL)
+           OR (NEW.actor_id IS NULL AND OLD.actor_id IS NOT NULL)
        )
-       AND (to_jsonb(NEW) - 'certificate_id' - 'complaint_id')
-           IS NOT DISTINCT FROM
-           (to_jsonb(OLD) - 'certificate_id' - 'complaint_id')
     THEN
         RETURN NEW;
     END IF;
@@ -269,25 +270,36 @@ CREATE TRIGGER trg_audit_logs_no_mutation
 CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status);
 CREATE INDEX IF NOT EXISTS idx_certificates_dealer_id ON certificates(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_end_date ON certificates(end_date);
-CREATE INDEX IF NOT EXISTS idx_certificates_cert_number ON certificates(cert_number);
 CREATE INDEX IF NOT EXISTS idx_certificates_status_end_date ON certificates(status, end_date);
 CREATE INDEX IF NOT EXISTS idx_certificates_status_start_end
     ON certificates(status, start_date, end_date) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_certificates_active_status_created
     ON certificates(status, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_certificates_created_at
+    ON certificates(created_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_certificates_deleted_at ON certificates(deleted_at);
 
 -- profiles 表索引
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
 
 -- complaints 表索引
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 CREATE INDEX IF NOT EXISTS idx_complaints_active_status_created
     ON complaints(status, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_complaints_created_at
+    ON complaints(created_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_complaints_deleted_at ON complaints(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_complaints_description_trgm
+    ON complaints USING gin (description gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_complaints_channel_trgm
+    ON complaints USING gin (channel gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_complaints_contact_info_trgm
+    ON complaints USING gin (contact_info gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_complaints_id_text_trgm
+    ON complaints USING gin ((id::text) gin_trgm_ops);
 
 -- dealers 表索引
-CREATE INDEX IF NOT EXISTS idx_dealers_phone ON dealers(phone);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_dealers_phone_company ON dealers(phone, company_name);
 
 -- audit_logs 表索引
@@ -306,8 +318,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action_created
 CREATE INDEX IF NOT EXISTS idx_audit_logs_request_id ON audit_logs(request_id);
 
 -- action_rate_limits 表索引
-CREATE INDEX IF NOT EXISTS idx_action_rate_limits_window ON action_rate_limits(window_start);
 CREATE INDEX IF NOT EXISTS idx_action_rate_limits_expires ON action_rate_limits(expires_at);
+
+-- login_rate_limits 表索引
+CREATE INDEX IF NOT EXISTS idx_login_rate_limits_window_start ON login_rate_limits(window_start);
 
 -- 2026-07-14: 全文搜索性能优化（三角模糊匹配索引）
 -- 依赖 pg_trgm 扩展，需先 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -334,8 +348,12 @@ ALTER TABLE certificates ADD COLUMN IF NOT EXISTS search_count INT NOT NULL DEFA
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
     filename   TEXT PRIMARY KEY,
-    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    checksum   TEXT
 );
+
+-- 兼容历史 schema_migrations（无 checksum 列）
+ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum TEXT;
 
 -- 2026-05-26: profiles 表添加 email 字段，用于邮件提醒
 -- 注意：email 和 deleted_at 的 ALTER TABLE 已移至 profiles 表创建后

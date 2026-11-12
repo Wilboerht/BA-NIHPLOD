@@ -19,11 +19,25 @@ DEST="${BA_DB_BACKUP_DIR:-/root/db-backups}"
 RETENTION_DAYS="${BA_DB_BACKUP_RETENTION_DAYS:-30}"
 OFFSITE_TARGET="${BA_OFFSITE_TARGET:-}"
 
-if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+# 只解析白名单键，绝不 source .env.local（避免配置文件中的命令被执行）
+read_env_value() {
+  local key="$1"
+  [[ -f "$ENV_FILE" ]] || return 0
+  local line
+  line="$(grep -E "^[[:space:]]*${key}=" "$ENV_FILE" | tail -n 1 || true)"
+  [[ -n "$line" ]] || return 0
+  local value="${line#*=}"
+  value="${value%$'\r'}"
+  value="${value#\"}"; value="${value%\"}"
+  value="${value#\'}"; value="${value%\'}"
+  printf '%s' "$value"
+}
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  DATABASE_URL="$(read_env_value DATABASE_URL)"
+fi
+if [[ -z "$OFFSITE_TARGET" ]]; then
+  OFFSITE_TARGET="$(read_env_value BA_OFFSITE_TARGET)"
 fi
 
 DATABASE_URL="${DATABASE_URL:-}"
@@ -32,8 +46,19 @@ if [[ -z "$DATABASE_URL" ]]; then
   exit 1
 fi
 
-# pg_dump 不接受 app 连接串里的 ?schema=public 查询参数
-DATABASE_URL="${DATABASE_URL%%\?*}"
+# pg_dump/libpq 不接受 app 连接串里的 ?schema=public，但需要保留 sslmode 等参数
+DATABASE_URL="$(
+  DATABASE_URL="$DATABASE_URL" node -e '
+    const raw = process.env.DATABASE_URL || "";
+    try {
+      const url = new URL(raw);
+      url.searchParams.delete("schema");
+      process.stdout.write(url.toString());
+    } catch {
+      process.stdout.write(raw);
+    }
+  '
+)"
 
 mkdir -p "$DEST"
 chmod 700 "$DEST"

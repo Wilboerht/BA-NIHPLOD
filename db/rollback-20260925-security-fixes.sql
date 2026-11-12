@@ -21,4 +21,12 @@ ALTER TABLE audit_logs DROP COLUMN IF EXISTS complaint_ref;
 -- 2. 删除 profiles.token_version
 ALTER TABLE profiles DROP COLUMN IF EXISTS token_version;
 
+-- 3. 从迁移 ledger 中移除，允许修复后重新执行
+DO $$
+BEGIN
+    IF to_regclass('public.schema_migrations') IS NOT NULL THEN
+        DELETE FROM schema_migrations WHERE filename = 'migrate-20260925-security-fixes.sql';
+    END IF;
+END $$;
+
 COMMIT;

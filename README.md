@@ -36,9 +36,9 @@ npm run init:admins
 ## 数据库
 
 - 结构基线：`db/schema.sql`（含索引、触发器与函数）
-- 增量迁移：`db/migrate-*.sql`，按文件名日期顺序执行，执行记录写入 `schema_migrations`
-- 回滚脚本：`db/rollback-*.sql`
-- Prisma schema：`prisma/schema.prisma`（仅用于生成客户端；生产环境禁止 `db:push`，请使用 `db/migrate-*.sql`）
+- 增量迁移：`db/migrate-*.sql`，按内置历史顺序（无日期前缀的旧迁移优先）和文件名排序执行，执行记录与 sha256 checksum 写入 `schema_migrations`
+- 回滚脚本：`db/rollback-*.sql`，同时会删除对应 `schema_migrations` 记录，便于修复后重新执行
+- Prisma schema：`prisma/schema.prisma`（仅用于生成客户端；生产环境禁止使用 `npx prisma db push`，请使用 `db/migrate-*.sql`）
 
 迁移执行器（推荐，自动跳过已应用、失败即回滚且不记录）：
 
@@ -95,7 +95,7 @@ ALTER DATABASE ba_nihplod_db SET timezone TO 'Asia/Shanghai';
 
 ### 迁移部署
 
-当前迁移包含 2026-09-25、2026-09-26、2026-10-27、2026-11-06 系列和 2026-11-07 的限流过期时间、审计搜索索引、Schema 漂移收敛迁移。线上已有 `schema_migrations` 时，不需要再执行 `--mark-applied`，直接按以下顺序：
+当前迁移包含 2026-09-25、2026-09-26、2026-10-27、2026-11-06 系列、2026-11-07 的限流过期时间、审计搜索索引、Schema 漂移收敛迁移，以及 2026-11-12 的 SSO/举报整合、审计触发器与索引迁移。迁移执行器会持有 advisory lock、校验 checksum，并把无显式事务的迁移与 ledger 写入放在同一事务中。线上已有 `schema_migrations` 时，不需要再执行 `--mark-applied`，直接按以下顺序：
 
 ```bash
 # 1. 先备份数据库和上传目录（以 postgres 身份导出，root 直接执行会因角色不存在而失败）
@@ -123,7 +123,7 @@ npm run db:migrate:apply -- \
   --mark-applied=migrate-sync-email.sql
 ```
 
-回滚：`db/rollback-20260926-audit-log-indexes.sql`、`db/rollback-20260925-security-fixes.sql`、`db/rollback-20261106-01-migrations.sql`（先回滚代码，再回滚数据库）。
+回滚：`db/rollback-20260926-audit-log-indexes.sql`、`db/rollback-20260925-security-fixes.sql`、`db/rollback-20261106-01-migrations.sql`（先回滚代码，再回滚数据库；回滚脚本会同步清理 `schema_migrations` 记录）。
 
 部署前只读核查脚本：`scripts/pre-deploy-check.sql`。
 
@@ -143,7 +143,7 @@ npm run migrate:evidence-private -- --apply --delete-old
 
 - `private/uploads` 存放投诉证据，只能通过管理员接口 `/api/files/complaints/...` 读取；
 - `MAX_PRIVATE_UPLOAD_BYTES` 默认 2GB，超出时匿名上传返回 507；
-- `UPLOAD_RETENTION_DAYS` 默认 180，供 `cleanup:uploads` 清理已关闭/软删除工单证据；
+- `UPLOAD_RETENTION_DAYS` 供 `cleanup:uploads` 清理已关闭/软删除工单证据；未设置时脚本默认 **0（不清理）**，模板建议设为 180；
 - `DB_STATEMENT_TIMEOUT_MS` 默认 15000，避免慢查询长期占用连接；
 - 历史公开证据可用 `npm run migrate:evidence-private -- --apply --delete-old` 迁移。
 
@@ -195,10 +195,12 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 ## 安全机制
 
 - JWT（HttpOnly Cookie，8 小时）签名校验 + 数据库二次校验（存在性、封禁状态、令牌版本）
+- 生产环境认证 Cookie 使用 `__Host-auth-token`（Secure/Path=/、无 Domain）；升级到该版本后旧会话需要重新登录
+- `CRON_SECRET` 至少 16 字符，`INTERNAL_API_KEYS` 与 `BA_EVIDENCE_TOKEN_SECRET` 至少 32 字符；未配置/过短时相关端点 fail-closed
 - 首次登录必须在服务端完成改密；`is_first_login=true` 时仅放行 `/api/auth/me` 与 `/api/auth/change-password`
 - 修改/重置密码后，`profiles.token_version` +1，旧 Token 立即失效（与时钟无关）
 - 角色变更/封禁也会 `token_version` +1，旧会话立即失效
-- 登录限流：仅统计失败次数、成功清零，5 分钟内最多 5 次失败（按 IP）；同一账号 5 分钟内最多 10 次失败
+- 登录限流：请求前原子计数（并发无法绕过）、成功清零，5 分钟内最多 5 次失败（按 IP）；同一账号 5 分钟内最多 10 次失败
 - 敏感操作限流：创建/删除账号、重置密码、封禁、证书操作、修改密码等
 - 行为限流按 key 独立保存过期时间，短窗口清理不会重置 24 小时上传限额
 - 账号管理类接口仅限 `SUPER_ADMIN`（`lib/auth.ts#requireSuperAdmin`）
@@ -225,13 +227,12 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 | `npm run lint` | ESLint 检查 |
 | `npm run db:generate` | 生成 Prisma Client |
 | `npm run db:migrate:apply` | 执行待应用的数据库迁移（支持 `-- --dry-run`） |
-| `npm run db:push` | 仅本地临时使用；**生产禁止**，会绕过 SQL 迁移/触发器/手工索引 |
 | `npm test` | 纯函数单元测试（校验/日期/魔数/IP/证书状态） |
 | `npm run test:e2e` | 端到端冒烟测试（必须显式 `--db` 一次性数据库 + 已启动的服务） |
 | `npm run migrate:evidence-private` | 将历史公开投诉证据迁移到 private（默认 dry-run，加 `-- --apply` 执行） |
 | `npm run backup:db` | 备份 BA 数据库（需要 `pg_dump`，默认保留 30 天） |
 | `npm run backup:uploads` | 备份 BA public/uploads + private 文件 |
-| `npm run cleanup:uploads` | 清理未引用文件；加 `-- --delete` 执行。默认保留最近 7 天；`UPLOAD_RETENTION_DAYS` 控制已关闭工单证据保留期 |
+| `npm run cleanup:uploads` | 清理未引用文件；加 `-- --delete` 执行。默认保留最近 7 天；`UPLOAD_RETENTION_DAYS`（未设置=0）控制已关闭工单证据保留期；清理证据会写审计日志 |
 | `npm run archive:audit -- --before=YYYY-MM-DD` | 归档指定日期前的审计日志；默认 dry-run，加 `--apply` 写入 JSONL 并删除数据库记录 |
 | `npm run list:admins` | 列出管理员账号 |
 | `npm run init:admins` | 初始化管理员账号（已存在账号默认跳过，不会重复重置密码/角色） |
@@ -246,7 +247,7 @@ AUTH_SECRET=test-auth-secret-at-least-32-characters-long \
 CRON_SECRET=test-cron-secret \
 npm run start -- -p 3999
 
-# 2. 另开终端执行（必须显式 --db；会清空目标库业务表，仅限本地一次性库）
+# 2. 另开终端执行（必须显式 --db 且库名包含 test/e2e/smoke/ci；会清空目标库业务表，仅限本地一次性库）
 npm run test:e2e -- --base http://127.0.0.1:3999 \
   --db postgresql://postgres@127.0.0.1:55432/sql_test \
   --cron-secret=test-cron-secret

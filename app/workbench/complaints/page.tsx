@@ -42,6 +42,8 @@ interface AuditLog {
   created_at: string;
   actor_name?: string;
   actor_username?: string;
+  actor_name_current?: string;
+  actor_username_current?: string;
 }
 
 export default function ComplaintsPage() {
@@ -271,17 +273,18 @@ export default function ComplaintsPage() {
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
         <div className="px-0 py-6 border-b border-slate-100/50 flex items-center justify-between bg-transparent">
           <div className="flex items-center gap-6 text-slate-500 font-semibold text-[13px] ml-2">
-             <span onClick={() => { setActiveTab("ALL"); setPage(1); }} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>全部工单</span>
-             <span onClick={() => { setActiveTab("PENDING"); setPage(1); }} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>待处理</span>
-             <span onClick={() => { setActiveTab("INVESTIGATING"); setPage(1); }} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>调查中</span>
-             <span onClick={() => { setActiveTab("RESOLVED"); setPage(1); }} className={`${activeTab === "RESOLVED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已解决</span>
-             <span onClick={() => { setActiveTab("REJECTED"); setPage(1); }} className={`${activeTab === "REJECTED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer`}>已驳回</span>
+             <button type="button" onClick={() => { setActiveTab("ALL"); setPage(1); }} aria-pressed={activeTab === "ALL"} className={`${activeTab === "ALL" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer bg-transparent border-x-0 border-t-0`}>全部工单</button>
+             <button type="button" onClick={() => { setActiveTab("PENDING"); setPage(1); }} aria-pressed={activeTab === "PENDING"} className={`${activeTab === "PENDING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer bg-transparent border-x-0 border-t-0`}>待处理</button>
+             <button type="button" onClick={() => { setActiveTab("INVESTIGATING"); setPage(1); }} aria-pressed={activeTab === "INVESTIGATING"} className={`${activeTab === "INVESTIGATING" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer bg-transparent border-x-0 border-t-0`}>调查中</button>
+             <button type="button" onClick={() => { setActiveTab("RESOLVED"); setPage(1); }} aria-pressed={activeTab === "RESOLVED"} className={`${activeTab === "RESOLVED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer bg-transparent border-x-0 border-t-0`}>已解决</button>
+             <button type="button" onClick={() => { setActiveTab("REJECTED"); setPage(1); }} aria-pressed={activeTab === "REJECTED"} className={`${activeTab === "REJECTED" ? "text-slate-900 border-b-2 border-slate-900 pb-1" : "hover:text-slate-900 transition-colors"} cursor-pointer bg-transparent border-x-0 border-t-0`}>已驳回</button>
           </div>
           <div className="relative w-full max-w-sm">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="搜索工单号或涉事店铺..." 
+              aria-label="搜索工单号或涉事店铺"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50/50 border border-slate-100/50 rounded-xl pl-11 pr-5 py-2.5 text-[13px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-400"
@@ -405,6 +408,8 @@ export default function ComplaintsPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page <= 1}
+                type="button"
+                aria-label="上一页"
                 className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -412,6 +417,8 @@ export default function ComplaintsPage() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
+                type="button"
+                aria-label="下一页"
                 className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -429,10 +436,13 @@ export default function ComplaintsPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="证据图片预览"
             onClick={() => setSelectedImageUrls([])}
           >
             <div className="relative max-w-4xl w-full bg-white p-2 rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
-               <button onClick={() => setSelectedImageUrls([])} className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
+               <button onClick={() => setSelectedImageUrls([])} type="button" aria-label="关闭图片预览" className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors">
                  <X className="w-8 h-8" />
                </button>
                <div className="relative">
@@ -442,12 +452,16 @@ export default function ComplaintsPage() {
                    <>
                      <button
                        onClick={() => setSelectedImageIndex(i => i > 0 ? i - 1 : selectedImageUrls.length - 1)}
+                       type="button"
+                       aria-label="上一张证据"
                        className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
                      >
                        <ChevronLeft className="w-5 h-5 text-slate-700" />
                      </button>
                      <button
                        onClick={() => setSelectedImageIndex(i => i < selectedImageUrls.length - 1 ? i + 1 : 0)}
+                       type="button"
+                       aria-label="下一张证据"
                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors"
                      >
                        <ChevronRight className="w-5 h-5 text-slate-700" />
@@ -466,7 +480,7 @@ export default function ComplaintsPage() {
       {/* 审核面板模态框 */}
       <AnimatePresence>
         {activeReviewId && activeComplaint && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <motion.div 
                initial={{ opacity: 0 }} 
                animate={{ opacity: 1 }} 
@@ -478,12 +492,15 @@ export default function ComplaintsPage() {
                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.98, y: 10 }}
+               role="dialog"
+               aria-modal="true"
+               aria-labelledby="complaint-review-title"
                className="relative max-w-xl w-full bg-white rounded-[32px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" 
                onClick={e => e.stopPropagation()}
             >
                <div className="flex justify-between items-start px-8 md:px-10 pt-8 md:pt-10 pb-6 shrink-0">
                   <div className="space-y-1">
-                    <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <h3 id="complaint-review-title" className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                       <Megaphone className="w-5 h-5 text-rose-500" />
                       工单审核处理
                     </h3>
@@ -491,6 +508,8 @@ export default function ComplaintsPage() {
                   </div>
                   <button 
                     onClick={() => setActiveReviewId(null)} 
+                    type="button"
+                    aria-label="关闭工单审核"
                     className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-900"
                   >
                     <X className="w-6 h-6" />
@@ -574,7 +593,12 @@ export default function ComplaintsPage() {
                              <span className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</span>
                            </div>
                            {log.comment && <p className="text-slate-500">{log.comment}</p>}
-                           {log.actor_name && <p className="text-slate-400 text-[10px] mt-0.5">操作人: {log.actor_name}</p>}
+                           {(() => {
+                             const actorLabel = log.actor_name || log.actor_name_current || log.actor_username_current;
+                             return actorLabel ? (
+                               <p className="text-slate-400 text-[10px] mt-0.5">操作人: {actorLabel}</p>
+                             ) : null;
+                           })()}
                          </div>
                        ))}
                      </div>

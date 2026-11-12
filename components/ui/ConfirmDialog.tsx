@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { ConfirmOptions } from "@/hooks/useToast";
 
@@ -20,7 +21,46 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
   useEscapeKey(onCancel, isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusTimer = window.setTimeout(() => confirmButtonRef.current?.focus(), 30);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus?.({ preventScroll: true });
+    };
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -30,9 +70,6 @@ export default function ConfirmDialog({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[300] flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
           onClick={onCancel}
         >
           {/* Backdrop */}
@@ -40,6 +77,11 @@ export default function ConfirmDialog({
 
           {/* Dialog */}
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
             initial={{ opacity: 0, scale: 0.92, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 10 }}
@@ -49,6 +91,7 @@ export default function ConfirmDialog({
           >
             <button
               onClick={onCancel}
+              type="button"
               aria-label="关闭"
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
             >
@@ -60,20 +103,23 @@ export default function ConfirmDialog({
                 <AlertTriangle className="w-5 h-5 text-amber-500" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900 mb-1">{title}</h3>
-                <p className="text-sm text-slate-600 whitespace-pre-line">{message}</p>
+                <h3 id={titleId} className="text-lg font-bold text-slate-900 mb-1">{title}</h3>
+                <p id={descriptionId} className="text-sm text-slate-600 whitespace-pre-line">{message}</p>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
               <button
                 onClick={onCancel}
+                type="button"
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
               >
                 {cancelText}
               </button>
               <button
+                ref={confirmButtonRef}
                 onClick={onConfirm}
+                type="button"
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors"
               >
                 {confirmText}

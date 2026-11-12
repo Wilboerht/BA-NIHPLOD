@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@/lib/db";
-import { authenticateInternalApi } from "@/lib/internal-auth";
+import { authenticateInternalApi, isMainSiteSuperAdminRole } from "@/lib/internal-auth";
 import { writeAudit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 
@@ -56,6 +56,9 @@ export async function POST(request: Request) {
   }
 
   const { actor } = parsed;
+  if (!isMainSiteSuperAdminRole(actor.role)) {
+    return jsonError("FORBIDDEN", "仅主站超级管理员可重置应急账号密码", 403);
+  }
   const username = (process.env.BA_BREAK_GLASS_USERNAME || "ba-emergency").trim();
   const password = crypto.randomBytes(18).toString("base64url");
 

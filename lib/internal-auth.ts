@@ -21,6 +21,14 @@ function error(code: string, message: string, status: number): NextResponse {
   );
 }
 
+/**
+ * 内部 API 请求体中的 actor.role 来自主站断言；用于高风险操作的角色兜底校验。
+ */
+export function isMainSiteSuperAdminRole(role: string | null | undefined): boolean {
+  const normalized = (role || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "super_admin" || normalized === "superadmin";
+}
+
 export async function authenticateInternalApi(
   request: Request,
   path: string,

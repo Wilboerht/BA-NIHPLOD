@@ -14,8 +14,12 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-function publicOrigin(request: NextRequest): string {
-  return (process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/+$/, "");
+// 生产环境必须显式配置 NEXT_PUBLIC_BASE_URL，避免 Host 头影响重定向目标
+function publicOrigin(request: NextRequest): string | null {
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  if (process.env.NODE_ENV === "production") return null;
+  return new URL(request.url).origin.replace(/\/+$/, "");
 }
 
 function safeReturnTo(value: string | null): string {
@@ -36,6 +40,12 @@ function redirectToLogin(origin: string, code: string): NextResponse {
 // 生成 state + PKCE，302 到主站管理员授权端点。
 export async function GET(request: NextRequest) {
   const origin = publicOrigin(request);
+  if (!origin) {
+    return NextResponse.json(
+      { error: "sso_not_configured", message: "NEXT_PUBLIC_BASE_URL 未配置" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  }
   const ip = getClientIpFromRequest(request);
   const allowed = await checkActionRateLimit(`admin-sso-start:${ip}`, 30, 60 * 1000).catch(
     () => false

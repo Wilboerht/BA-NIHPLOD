@@ -593,6 +593,9 @@ export default function CertificatesPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="授权证书签发与调阅"
               className="absolute inset-0 bg-white flex flex-col overflow-hidden"
             >
               <div className="px-8 md:px-12 pt-8 pb-5 flex justify-between items-center bg-white shrink-0 border-b border-slate-100">

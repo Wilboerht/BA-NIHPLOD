@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { clearAuthCookie, verifyToken } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { actorFromUser, writeAudit } from '@/lib/audit';
+import { isSameOriginRequest } from '@/lib/api-utils';
 
 export async function POST(req: Request) {
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: '非法请求来源' }, { status: 403 });
+  }
   try {
     // 将当前 Token 加入黑名单，使注销后的 Token 立即失效
     const payload = await verifyToken(req);

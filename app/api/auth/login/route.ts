@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import { findProfileForLogin, sql } from '@/lib/db';
 import { createToken, setAuthCookie } from '@/lib/auth';
 import { verifyBreakGlassTotp } from '@/lib/totp';
-import { readJsonBody } from '@/lib/api-utils';
+import { parseLocalLoginMode } from '@/lib/admin-sso';
+import { readJsonBody, isSameOriginRequest } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { getClientIpFromRequest } from '@/lib/request-ip';
 
@@ -14,39 +15,27 @@ const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
 // 账号不存在时也执行一次同成本的 bcrypt 比较，降低账号枚举时序差
 const LOGIN_FAILURE_DUMMY_HASH = '$2b$12$Ki07Mawh4ZW893rYj2GKAuXGcfXmz/4405eHG0sajjkP.I5OlaXwm';
 
-/**
- * 查询当前限流 key 是否已被限流
- * 采用「仅失败计数、成功清零」策略，避免正常用户被误封
- */
-async function isRateLimited(key: string, maxAttempts = MAX_ATTEMPTS): Promise<boolean> {
-  try {
-    const rows = await sql`
-      SELECT attempts, window_start
-      FROM login_rate_limits
-      WHERE ip = ${key}
-      LIMIT 1
-    `;
-    if (rows.length === 0) return false;
-
-    const windowStart = new Date(Date.now() - WINDOW_MS);
-    const record = rows[0];
-    const recordWindowStart = new Date(record.window_start);
-    return recordWindowStart >= windowStart && Number(record.attempts) >= maxAttempts;
-  } catch {
-    // 数据库故障时安全优先：拒绝服务，防止在数据库异常时被暴力破解
-    console.error('[RateLimit] 数据库查询失败，拒绝登录以保障安全');
-    return true;
-  }
+interface LoginAttemptResult {
+  limited: boolean;
+  attempts: number;
 }
 
 /**
- * 记录一次登录失败（窗口内累加，过期重置）
+ * 原子地消耗一次登录尝试（按 key）。
+ * 采用「请求前计数、成功清零」策略：并发请求无法在计数落库前全部通过。
  */
-async function recordFailedAttempt(key: string): Promise<void> {
+async function consumeLoginAttempt(
+  key: string,
+  maxAttempts = MAX_ATTEMPTS
+): Promise<LoginAttemptResult> {
   const windowStart = new Date(Date.now() - WINDOW_MS);
 
   try {
-    await sql`
+    if (Math.random() < 0.01) {
+      await sql`DELETE FROM login_rate_limits WHERE window_start < ${windowStart}`;
+    }
+
+    const rows = await sql`
       INSERT INTO login_rate_limits (ip, attempts, window_start)
       VALUES (${key}, 1, NOW())
       ON CONFLICT (ip) DO UPDATE SET
@@ -58,14 +47,20 @@ async function recordFailedAttempt(key: string): Promise<void> {
           WHEN login_rate_limits.window_start < ${windowStart} THEN NOW()
           ELSE login_rate_limits.window_start
         END
+      RETURNING attempts, window_start
     `;
 
-    // 低概率清理过期记录（避免每次请求都执行）
-    if (Math.random() < 0.01) {
-      await sql`DELETE FROM login_rate_limits WHERE window_start < ${windowStart}`;
-    }
-  } catch (err) {
-    console.error('[RateLimit] 记录登录失败次数失败:', err);
+    const record = rows[0];
+    const recordWindowStart = new Date(record.window_start);
+    const attempts = Number(record.attempts);
+    return {
+      limited: recordWindowStart >= windowStart && attempts > maxAttempts,
+      attempts,
+    };
+  } catch {
+    // 数据库故障时安全优先：拒绝服务，防止在数据库异常时被暴力破解
+    console.error('[RateLimit] 数据库查询失败，拒绝登录以保障安全');
+    return { limited: true, attempts: maxAttempts + 1 };
   }
 }
 
@@ -82,6 +77,9 @@ async function clearFailedAttempts(key: string): Promise<void> {
 
 export async function POST(req: Request) {
   try {
+    if (!isSameOriginRequest(req)) {
+      return NextResponse.json({ error: '非法请求来源' }, { status: 403 });
+    }
     const { data: body, response: bodyError } = await readJsonBody<{ phone?: string; password?: string; totpCode?: string }>(req);
     if (bodyError) return bodyError;
 
@@ -101,14 +99,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // 登录限速检查（仅统计失败次数，成功登录会清零）
+    // 登录限速：请求前原子计数，成功登录会清零；并发请求无法绕过
     const clientIP = getClientIpFromRequest(req);
     const accountKey = `acct:${phone.trim().toLowerCase().slice(0, 255)}`;
-    const [ipLimited, accountLimited] = await Promise.all([
-      isRateLimited(clientIP),
-      isRateLimited(accountKey, ACCOUNT_MAX_ATTEMPTS),
+    const [ipAttempt, accountAttempt] = await Promise.all([
+      consumeLoginAttempt(clientIP, MAX_ATTEMPTS),
+      consumeLoginAttempt(accountKey, ACCOUNT_MAX_ATTEMPTS),
     ]);
-    if (ipLimited || accountLimited) {
+    if (ipAttempt.limited || accountAttempt.limited) {
       return NextResponse.json(
         { error: '登录尝试次数过多，请 5 分钟后再试' },
         { status: 429 }
@@ -125,8 +123,6 @@ export async function POST(req: Request) {
     if (!profile) {
       // 不存在的账号也执行一次 bcrypt，避免明显的响应时间差
       await bcrypt.compare(password, LOGIN_FAILURE_DUMMY_HASH);
-      await recordFailedAttempt(clientIP);
-      await recordFailedAttempt(accountKey);
       try {
         await writeAudit(sql, {
           action: 'LOGIN_FAILED',
@@ -154,6 +150,22 @@ export async function POST(req: Request) {
 
     const authSource = typeof profile.auth_source === 'string' ? profile.auth_source : 'local';
     if (authSource === 'sso') {
+      // SSO 账号没有本地密码：执行同等成本的 bcrypt 并写审计，
+      // 避免通过响应时间差区分账号类型（失败次数已在请求前原子计入）。
+      await bcrypt.compare(password, LOGIN_FAILURE_DUMMY_HASH);
+      try {
+        await writeAudit(sql, {
+          actor: profileActor,
+          action: 'LOGIN_FAILED',
+          targetType: 'profile',
+          targetId: String(profile.id),
+          comment: 'SSO 账号尝试本地密码登录',
+          reason: 'sso_required',
+          request: req,
+        });
+      } catch (auditErr) {
+        console.error('[audit] LOGIN_FAILED 写入失败:', auditErr);
+      }
       return NextResponse.json(
         { error: '请使用 NIHPLOD 主站管理员账号登录', code: 'SSO_REQUIRED' },
         { status: 403 }
@@ -167,8 +179,6 @@ export async function POST(req: Request) {
     const isPasswordValid = await bcrypt.compare(password, passwordHash);
 
     if (!isPasswordValid) {
-      await recordFailedAttempt(clientIP);
-      await recordFailedAttempt(accountKey);
       try {
         await writeAudit(sql, {
           actor: profileActor,
@@ -189,9 +199,10 @@ export async function POST(req: Request) {
     }
 
     const ssoEnabled = process.env.ADMIN_SSO_ENABLED === 'true';
-    const localMode = process.env.ADMIN_SSO_LOCAL_LOGIN_MODE || 'all';
+    const localMode = parseLocalLoginMode(process.env.ADMIN_SSO_LOCAL_LOGIN_MODE);
     const breakGlassUsername = process.env.BA_BREAK_GLASS_USERNAME || 'ba-emergency';
     const breakGlassEnabled = process.env.BA_BREAK_GLASS_ENABLED === 'true';
+    const isBreakGlassAccount = profile.username === breakGlassUsername;
 
     if (ssoEnabled && localMode === 'disabled') {
       return NextResponse.json(
@@ -202,7 +213,7 @@ export async function POST(req: Request) {
     if (
       ssoEnabled &&
       localMode === 'break-glass' &&
-      (!breakGlassEnabled || profile.username !== breakGlassUsername)
+      (!breakGlassEnabled || !isBreakGlassAccount)
     ) {
       return NextResponse.json(
         { error: '本地密码登录仅限应急账号', code: 'SSO_REQUIRED' },
@@ -210,15 +221,35 @@ export async function POST(req: Request) {
       );
     }
 
-    if (breakGlassEnabled && profile.username === breakGlassUsername) {
+    // 应急账号：无论开关如何，只要命中该用户名就必须启用并校验 TOTP，
+    // 防止创建账号后忘记开启 BA_BREAK_GLASS_ENABLED 导致仅密码可登录。
+    if (isBreakGlassAccount) {
+      if (!breakGlassEnabled) {
+        try {
+          await writeAudit(sql, {
+            actor: profileActor,
+            action: 'LOGIN_BLOCKED',
+            targetType: 'profile',
+            targetId: String(profile.id),
+            comment: '应急账号未启用',
+            reason: 'break_glass_disabled',
+            request: req,
+          });
+        } catch (auditErr) {
+          console.error('[audit] LOGIN_BLOCKED 写入失败:', auditErr);
+        }
+        return NextResponse.json(
+          { error: '应急账号未启用，请联系系统管理员' },
+          { status: 403 }
+        );
+      }
+
       const totpSecret = process.env.BA_BREAK_GLASS_TOTP_SECRET;
       if (!totpSecret) {
         console.error('[login] BA_BREAK_GLASS_TOTP_SECRET 未配置');
         return NextResponse.json({ error: '应急账号未完成 TOTP 配置' }, { status: 503 });
       }
       if (!totpCode || !verifyBreakGlassTotp(totpCode, totpSecret)) {
-        await recordFailedAttempt(clientIP);
-        await recordFailedAttempt(accountKey);
         try {
           await writeAudit(sql, {
             actor: profileActor,
@@ -241,8 +272,6 @@ export async function POST(req: Request) {
 
     // 3. 密码正确后再检查封禁状态
     if (profile.is_banned) {
-      await recordFailedAttempt(clientIP);
-      await recordFailedAttempt(accountKey);
       try {
         await writeAudit(sql, {
           actor: profileActor,
