@@ -50,6 +50,7 @@ const ACTION_LABELS: Record<string, string> = {
   UNBAN_USER: "解封账号",
   DELETE_USER: "移除管理员",
   RESET_PASSWORD: "重置密码",
+  RESET_EMERGENCY_PASSWORD: "重置应急账号密码",
   UPDATE_USER_ROLE: "修改角色",
   CHANGE_PASSWORD: "修改密码",
   LOGIN_SUCCESS: "登录成功",

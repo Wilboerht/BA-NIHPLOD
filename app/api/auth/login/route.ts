@@ -266,6 +266,16 @@ export async function POST(req: Request) {
     await clearFailedAttempts(clientIP);
     await clearFailedAttempts(accountKey);
 
+    try {
+      await sql`
+        UPDATE profiles
+        SET last_login_at = NOW()
+        WHERE id = ${String(profile.id)}
+      `;
+    } catch (error) {
+      console.error('[login] last_login_at 更新失败:', error);
+    }
+
     // 4. 签发 JWT 并设置 Cookie
     const token = await createToken({
       id: String(profile.id),
