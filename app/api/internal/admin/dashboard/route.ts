@@ -103,6 +103,17 @@ export async function GET(request: Request) {
         `
       : [];
 
+    const breakGlassUsername = (
+      process.env.BA_BREAK_GLASS_USERNAME || "ba-emergency"
+    ).trim();
+    const emergencyRows = await sql`
+      SELECT id, username, role, auth_source, is_banned, token_version, last_login_at
+      FROM profiles
+      WHERE username = ${breakGlassUsername} AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    const emergencyRow = emergencyRows[0];
+
     return NextResponse.json(
       {
         success: true,
@@ -141,6 +152,18 @@ export async function GET(request: Request) {
             actorName: row.actor_name ? String(row.actor_name) : null,
             createdAt: iso(row.created_at),
           })),
+          emergencyAccount: {
+            username: breakGlassUsername,
+            exists: emergencyRows.length > 0,
+            enabled: process.env.BA_BREAK_GLASS_ENABLED === "true",
+            totpConfigured: Boolean(process.env.BA_BREAK_GLASS_TOTP_SECRET?.trim()),
+            authSource: emergencyRow?.auth_source ? String(emergencyRow.auth_source) : null,
+            role: emergencyRow?.role ? String(emergencyRow.role) : null,
+            isBanned: emergencyRow ? Boolean(emergencyRow.is_banned) : false,
+            lastLoginAt: emergencyRow?.last_login_at ? iso(emergencyRow.last_login_at) : null,
+            tokenVersion:
+              emergencyRow?.token_version != null ? Number(emergencyRow.token_version) : null,
+          },
           generatedAt: new Date().toISOString(),
         },
       },
