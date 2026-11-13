@@ -43,9 +43,15 @@ export async function runIdempotent<T>(
     const existing = await tx`
       SELECT request_hash, response_code, response_body
       FROM internal_request_idempotency
-      WHERE key = ${options.key}
+      WHERE key = ${options.key} AND expires_at > NOW()
       LIMIT 1
     `;
+    if (existing.length === 0) {
+      await tx`
+        DELETE FROM internal_request_idempotency
+        WHERE key = ${options.key} AND expires_at <= NOW()
+      `;
+    }
     if (existing.length > 0) {
       const row = existing[0];
       if (String(row.request_hash) !== requestHash) {

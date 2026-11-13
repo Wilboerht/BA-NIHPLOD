@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { PDFDocument } from "pdf-lib";
 import {
+  CERTIFICATE_TEMPLATE_VERSION,
   renderCertificatePng,
   type CertificateRenderInput,
   type CertificateVariant,
@@ -56,8 +57,9 @@ export function certificateArtifactStorageKey(
   certificateId: string,
   variant: CertificateVariant,
   format: CertificateFormat,
+  templateVersion: string = CERTIFICATE_TEMPLATE_VERSION,
 ): string {
-  return `${certificateId}/${variant}/${format}`;
+  return `${certificateId}/${variant}/${templateVersion}/${format}`;
 }
 
 async function buildPdf(png: Buffer): Promise<Buffer> {
@@ -80,6 +82,8 @@ async function buildPdf(png: Buffer): Promise<Buffer> {
   pdf.setTitle("NIHPLOD 品牌授权证书");
   pdf.setAuthor("NIHPLOD");
   pdf.setSubject("Brand authorization certificate");
+  pdf.setCreationDate(new Date("2000-01-01T00:00:00.000Z"));
+  pdf.setModificationDate(new Date("2000-01-01T00:00:00.000Z"));
   return Buffer.from(await pdf.save());
 }
 
@@ -94,6 +98,7 @@ export async function renderAndStoreArtifact(
     certificateId,
     input.variant,
     format,
+    CERTIFICATE_TEMPLATE_VERSION,
   );
   const fullPath = path.join(artifactRoot(), storageKey);
   if (!ensureInside(artifactRoot(), fullPath)) {

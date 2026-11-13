@@ -72,6 +72,10 @@ export function readInternalActorFromRequest(
   }
 }
 
+function isSuperAdminActorRole(role: string | null | undefined): boolean {
+  return (role || "").trim().toLowerCase() === "super_admin";
+}
+
 export async function resolveInternalActor(
   input: InternalActorInput | null,
   requiredCapability?: string,
@@ -102,7 +106,9 @@ export async function resolveInternalActor(
         auth_source, external_admin_id, external_role, external_token_version,
         last_synced_at, created_at, updated_at
       ) VALUES (
-        NULL, ${input.name ?? null}, ${input.email ?? null}, 'AUDITOR', FALSE, FALSE,
+        NULL, ${input.name ?? null}, ${input.email ?? null},
+        ${isSuperAdminActorRole(input.baRole) ? "SUPER_ADMIN" : "AUDITOR"},
+        FALSE, FALSE,
         'sso', ${input.externalAdminId}, ${input.baRole ?? null}, NULL,
         NOW(), NOW(), NOW()
       )
@@ -130,7 +136,7 @@ export async function resolveInternalActor(
     externalAdminId: input.externalAdminId,
     email: profile.email ? String(profile.email) : (input.email ?? null),
     name: profile.full_name ? String(profile.full_name) : (input.name ?? null),
-    role: String(profile.role),
+    role: isSuperAdminActorRole(input.baRole) ? "SUPER_ADMIN" : "AUDITOR",
     capabilities: new Set(input.capabilities ?? []),
   };
 }

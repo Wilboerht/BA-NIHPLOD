@@ -64,6 +64,13 @@ async function resolveAssetSource(
 ): Promise<string | null> {
   if (!source || source === "undefined") return null;
   if (source.startsWith("data:")) return source;
+  if (/^https?:\/\//i.test(source)) {
+    try {
+      source = new URL(source).pathname;
+    } catch {
+      return null;
+    }
+  }
   if (source === "/default-seal.png") {
     return path.join(process.cwd(), "public", "default-seal.png");
   }

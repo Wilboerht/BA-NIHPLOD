@@ -224,6 +224,35 @@ function maskPhone(value: unknown): string | null {
   return "***";
 }
 
+function redactPii(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  return value
+    .replace(
+      /1[3-9]\d{9}/g,
+      (phone) => `${phone.slice(0, 3)}****${phone.slice(-2)}`,
+    )
+    .replace(
+      /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,
+      (email) => `${email.slice(0, 1)}***@***`,
+    );
+}
+
+function sha256Hex(buffer: Buffer): string {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+async function readVerifiedArtifact(
+  storageKey: string,
+  expectedSha256: string,
+): Promise<Buffer | null> {
+  try {
+    const buffer = await readArtifact(storageKey);
+    return sha256Hex(buffer) === expectedSha256 ? buffer : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildRenderInput(
   row: Record<string, unknown>,
   variant: CertificateVariant,
@@ -327,11 +356,12 @@ export async function listCertificates(options: {
   pageSize: number;
 }> {
   requireCapability(options.actor, "ba.certificates.read");
-  const page = Math.max(1, Math.floor(options.page || 1));
-  const pageSize = Math.min(
-    100,
-    Math.max(1, Math.floor(options.pageSize || 20)),
-  );
+  const rawPage = Number(options.page);
+  const rawPageSize = Number(options.pageSize);
+  const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
+  const pageSize = Number.isFinite(rawPageSize)
+    ? Math.min(100, Math.max(1, Math.floor(rawPageSize)))
+    : 20;
   const status = options.status || "ALL";
   const statusCondition =
     status === "invalid"
@@ -408,6 +438,9 @@ export async function getCertificate(options: {
 }> {
   requireCapability(options.actor, "ba.certificates.read");
   if (!isUuid(options.id)) fail("INVALID_ID", "证书 ID 无效");
+  const includeSensitive =
+    options.includeSensitive &&
+    hasCapability(options.actor, "ba.certificates.sensitive");
   const row = await getCertificateRow(options.id);
   const timeline = await sql`
     SELECT id, action, comment, reason, actor_name, actor_source, created_at
@@ -421,8 +454,16 @@ export async function getCertificate(options: {
     timeline: timeline.map((item: Record<string, unknown>) => ({
       id: String(item.id),
       action: String(item.action),
-      comment: item.comment ? String(item.comment) : null,
-      reason: item.reason ? String(item.reason) : null,
+      comment: includeSensitive
+        ? item.comment
+          ? String(item.comment)
+          : null
+        : redactPii(item.comment),
+      reason: includeSensitive
+        ? item.reason
+          ? String(item.reason)
+          : null
+        : redactPii(item.reason),
       actorName: item.actor_name ? String(item.actor_name) : null,
       actorSource: item.actor_source ? String(item.actor_source) : null,
       createdAt: new Date(item.created_at as string | Date).toISOString(),
@@ -554,8 +595,20 @@ export async function updatePendingCertificate(options: {
   ) {
     fail("FORBIDDEN", "只能修改自己提交的待审核证书", 403);
   }
-  const draft = parseDraft(options.draft);
+  const draft = parseDraft({
+    ...options.draft,
+    phone:
+      options.draft.phone?.trim() ||
+      (row.phone ? String(row.phone) : undefined),
+  });
   const previousDealerId = String(row.dealer_id);
+  const existingSealUrl = row.seal_url ? String(row.seal_url) : null;
+  const nextSealUrl =
+    options.actor.role === "SUPER_ADMIN"
+      ? options.draft.sealImage === undefined
+        ? existingSealUrl
+        : draft.sealImage
+      : existingSealUrl;
 
   await sql.begin(async (tx) => {
     const dealerId = await getOrCreateDealer(tx, draft.phone, draft.shopName);
@@ -565,7 +618,7 @@ export async function updatePendingCertificate(options: {
           auth_scope = ${buildAuthScope(draft.companyName, draft.scopeText)},
           start_date = ${draft.startDate},
           end_date = ${draft.endDate},
-          seal_url = ${options.actor.role === "SUPER_ADMIN" ? draft.sealImage : row.seal_url ? String(row.seal_url) : null},
+          seal_url = ${nextSealUrl},
           updated_at = NOW()
       WHERE id = ${options.id} AND status = 'PENDING' AND deleted_at IS NULL
     `;
@@ -617,7 +670,12 @@ export async function issuePendingCertificate(options: {
 
   const parsed = parseAuthScope(String(row.auth_scope ?? ""));
   const draft = options.draft
-    ? parseDraft(options.draft)
+    ? parseDraft({
+        ...options.draft,
+        phone:
+          options.draft.phone?.trim() ||
+          (row.phone ? String(row.phone) : undefined),
+      })
     : {
         companyName: parsed.companyName || String(row.company_name ?? ""),
         shopName: String(row.company_name ?? ""),
@@ -889,15 +947,16 @@ export async function ensureCertificateArtifact(options: {
     `;
     if (existing.length > 0) {
       const storageKey = String(existing[0].storage_key);
-      try {
-        const buffer = await readArtifact(storageKey);
+      const buffer = await readVerifiedArtifact(
+        storageKey,
+        String(existing[0].sha256),
+      );
+      if (buffer) {
         return {
           buffer,
           contentType: contentTypeForFormat(options.format),
           storageKey,
         };
-      } catch {
-        // 文件丢失时重建
       }
     }
 
@@ -907,35 +966,49 @@ export async function ensureCertificateArtifact(options: {
       input,
       options.format,
     );
-    await tx`
-      INSERT INTO certificate_artifacts (
-        certificate_id, format, variant, storage_key, sha256, byte_size,
-        width, height, template_version, template_sha256, seal_sha256, source, created_by
-      ) VALUES (
-        ${options.id}, ${options.format}, ${variant}, ${artifact.storageKey},
-        ${artifact.sha256}, ${artifact.byteSize}, ${artifact.width}, ${artifact.height},
-        ${CERTIFICATE_TEMPLATE_VERSION}, ${artifact.templateSha256}, ${artifact.sealSha256},
-        'lazy', ${options.actor.profileId}
-      )
-      ON CONFLICT (certificate_id, format, variant, template_version) DO NOTHING
-    `;
-    await tx`
-      UPDATE certificates
-      SET artifact_status = 'READY', rendered_at = NOW(),
-          template_version = ${CERTIFICATE_TEMPLATE_VERSION}, updated_at = NOW()
-      WHERE id = ${options.id}
-    `;
-    await writeAudit(tx, {
-      actor: actorAudit(options.actor),
-      action: "RENDER_CERTIFICATE_ARTIFACT",
-      targetType: "certificate",
-      targetId: options.id,
-      certificateId: options.id,
-      certificateRef: options.id,
-      comment: `按需生成证书文件 ${options.format}`,
-      after: { variant, format: options.format, sha256: artifact.sha256 },
-      request: options.request,
-    });
+    try {
+      await tx`
+        INSERT INTO certificate_artifacts (
+          certificate_id, format, variant, storage_key, sha256, byte_size,
+          width, height, template_version, template_sha256, seal_sha256, source, created_by
+        ) VALUES (
+          ${options.id}, ${options.format}, ${variant}, ${artifact.storageKey},
+          ${artifact.sha256}, ${artifact.byteSize}, ${artifact.width}, ${artifact.height},
+          ${CERTIFICATE_TEMPLATE_VERSION}, ${artifact.templateSha256}, ${artifact.sealSha256},
+          'lazy', ${options.actor.profileId}
+        )
+        ON CONFLICT (certificate_id, format, variant, template_version)
+        DO UPDATE SET
+          storage_key = EXCLUDED.storage_key,
+          sha256 = EXCLUDED.sha256,
+          byte_size = EXCLUDED.byte_size,
+          width = EXCLUDED.width,
+          height = EXCLUDED.height,
+          template_sha256 = EXCLUDED.template_sha256,
+          seal_sha256 = EXCLUDED.seal_sha256,
+          source = EXCLUDED.source
+      `;
+      await tx`
+        UPDATE certificates
+        SET artifact_status = 'READY', rendered_at = NOW(),
+            template_version = ${CERTIFICATE_TEMPLATE_VERSION}, updated_at = NOW()
+        WHERE id = ${options.id}
+      `;
+      await writeAudit(tx, {
+        actor: actorAudit(options.actor),
+        action: "RENDER_CERTIFICATE_ARTIFACT",
+        targetType: "certificate",
+        targetId: options.id,
+        certificateId: options.id,
+        certificateRef: options.id,
+        comment: `按需生成证书文件 ${options.format}`,
+        after: { variant, format: options.format, sha256: artifact.sha256 },
+        request: options.request,
+      });
+    } catch (error) {
+      await deleteArtifact(artifact.storageKey);
+      throw error;
+    }
     return {
       buffer: artifact.buffer,
       contentType: contentTypeForFormat(options.format),
@@ -953,35 +1026,70 @@ export async function backfillCertificateArtifact(
     return { status: "skipped" };
   const variant = certificateVariantForStatus(status);
   const existing = await sql`
-    SELECT 1 FROM certificate_artifacts
+    SELECT format, storage_key, sha256
+    FROM certificate_artifacts
     WHERE certificate_id = ${id} AND variant = ${variant}
-    LIMIT 1
+    ORDER BY created_at DESC
   `;
-  if (existing.length > 0) return { status: "exists" };
-  const input = buildRenderInput(row, variant);
-  const png = await renderAndStoreArtifact(id, input, "png");
-  const pdf = await renderAndStoreArtifact(id, input, "pdf");
-  await sql.begin(async (tx) => {
-    for (const item of [png, pdf]) {
-      await tx`
-        INSERT INTO certificate_artifacts (
-          certificate_id, format, variant, storage_key, sha256, byte_size,
-          width, height, template_version, template_sha256, seal_sha256, source
-        ) VALUES (
-          ${id}, ${item.storageKey.endsWith("/pdf") ? "pdf" : "png"}, ${variant},
-          ${item.storageKey}, ${item.sha256}, ${item.byteSize}, ${item.width}, ${item.height},
-          ${CERTIFICATE_TEMPLATE_VERSION}, ${item.templateSha256}, ${item.sealSha256}, 'backfill'
-        )
-        ON CONFLICT (certificate_id, format, variant, template_version) DO NOTHING
-      `;
+  const validFormats = new Set<CertificateFormat>();
+  for (const item of existing) {
+    const format = String(item.format) as CertificateFormat;
+    if (validFormats.has(format)) continue;
+    if (
+      await readVerifiedArtifact(String(item.storage_key), String(item.sha256))
+    ) {
+      validFormats.add(format);
     }
-    await tx`
-      UPDATE certificates
-      SET artifact_status = 'READY', rendered_at = NOW(),
-          template_version = ${CERTIFICATE_TEMPLATE_VERSION}, updated_at = NOW()
-      WHERE id = ${id}
-    `;
-  });
+  }
+  const missingFormats = (["png", "pdf"] as const).filter(
+    (format) => !validFormats.has(format),
+  );
+  if (missingFormats.length === 0) return { status: "exists" };
+
+  const input = buildRenderInput(row, variant);
+  const rendered: Array<Awaited<ReturnType<typeof renderAndStoreArtifact>>> =
+    [];
+  try {
+    for (const format of missingFormats) {
+      rendered.push(await renderAndStoreArtifact(id, input, format));
+    }
+    await sql.begin(async (tx) => {
+      for (const item of rendered) {
+        const format: CertificateFormat = item.storageKey.endsWith("/pdf")
+          ? "pdf"
+          : "png";
+        await tx`
+          INSERT INTO certificate_artifacts (
+            certificate_id, format, variant, storage_key, sha256, byte_size,
+            width, height, template_version, template_sha256, seal_sha256, source
+          ) VALUES (
+            ${id}, ${format}, ${variant},
+            ${item.storageKey}, ${item.sha256}, ${item.byteSize}, ${item.width}, ${item.height},
+            ${CERTIFICATE_TEMPLATE_VERSION}, ${item.templateSha256}, ${item.sealSha256}, 'backfill'
+          )
+          ON CONFLICT (certificate_id, format, variant, template_version)
+          DO UPDATE SET
+            storage_key = EXCLUDED.storage_key,
+            sha256 = EXCLUDED.sha256,
+            byte_size = EXCLUDED.byte_size,
+            width = EXCLUDED.width,
+            height = EXCLUDED.height,
+            template_sha256 = EXCLUDED.template_sha256,
+            seal_sha256 = EXCLUDED.seal_sha256,
+            source = EXCLUDED.source
+        `;
+      }
+      await tx`
+        UPDATE certificates
+        SET artifact_status = 'READY', rendered_at = NOW(),
+            template_version = ${CERTIFICATE_TEMPLATE_VERSION}, updated_at = NOW()
+        WHERE id = ${id}
+      `;
+    });
+  } catch (error) {
+    for (const item of rendered) await deleteArtifact(item.storageKey);
+    throw error;
+  }
   return { status: "created" };
 }
 
