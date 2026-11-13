@@ -91,3 +91,15 @@ ORDER BY indexname;
 
 \echo '== 7. pg_trgm 扩展（模糊搜索依赖） =='
 SELECT extname FROM pg_extension WHERE extname = 'pg_trgm';
+
+\echo '== 8. certificate artifacts / idempotency =='
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_name IN ('certificate_artifacts','internal_request_idempotency')
+ORDER BY table_name, ordinal_position;
+
+SELECT COUNT(*) AS artifact_count FROM certificate_artifacts;
+SELECT COUNT(*) AS certificates_missing_artifact
+FROM certificates c
+WHERE c.deleted_at IS NULL AND c.status = 'ISSUED'
+  AND NOT EXISTS (SELECT 1 FROM certificate_artifacts a WHERE a.certificate_id = c.id AND a.variant = 'ISSUED');

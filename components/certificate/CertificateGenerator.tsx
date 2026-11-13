@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { Download, CheckCircle2, XCircle, X, ZoomIn, ZoomOut, File, FileImage } from "lucide-react";
+import {
+  Download,
+  CheckCircle2,
+  XCircle,
+  X,
+  ZoomIn,
+  ZoomOut,
+  File,
+  FileImage,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -35,10 +44,10 @@ export interface CertData {
 
 interface CertificateGeneratorProps {
   initialData?: CertData;
-  mode?: 'create' | 'view' | 'edit';
+  mode?: "create" | "view" | "edit";
   isVoided?: boolean;
   isPending?: boolean;
-  pendingAction?: 'approve' | 'update';
+  pendingAction?: "approve" | "update";
   previewOnly?: boolean;
   userRole?: string | null;
   onSuccess?: () => void;
@@ -46,18 +55,30 @@ interface CertificateGeneratorProps {
 }
 
 // 预设渠道列表
-const CHANNELS = ['淘宝', '天猫', '京东', '小红书', '抖音', '微信', '线下门店', '其他'];
+const CHANNELS = [
+  "淘宝",
+  "天猫",
+  "京东",
+  "小红书",
+  "抖音",
+  "微信",
+  "线下门店",
+  "其他",
+];
 
 // 从 scopeText 解析选中的预设渠道
 function getChannelsFromScopeText(text: string): string[] {
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   if (lines.length >= 2) {
     const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
     const presetSet = new Set(CHANNELS);
-    const result = CHANNELS.filter(ch => items.includes(ch));
+    const result = CHANNELS.filter((ch) => items.includes(ch));
     // 若存在非预设渠道内容，视为"其他"被选中
-    if (items.some(item => !presetSet.has(item)) && !result.includes('其他')) {
-      result.push('其他');
+    if (
+      items.some((item) => !presetSet.has(item)) &&
+      !result.includes("其他")
+    ) {
+      result.push("其他");
     }
     return result;
   }
@@ -66,31 +87,45 @@ function getChannelsFromScopeText(text: string): string[] {
 
 // 从 scopeText 解析自定义渠道内容
 function getCustomChannel(text: string): string {
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   if (lines.length >= 2) {
     const items = lines[1].split(/\s*[\|\/]\s*/).filter(Boolean);
     const presetSet = new Set(CHANNELS);
-    return items.find(item => !presetSet.has(item)) || '';
+    return items.find((item) => !presetSet.has(item)) || "";
   }
-  return '';
+  return "";
 }
 
-function updateScopeTextChannels(text: string, channels: string[], custom: string): string {
-  const lines = text.split('\n');
-  while (lines.length < 2) lines.push('');
-  const items = channels.filter(ch => ch !== '其他');
-  if (channels.includes('其他')) {
+function updateScopeTextChannels(
+  text: string,
+  channels: string[],
+  custom: string,
+): string {
+  const lines = text.split("\n");
+  while (lines.length < 2) lines.push("");
+  const items = channels.filter((ch) => ch !== "其他");
+  if (channels.includes("其他")) {
     if (custom.trim()) {
       items.push(custom.trim());
     } else {
-      items.push('其他');
+      items.push("其他");
     }
   }
-  lines[1] = items.join(' | ');
-  return lines.join('\n');
+  lines[1] = items.join(" | ");
+  return lines.join("\n");
 }
 
-export default function CertificateGenerator({ initialData, mode = 'create', isVoided: initialVoided = false, isPending = false, pendingAction = 'approve', previewOnly = false, userRole, onSuccess, onReject }: CertificateGeneratorProps) {
+export default function CertificateGenerator({
+  initialData,
+  mode = "create",
+  isVoided: initialVoided = false,
+  isPending = false,
+  pendingAction = "approve",
+  previewOnly = false,
+  userRole,
+  onSuccess,
+  onReject,
+}: CertificateGeneratorProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -122,14 +157,32 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const [zoomScale, setZoomScale] = useState(1);
   const [isScopeExpanded, setIsScopeExpanded] = useState(false);
 
-  useEscapeKey(() => { setShowFullPreview(false); setZoomScale(1); }, showFullPreview);
+  useEscapeKey(() => {
+    setShowFullPreview(false);
+    setZoomScale(1);
+  }, showFullPreview);
 
   const renderRequestId = useRef(0);
   const renderedKeyRef = useRef<string | null>(null);
   const submittedRef = useRef(false);
   const successTimerRef = useRef<number | null>(null);
-  const tempCertNumberRef = useRef(`BAVP-${new Date().getFullYear()}-${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 8) : Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0')).toUpperCase()}`);
-  const renderKey = JSON.stringify({ data, isFontLoaded, isIssued, isVoided, showPending, includeQrCode });
+  const tempCertNumberRef = useRef(
+    `BAVP-${new Date().getFullYear()}-${(typeof crypto !== "undefined" &&
+    crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, "").substring(0, 8)
+      : Math.floor(Math.random() * 0x100000000)
+          .toString(16)
+          .padStart(8, "0")
+    ).toUpperCase()}`,
+  );
+  const renderKey = JSON.stringify({
+    data,
+    isFontLoaded,
+    isIssued,
+    isVoided,
+    showPending,
+    includeQrCode,
+  });
 
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -137,32 +190,42 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     });
   }, []);
 
-  useEffect(() => () => {
-    if (successTimerRef.current !== null) {
-      window.clearTimeout(successTimerRef.current);
-      successTimerRef.current = null;
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (successTimerRef.current !== null) {
+        window.clearTimeout(successTimerRef.current);
+        successTimerRef.current = null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (initialData) {
-      setData({ ...initialData, authorizer: initialData.authorizer || COMPANY_FULL_NAME });
-      if (mode === 'view' || mode === 'edit') {
+      setData({
+        ...initialData,
+        authorizer: initialData.authorizer || COMPANY_FULL_NAME,
+      });
+      if (mode === "view" || mode === "edit") {
         setIsIssued(!isPending);
         setIsVoided(initialVoided);
       }
     }
   }, [initialData, mode, initialVoided, isPending]);
 
-  const [customChannel, setCustomChannel] = useState('');
+  const [customChannel, setCustomChannel] = useState("");
 
   const toggleChannel = (channel: string) => {
     const current = getChannelsFromScopeText(data.scopeText);
     const next = current.includes(channel)
-      ? current.filter(c => c !== channel)
+      ? current.filter((c) => c !== channel)
       : [...current, channel];
-    const newText = updateScopeTextChannels(data.scopeText, next, customChannel);
-    setData(prev => ({ ...prev, scopeText: newText }));
+    const newText = updateScopeTextChannels(
+      data.scopeText,
+      next,
+      customChannel,
+    );
+    setData((prev) => ({ ...prev, scopeText: newText }));
   };
 
   // 从已有证书加载时解析自定义渠道
@@ -184,353 +247,426 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     setLayoutError(null);
 
     try {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      toast({ message: "浏览器不支持 2D 画布渲染", type: "error" });
-      return;
-    }
-
-    const scale = 2;
-    const width = 800 * scale;
-    const height = 1131 * scale;
-
-    const loadImage = (src: string | null | undefined, timeoutMs = 15000): Promise<HTMLImageElement | null> => {
-      if (!src || src.trim() === "" || src === "undefined") return Promise.resolve(null);
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        let settled = false;
-        const finish = (result: HTMLImageElement | null) => {
-          if (!settled) { settled = true; resolve(result); }
-        };
-        const timer = setTimeout(() => {
-          console.warn('[CertificateGenerator] 图片加载超时:', src);
-          finish(null);
-        }, timeoutMs);
-        img.onload = () => { clearTimeout(timer); finish(img); };
-        img.onerror = () => { clearTimeout(timer); finish(null); };
-        img.src = src;
-      });
-    };
-
-    const [bgImage, sealImg] = await Promise.all([
-      loadImage("/cert-template.webp"),
-      data.sealImage ? loadImage(data.sealImage) : loadImage("/default-seal.png")
-    ]);
-
-    const offCanvas = document.createElement("canvas");
-    offCanvas.width = width;
-    offCanvas.height = height;
-    const offCtx = offCanvas.getContext("2d");
-    if (!offCtx) {
-      toast({ message: "无法创建离屏画布", type: "error" });
-      setIsGenerating(false);
-      return;
-    }
-
-    if (bgImage) {
-      offCtx.drawImage(bgImage, 0, 0, width, height);
-    } else {
-      offCtx.fillStyle = "#ffffff";
-      offCtx.fillRect(0, 0, width, height);
-    }
-
-    const textPrimary = "#334155";
-    const leftMargin = 225 * scale;
-    const maxTextWidth = width - leftMargin - 75 * scale;
-
-    // 文字自动换行辅助函数
-    const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] => {
-      const chars = text.split('');
-      const lines: string[] = [];
-      let currentLine = '';
-      for (const char of chars) {
-        const testLine = currentLine + char;
-        if (ctx.measureText(testLine).width > maxW && currentLine !== '') {
-          lines.push(currentLine);
-          currentLine = char;
-        } else {
-          currentLine = testLine;
-        }
-      }
-      if (currentLine) lines.push(currentLine);
-      return lines;
-    };
-
-    const parseMarkdownBold = (line: string) => {
-      const parts = [];
-      const regex = /\*\*(.*?)\*\*/g;
-      let lastIndex = 0;
-      let match;
-      while ((match = regex.exec(line)) !== null) {
-        if (match.index > lastIndex) {
-          parts.push({ text: line.substring(lastIndex, match.index), bold: false });
-        }
-        parts.push({ text: match[1], bold: true });
-        lastIndex = regex.lastIndex;
-      }
-      if (lastIndex < line.length) {
-        parts.push({ text: line.substring(lastIndex), bold: false });
-      }
-      return parts.length > 0 ? parts : [{ text: line, bold: false }];
-    };
-
-    let currentY = 515 * scale;
-    const hasShop = !!data.shopName;
-    const hasCompany = !!data.companyName;
-    const shopLineH = 40 * scale;
-    const companyLineH = hasCompany ? 40 * scale : 36 * scale;
-    const totalNameBlockH = shopLineH + companyLineH;
-    const nameBaseY = currentY;
-
-    // 店铺名称（大字加粗，仅显示输入值）
-    offCtx.font = `bold ${22 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-    offCtx.fillStyle = "#1e293b";
-    let shopY = nameBaseY;
-    if (hasShop && !hasCompany) {
-      shopY = nameBaseY + totalNameBlockH / 2 - shopLineH / 2 + 4 * scale;
-    }
-    let shopLineCount = 0;
-    if (data.shopName) {
-      const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
-      shopLineCount = shopLines.length;
-      shopLines.forEach(line => {
-        offCtx.fillText(line, leftMargin, shopY);
-        shopY += shopLineH;
-      });
-    }
-    currentY += Math.max(shopLineCount, 1) * shopLineH;
-
-    // 公司名称（大字加粗，仅显示输入值）
-    let companyY = currentY;
-    if (!hasShop && hasCompany) {
-      companyY = nameBaseY + totalNameBlockH / 2 - companyLineH / 2 + 4 * scale;
-    }
-    let companyLineCount = 0;
-    if (data.companyName) {
-      const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
-      companyLineCount = companyLines.length;
-      companyLines.forEach(line => {
-        offCtx.fillText(line, leftMargin, companyY);
-        companyY += companyLineH;
-      });
-    }
-    currentY += Math.max(companyLineCount, 1) * companyLineH;
-
-    currentY += 14 * scale;
-    // CERT_DEBUG 已移除
-
-    // 授权业务范围
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-    offCtx.fillStyle = textPrimary;
-    const scopeLines = (data.scopeText || "").split('\n');
-
-    scopeLines.forEach((line, lineIndex) => {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        currentY += 22 * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        toast({ message: "浏览器不支持 2D 画布渲染", type: "error" });
         return;
       }
-      const parts = parseMarkdownBold(trimmed);
-      const plainText = parts.map(p => p.text).join('');
-      const plainWidth = offCtx.measureText(plainText).width;
 
-      if (plainWidth <= maxTextWidth) {
-        // 无需换行
-        if (parts.some(p => p.bold)) {
-          let currentX = leftMargin;
-          parts.forEach(part => {
-            offCtx.font = part.bold ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif` : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-            offCtx.fillText(part.text, currentX, currentY);
-            currentX += offCtx.measureText(part.text).width;
-          });
-        } else {
-          offCtx.fillText(trimmed, leftMargin, currentY);
-        }
-        currentY += 32 * scale;
+      const scale = 2;
+      const width = 800 * scale;
+      const height = 1131 * scale;
+
+      const loadImage = (
+        src: string | null | undefined,
+        timeoutMs = 15000,
+      ): Promise<HTMLImageElement | null> => {
+        if (!src || src.trim() === "" || src === "undefined")
+          return Promise.resolve(null);
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          let settled = false;
+          const finish = (result: HTMLImageElement | null) => {
+            if (!settled) {
+              settled = true;
+              resolve(result);
+            }
+          };
+          const timer = setTimeout(() => {
+            console.warn("[CertificateGenerator] 图片加载超时:", src);
+            finish(null);
+          }, timeoutMs);
+          img.onload = () => {
+            clearTimeout(timer);
+            finish(img);
+          };
+          img.onerror = () => {
+            clearTimeout(timer);
+            finish(null);
+          };
+          img.src = src;
+        });
+      };
+
+      const [bgImage, sealImg] = await Promise.all([
+        loadImage("/cert-template.webp"),
+        data.sealImage
+          ? loadImage(data.sealImage)
+          : loadImage("/default-seal.png"),
+      ]);
+
+      const offCanvas = document.createElement("canvas");
+      offCanvas.width = width;
+      offCanvas.height = height;
+      const offCtx = offCanvas.getContext("2d");
+      if (!offCtx) {
+        toast({ message: "无法创建离屏画布", type: "error" });
+        setIsGenerating(false);
+        return;
+      }
+
+      if (bgImage) {
+        offCtx.drawImage(bgImage, 0, 0, width, height);
       } else {
-        // 需要换行：按字符构建 bold 映射后逐字换行
-        const charList: { text: string; bold: boolean }[] = [];
-        parts.forEach(p => { for (const c of p.text) charList.push({ text: c, bold: p.bold }); });
+        offCtx.fillStyle = "#ffffff";
+        offCtx.fillRect(0, 0, width, height);
+      }
 
-        const wrappedLines: typeof charList[] = [];
-        let curLine: typeof charList = [];
-        let curWidth = 0;
-        for (const item of charList) {
-          offCtx.font = item.bold ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif` : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-          const w = offCtx.measureText(item.text).width;
-          if (curWidth + w > maxTextWidth && curLine.length > 0) {
-            wrappedLines.push(curLine);
-            curLine = [item];
-            curWidth = w;
+      const textPrimary = "#334155";
+      const leftMargin = 225 * scale;
+      const maxTextWidth = width - leftMargin - 75 * scale;
+
+      // 文字自动换行辅助函数
+      const wrapText = (
+        ctx: CanvasRenderingContext2D,
+        text: string,
+        maxW: number,
+      ): string[] => {
+        const chars = text.split("");
+        const lines: string[] = [];
+        let currentLine = "";
+        for (const char of chars) {
+          const testLine = currentLine + char;
+          if (ctx.measureText(testLine).width > maxW && currentLine !== "") {
+            lines.push(currentLine);
+            currentLine = char;
           } else {
-            curLine.push(item);
-            curWidth += w;
+            currentLine = testLine;
           }
         }
-        if (curLine.length > 0) wrappedLines.push(curLine);
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      };
 
-        for (const wl of wrappedLines) {
-          let currentX = leftMargin;
-          let i = 0;
-          while (i < wl.length) {
-            const isBold = wl[i].bold;
-            let segment = '';
-            while (i < wl.length && wl[i].bold === isBold) {
-              segment += wl[i].text;
-              i++;
-            }
-            offCtx.font = isBold ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif` : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-            offCtx.fillText(segment, currentX, currentY);
-            currentX += offCtx.measureText(segment).width;
+      const parseMarkdownBold = (line: string) => {
+        const parts = [];
+        const regex = /\*\*(.*?)\*\*/g;
+        let lastIndex = 0;
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push({
+              text: line.substring(lastIndex, match.index),
+              bold: false,
+            });
+          }
+          parts.push({ text: match[1], bold: true });
+          lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < line.length) {
+          parts.push({ text: line.substring(lastIndex), bold: false });
+        }
+        return parts.length > 0 ? parts : [{ text: line, bold: false }];
+      };
+
+      let currentY = 515 * scale;
+      const hasShop = !!data.shopName;
+      const hasCompany = !!data.companyName;
+      const shopLineH = 40 * scale;
+      const companyLineH = hasCompany ? 40 * scale : 36 * scale;
+      const totalNameBlockH = shopLineH + companyLineH;
+      const nameBaseY = currentY;
+
+      // 店铺名称（大字加粗，仅显示输入值）
+      offCtx.font = `bold ${22 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+      offCtx.fillStyle = "#1e293b";
+      let shopY = nameBaseY;
+      if (hasShop && !hasCompany) {
+        shopY = nameBaseY + totalNameBlockH / 2 - shopLineH / 2 + 4 * scale;
+      }
+      let shopLineCount = 0;
+      if (data.shopName) {
+        const shopLines = wrapText(offCtx, data.shopName, maxTextWidth);
+        shopLineCount = shopLines.length;
+        shopLines.forEach((line) => {
+          offCtx.fillText(line, leftMargin, shopY);
+          shopY += shopLineH;
+        });
+      }
+      currentY += Math.max(shopLineCount, 1) * shopLineH;
+
+      // 公司名称（大字加粗，仅显示输入值）
+      let companyY = currentY;
+      if (!hasShop && hasCompany) {
+        companyY =
+          nameBaseY + totalNameBlockH / 2 - companyLineH / 2 + 4 * scale;
+      }
+      let companyLineCount = 0;
+      if (data.companyName) {
+        const companyLines = wrapText(offCtx, data.companyName, maxTextWidth);
+        companyLineCount = companyLines.length;
+        companyLines.forEach((line) => {
+          offCtx.fillText(line, leftMargin, companyY);
+          companyY += companyLineH;
+        });
+      }
+      currentY += Math.max(companyLineCount, 1) * companyLineH;
+
+      currentY += 14 * scale;
+      // CERT_DEBUG 已移除
+
+      // 授权业务范围
+      offCtx.font = `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+      offCtx.fillStyle = textPrimary;
+      const scopeLines = (data.scopeText || "").split("\n");
+
+      scopeLines.forEach((line, lineIndex) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          currentY += 22 * scale;
+          return;
+        }
+        const parts = parseMarkdownBold(trimmed);
+        const plainText = parts.map((p) => p.text).join("");
+        const plainWidth = offCtx.measureText(plainText).width;
+
+        if (plainWidth <= maxTextWidth) {
+          // 无需换行
+          if (parts.some((p) => p.bold)) {
+            let currentX = leftMargin;
+            parts.forEach((part) => {
+              offCtx.font = part.bold
+                ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`
+                : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+              offCtx.fillText(part.text, currentX, currentY);
+              currentX += offCtx.measureText(part.text).width;
+            });
+          } else {
+            offCtx.fillText(trimmed, leftMargin, currentY);
           }
           currentY += 32 * scale;
+        } else {
+          // 需要换行：按字符构建 bold 映射后逐字换行
+          const charList: { text: string; bold: boolean }[] = [];
+          parts.forEach((p) => {
+            for (const c of p.text) charList.push({ text: c, bold: p.bold });
+          });
+
+          const wrappedLines: (typeof charList)[] = [];
+          let curLine: typeof charList = [];
+          let curWidth = 0;
+          for (const item of charList) {
+            offCtx.font = item.bold
+              ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`
+              : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+            const w = offCtx.measureText(item.text).width;
+            if (curWidth + w > maxTextWidth && curLine.length > 0) {
+              wrappedLines.push(curLine);
+              curLine = [item];
+              curWidth = w;
+            } else {
+              curLine.push(item);
+              curWidth += w;
+            }
+          }
+          if (curLine.length > 0) wrappedLines.push(curLine);
+
+          for (const wl of wrappedLines) {
+            let currentX = leftMargin;
+            let i = 0;
+            while (i < wl.length) {
+              const isBold = wl[i].bold;
+              let segment = "";
+              while (i < wl.length && wl[i].bold === isBold) {
+                segment += wl[i].text;
+                i++;
+              }
+              offCtx.font = isBold
+                ? `bold ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`
+                : `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+              offCtx.fillText(segment, currentX, currentY);
+              currentX += offCtx.measureText(segment).width;
+            }
+            currentY += 32 * scale;
+          }
         }
+
+        // 渠道列表行与下一段之间增加段间距（渠道固定在第2行，index === 1）
+        if (lineIndex === 1) {
+          currentY += 22 * scale;
+        }
+      });
+
+      const formatDate = (dateStr: string) => {
+        if (!dateStr) return "";
+        const parts = dateStr.split(".");
+        return parts.length === 3
+          ? `${parts[0]}年${parts[1]}月${parts[2]}日`
+          : dateStr;
+      };
+      const dateRange = data.duration.split(" - ");
+      offCtx.textAlign = "left";
+      offCtx.font = `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+      offCtx.fillText(
+        `授权有效期：${formatDate(dateRange[0])} 至 ${formatDate(dateRange[1])}`,
+        leftMargin,
+        currentY + 25 * scale,
+      );
+      currentY += 46 * scale;
+      // CERT_DEBUG 已移除
+
+      // 预计算公章尺寸和中心位置
+      let sealCenterX = width - 260 * scale;
+      let sealDrawWidth = 160 * scale;
+      let sealDrawHeight = 160 * scale;
+      if (sealImg) {
+        const maxSealSize = 160 * scale;
+        const aspect = sealImg.width / sealImg.height;
+        sealDrawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
+        sealDrawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
+        sealCenterX = width - 210 * scale - sealDrawWidth / 2;
       }
 
-      // 渠道列表行与下一段之间增加段间距（渠道固定在第2行，index === 1）
-      if (lineIndex === 1) {
-        currentY += 22 * scale;
+      // 计算二维码和公章的底部对齐位置：靠近画布底部，同时确保不与上方文字重叠
+      const qrSize = 100 * scale;
+      const bottomAlignY = Math.min(
+        currentY + 125 * scale,
+        height - 30 * scale,
+      );
+      const contentBottomLimit =
+        height -
+        30 * scale -
+        Math.max(qrSize + 12 * scale, sealDrawHeight - 20 * scale);
+      if (
+        currentY > contentBottomLimit &&
+        currentId === renderRequestId.current
+      ) {
+        setLayoutError(
+          "授权内容过长，已超出证书可用区域，请精简后再提交或导出",
+        );
       }
-    });
 
-    const formatDate = (dateStr: string) => {
-      if (!dateStr) return "";
-      const parts = dateStr.split('.');
-      return parts.length === 3 ? `${parts[0]}年${parts[1]}月${parts[2]}日` : dateStr;
-    };
-    const dateRange = data.duration.split(' - ');
-    offCtx.textAlign = "left";
-    offCtx.font = `400 ${15 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-    offCtx.fillText(`授权有效期：${formatDate(dateRange[0])} 至 ${formatDate(dateRange[1])}`, leftMargin, currentY + 25 * scale);
-    currentY += 46 * scale;
-    // CERT_DEBUG 已移除
-
-    // 预计算公章尺寸和中心位置
-    let sealCenterX = width - 260 * scale;
-    let sealDrawWidth = 160 * scale;
-    let sealDrawHeight = 160 * scale;
-    if (sealImg) {
-      const maxSealSize = 160 * scale;
-      const aspect = sealImg.width / sealImg.height;
-      sealDrawWidth = aspect > 1 ? maxSealSize : maxSealSize * aspect;
-      sealDrawHeight = aspect > 1 ? maxSealSize / aspect : maxSealSize;
-      sealCenterX = width - 210 * scale - sealDrawWidth / 2;
-    }
-
-    // 计算二维码和公章的底部对齐位置：靠近画布底部，同时确保不与上方文字重叠
-    const qrSize = 100 * scale;
-    const bottomAlignY = Math.min(
-      currentY + 125 * scale,
-      height - 30 * scale
-    );
-    const contentBottomLimit = height - 30 * scale
-      - Math.max(qrSize + 12 * scale, sealDrawHeight - 20 * scale);
-    if (currentY > contentBottomLimit && currentId === renderRequestId.current) {
-      setLayoutError('授权内容过长，已超出证书可用区域，请精简后再提交或导出');
-    }
-
-    // 证书编号：优先使用服务端返回的真实编号
-    const certNumber = data.cert_number || (initialData?.cert_number as string) || tempCertNumberRef.current;
-    if (certNumber) {
-      offCtx.textAlign = "right";
-      offCtx.font = `400 ${12 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-      offCtx.fillStyle = "#666666";
-      offCtx.fillText(`证书号：${certNumber}`, width - 40 * scale, height - 30 * scale);
-    }
-
-    // 公章：底部对齐
-    if (sealImg) {
-      offCtx.save();
-      offCtx.translate(sealCenterX, bottomAlignY - sealDrawHeight / 2 + 20 * scale);
-      offCtx.rotate(-0.06);
-      offCtx.globalAlpha = 0.88;
-      offCtx.drawImage(sealImg, -sealDrawWidth / 2, -sealDrawHeight / 2, sealDrawWidth, sealDrawHeight);
-      offCtx.restore();
-    }
-
-    // 授权方文字（压印在公章下方偏下位置）
-    offCtx.textAlign = "center";
-    offCtx.font = `500 ${14 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-    offCtx.fillStyle = textPrimary;
-    const authorizerY = bottomAlignY - sealDrawHeight / 2 + 28 * scale + 20 * scale;
-    // CERT_DEBUG 已移除
-    offCtx.fillText(data.authorizer || "", sealCenterX, authorizerY);
-
-    if (includeQrCode) {
-      const qrX = leftMargin;
-      const qrY = bottomAlignY - qrSize - 12 * scale;
-      try {
-        const { default: QRCode } = await import("qrcode");
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-        const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || '')}`;
-        const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
-          width: 80,
-          margin: 1,
-          color: { dark: '#000000', light: '#ffffff' },
-          errorCorrectionLevel: 'M'
-        });
-        const qrImg = await loadImage(qrDataUrl);
-        if (!qrImg) throw new Error('二维码图片加载失败');
-        offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-        offCtx.font = `500 ${11 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+      // 证书编号：优先使用服务端返回的真实编号
+      const certNumber =
+        data.cert_number ||
+        (initialData?.cert_number as string) ||
+        tempCertNumberRef.current;
+      if (certNumber) {
+        offCtx.textAlign = "right";
+        offCtx.font = `400 ${12 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
         offCtx.fillStyle = "#666666";
-        offCtx.textAlign = "center";
-        offCtx.fillText("官方扫码验证", qrX + qrSize / 2, qrY + qrSize + 16 * scale);
-      } catch (err) {
-        console.warn("QR code generation failed:", err);
-        if (currentId === renderRequestId.current) {
-          setQrCodeError(true);
-          toast({ message: "二维码生成失败，已阻止导出；请重试或选择不包含二维码", type: "error" });
-        }
+        offCtx.fillText(
+          `证书号：${certNumber}`,
+          width - 40 * scale,
+          height - 30 * scale,
+        );
       }
-    }
 
-    if (!isIssued || isVoided || showPending) {
-      offCtx.save();
-      offCtx.rotate(-Math.PI / 4);
+      // 公章：底部对齐
+      if (sealImg) {
+        offCtx.save();
+        offCtx.translate(
+          sealCenterX,
+          bottomAlignY - sealDrawHeight / 2 + 20 * scale,
+        );
+        offCtx.rotate(-0.06);
+        offCtx.globalAlpha = 0.88;
+        offCtx.drawImage(
+          sealImg,
+          -sealDrawWidth / 2,
+          -sealDrawHeight / 2,
+          sealDrawWidth,
+          sealDrawHeight,
+        );
+        offCtx.restore();
+      }
+
+      // 授权方文字（压印在公章下方偏下位置）
       offCtx.textAlign = "center";
-      offCtx.font = `bold ${18 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
-      if (isVoided) {
-        offCtx.fillStyle = "rgba(220, 38, 38, 0.25)";
-        const stepX = 220 * scale;
-        const stepY = 160 * scale;
-        for (let x = -width; x < width * 2; x += stepX) {
-          for (let y = -height; y < height * 2; y += stepY) {
-            offCtx.fillText("已作废", x, y);
-          }
-        }
-      } else if (showPending) {
-        offCtx.fillStyle = "rgba(217, 119, 6, 0.18)";
-        const stepX = 220 * scale;
-        const stepY = 160 * scale;
-        for (let x = -width; x < width * 2; x += stepX) {
-          for (let y = -height; y < height * 2; y += stepY) {
-            offCtx.fillText("审核中 · 未核发", x, y);
-          }
-        }
-      } else {
-        offCtx.fillStyle = "rgba(100, 116, 139, 0.15)";
-        const stepX = 220 * scale;
-        const stepY = 160 * scale;
-        for (let x = -width; x < width * 2; x += stepX) {
-          for (let y = -height; y < height * 2; y += stepY) {
-            offCtx.fillText("非生效授权凭证", x, y);
+      offCtx.font = `500 ${14 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+      offCtx.fillStyle = textPrimary;
+      const authorizerY =
+        bottomAlignY - sealDrawHeight / 2 + 28 * scale + 20 * scale;
+      // CERT_DEBUG 已移除
+      offCtx.fillText(data.authorizer || "", sealCenterX, authorizerY);
+
+      if (includeQrCode) {
+        const qrX = leftMargin;
+        const qrY = bottomAlignY - qrSize - 12 * scale;
+        try {
+          const { default: QRCode } = await import("qrcode");
+          const baseUrl =
+            process.env.NEXT_PUBLIC_BASE_URL ||
+            (typeof window !== "undefined" ? window.location.origin : "");
+          const verifyUrl = `${baseUrl}/verify?cert=${encodeURIComponent(certNumber || "")}`;
+          const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+            width: 80,
+            margin: 1,
+            color: { dark: "#000000", light: "#ffffff" },
+            errorCorrectionLevel: "M",
+          });
+          const qrImg = await loadImage(qrDataUrl);
+          if (!qrImg) throw new Error("二维码图片加载失败");
+          offCtx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+          offCtx.font = `500 ${11 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+          offCtx.fillStyle = "#666666";
+          offCtx.textAlign = "center";
+          offCtx.fillText(
+            "官方扫码验证",
+            qrX + qrSize / 2,
+            qrY + qrSize + 16 * scale,
+          );
+        } catch (err) {
+          console.warn("QR code generation failed:", err);
+          if (currentId === renderRequestId.current) {
+            setQrCodeError(true);
+            toast({
+              message: "二维码生成失败，已阻止导出；请重试或选择不包含二维码",
+              type: "error",
+            });
           }
         }
       }
-      offCtx.restore();
-    }
 
-    if (currentId === renderRequestId.current) {
-      canvas.width = width;
-      canvas.height = height;
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(offCanvas, 0, 0);
-      renderedKeyRef.current = renderKey;
-    }
+      if (!isIssued || isVoided || showPending) {
+        offCtx.save();
+        offCtx.rotate(-Math.PI / 4);
+        offCtx.textAlign = "center";
+        offCtx.font = `bold ${18 * scale}px "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+        if (isVoided) {
+          offCtx.fillStyle = "rgba(220, 38, 38, 0.25)";
+          const stepX = 220 * scale;
+          const stepY = 160 * scale;
+          for (let x = -width; x < width * 2; x += stepX) {
+            for (let y = -height; y < height * 2; y += stepY) {
+              offCtx.fillText("已作废", x, y);
+            }
+          }
+        } else if (showPending) {
+          offCtx.fillStyle = "rgba(217, 119, 6, 0.18)";
+          const stepX = 220 * scale;
+          const stepY = 160 * scale;
+          for (let x = -width; x < width * 2; x += stepX) {
+            for (let y = -height; y < height * 2; y += stepY) {
+              offCtx.fillText("审核中 · 未核发", x, y);
+            }
+          }
+        } else {
+          offCtx.fillStyle = "rgba(100, 116, 139, 0.15)";
+          const stepX = 220 * scale;
+          const stepY = 160 * scale;
+          for (let x = -width; x < width * 2; x += stepX) {
+            for (let y = -height; y < height * 2; y += stepY) {
+              offCtx.fillText("非生效授权凭证", x, y);
+            }
+          }
+        }
+        offCtx.restore();
+      }
+
+      if (currentId === renderRequestId.current) {
+        canvas.width = width;
+        canvas.height = height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(offCanvas, 0, 0);
+        renderedKeyRef.current = renderKey;
+      }
     } catch (err) {
-      console.error('[CertificateGenerator] 证书渲染失败:', err instanceof Error ? err.message : String(err));
+      console.error(
+        "[CertificateGenerator] 证书渲染失败:",
+        err instanceof Error ? err.message : String(err),
+      );
       toast({ message: "证书预览生成失败，请重试", type: "error" });
     } finally {
       if (currentId === renderRequestId.current) {
@@ -555,7 +691,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
       return null;
     }
     if (includeQrCode && qrCodeError) {
-      toast({ message: "二维码生成失败，无法导出带二维码版本；请重试或关闭二维码选项", type: "error" });
+      toast({
+        message: "二维码生成失败，无法导出带二维码版本；请重试或关闭二维码选项",
+        type: "error",
+      });
       return null;
     }
     const canvas = canvasRef.current;
@@ -565,7 +704,34 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     return canvas;
   };
 
-  const handleDownload = () => {
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = fileName;
+    link.href = url;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleDownload = async () => {
+    if (initialData?.id && (isIssued || isVoided) && !isPending) {
+      try {
+        const response = await fetchWithTimeout(
+          `/api/certificates/${initialData.id}/artifact?format=png`,
+        );
+        if (!response.ok) throw new Error("下载失败");
+        downloadBlob(await response.blob(), `授权书_${data.shopName}.png`);
+        return;
+      } catch (err) {
+        toast({
+          message:
+            "证书文件下载失败：" +
+            (err instanceof Error ? err.message : "未知错误"),
+          type: "error",
+        });
+        return;
+      }
+    }
     const canvas = getExportCanvas();
     if (!canvas) return;
     const link = document.createElement("a");
@@ -575,13 +741,37 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   };
 
   const handleDownloadPDF = async () => {
+    if (initialData?.id && (isIssued || isVoided) && !isPending) {
+      try {
+        setIsDownloading(true);
+        const response = await fetchWithTimeout(
+          `/api/certificates/${initialData.id}/artifact?format=pdf`,
+        );
+        if (!response.ok) throw new Error("下载失败");
+        downloadBlob(await response.blob(), `授权书_${data.shopName}.pdf`);
+      } catch (err: unknown) {
+        toast({
+          message:
+            "PDF 下载失败：" +
+            (err instanceof Error ? err.message : "未知错误"),
+          type: "error",
+        });
+      } finally {
+        setIsDownloading(false);
+      }
+      return;
+    }
     const canvas = getExportCanvas();
     if (!canvas) return;
     try {
       setIsDownloading(true);
       const { default: jsPDF } = await import("jspdf");
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
       const pdfWidth = 210;
       const pdfHeight = 297;
       const maxWidth = pdfWidth - 10;
@@ -592,10 +782,21 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
         imgHeight = maxHeight;
         imgWidth = (maxHeight * canvas.width) / canvas.height;
       }
-      pdf.addImage(imgData, 'PNG', (pdfWidth - imgWidth) / 2, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
+      pdf.addImage(
+        imgData,
+        "PNG",
+        (pdfWidth - imgWidth) / 2,
+        (pdfHeight - imgHeight) / 2,
+        imgWidth,
+        imgHeight,
+      );
       pdf.save(`授权书_${data.shopName}.pdf`);
     } catch (err: unknown) {
-      toast({ message: "PDF 下载失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+      toast({
+        message:
+          "PDF 下载失败：" + (err instanceof Error ? err.message : "未知错误"),
+        type: "error",
+      });
     } finally {
       setIsDownloading(false);
     }
@@ -609,9 +810,9 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   };
 
   const canSubmit = useMemo(() => {
-    if (mode === 'view') return false;
+    if (mode === "view") return false;
     const hasName = !!data.shopName.trim();
-    const hasDuration = !!data.duration && data.duration.includes(' - ');
+    const hasDuration = !!data.duration && data.duration.includes(" - ");
     const selectedChannels = getChannelsFromScopeText(data.scopeText);
     const hasChannels = selectedChannels.length > 0;
     return hasName && hasDuration && hasChannels && !layoutError;
@@ -620,7 +821,10 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
   const handleIssueSubmit = async () => {
     if (previewOnly || !canSubmit || submittedRef.current) return;
     if (isGenerating || renderedKeyRef.current !== renderKey) {
-      toast({ message: "证书预览正在更新，请等待渲染完成后再提交", type: "info" });
+      toast({
+        message: "证书预览正在更新，请等待渲染完成后再提交",
+        type: "info",
+      });
       return;
     }
     if (layoutError) {
@@ -629,74 +833,110 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
     }
     setIsSubmitting(true);
     try {
-      const isManager = userRole === 'SUPER_ADMIN';
+      const isManager = userRole === "SUPER_ADMIN";
 
       // 服务端返回的真实证书编号（用于替换预览图中的临时编号）
       let serverCertNumber: string | undefined;
-      const shouldApprove = mode === 'edit' && isPending && pendingAction === 'approve' && isManager;
+      const shouldApprove =
+        mode === "edit" &&
+        isPending &&
+        pendingAction === "approve" &&
+        isManager;
 
-      if (mode === 'edit' && isPending) {
+      if (mode === "edit" && isPending) {
         const response = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: shouldApprove ? "approve_issue" : "update_certificate",
             certId: initialData?.id,
-            certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
-          })
+            certData: {
+              ...data,
+              cert_number:
+                initialData?.cert_number || tempCertNumberRef.current,
+            },
+          }),
         });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || (shouldApprove ? "核发失败" : "更新失败"));
+        if (!response.ok)
+          throw new Error(
+            result.error || (shouldApprove ? "核发失败" : "更新失败"),
+          );
         if (result.certNumber) serverCertNumber = result.certNumber;
         toast({
-          message: shouldApprove ? "授权信息已更新并核发成功" : "修改已保存，等待超级管理员审核",
-          type: "success"
+          message: shouldApprove
+            ? "授权信息已更新并核发成功"
+            : "修改已保存，等待超级管理员审核",
+          type: "success",
         });
       } else {
-        const action = mode === 'edit' ? "update_certificate" : (isManager ? "approve_issue" : "create_pending");
+        const action =
+          mode === "edit"
+            ? "update_certificate"
+            : isManager
+              ? "approve_issue"
+              : "create_pending";
         const response = await fetchWithTimeout("/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action,
             certId: initialData?.id,
-            certData: { ...data, cert_number: initialData?.cert_number || tempCertNumberRef.current },
-          })
+            certData: {
+              ...data,
+              cert_number:
+                initialData?.cert_number || tempCertNumberRef.current,
+            },
+          }),
         });
 
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || "操作失败");
         if (result.certNumber) serverCertNumber = result.certNumber;
-        toast({ message: mode === 'edit' ? "授权信息已更新" : (userRole === 'SUPER_ADMIN' ? "证书已签发" : "提报成功，等待管理员核发"), type: "success" });
+        toast({
+          message:
+            mode === "edit"
+              ? "授权信息已更新"
+              : userRole === "SUPER_ADMIN"
+                ? "证书已签发"
+                : "提报成功，等待管理员核发",
+          type: "success",
+        });
       }
 
       // 用真实编号替换预览中的临时编号，再刷新画布
       if (serverCertNumber && serverCertNumber !== data.cert_number) {
-        setData(prev => ({ ...prev, cert_number: serverCertNumber }));
+        setData((prev) => ({ ...prev, cert_number: serverCertNumber }));
       }
 
       // 仅「已签发」状态才去掉水印并允许下载；
       // 审核员提报（create_pending）保持「审核中 · 未核发」水印
-      if (mode === 'create' && !isManager) {
+      if (mode === "create" && !isManager) {
         setPendingSubmitted(true);
       }
-      const nowIssued = mode === 'create'
-        ? isManager
-        : !(mode === 'edit' && isPending && !shouldApprove);
+      const nowIssued =
+        mode === "create"
+          ? isManager
+          : !(mode === "edit" && isPending && !shouldApprove);
       if (nowIssued) {
         setIsIssued(true);
       }
       // 提交成功后锁定，防止在弹窗关闭前重复提交产生重复工单
       submittedRef.current = true;
       if (onSuccess) {
-        if (successTimerRef.current !== null) window.clearTimeout(successTimerRef.current);
+        if (successTimerRef.current !== null)
+          window.clearTimeout(successTimerRef.current);
         successTimerRef.current = window.setTimeout(() => {
           successTimerRef.current = null;
           onSuccess();
         }, 800);
       }
     } catch (err: unknown) {
-      toast({ message: "操作失败：" + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+      toast({
+        message:
+          "操作失败：" + (err instanceof Error ? err.message : "未知错误"),
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -704,44 +944,67 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
   return (
     <div className="grid lg:grid-cols-[400px_1fr] gap-12 items-center h-full pb-2">
-      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col h-full">
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex flex-col h-full"
+      >
         <div className="space-y-8 mb-4 pt-1">
-          {mode === 'view' && data.cert_number && (
+          {mode === "view" && data.cert_number && (
             <div className="flex items-center gap-3">
-              <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium tracking-tight">证书编号</div>
-              <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium pl-3">{data.cert_number}</div>
+              <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium tracking-tight">
+                证书编号
+              </div>
+              <div className="flex-1 text-[13px] text-slate-900 font-mono font-medium pl-3">
+                {data.cert_number}
+              </div>
             </div>
           )}
           {/* 店铺名称/经销商 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">店铺或平台名称</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">
+              店铺或平台名称
+            </div>
             <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.shopName}</div>
+              {mode === "view" ? (
+                <div className="text-[13px] text-slate-900 font-medium pl-3">
+                  {data.shopName}
+                </div>
               ) : (
                 <input
                   type="text"
                   placeholder="请输入店铺或平台名称"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.shopName}
-                  onChange={(e) => setData(prev => ({ ...prev, shopName: e.target.value }))}
+                  onChange={(e) =>
+                    setData((prev) => ({ ...prev, shopName: e.target.value }))
+                  }
                 />
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">公司名称</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">
+              公司名称
+            </div>
             <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium pl-3">{data.companyName}</div>
+              {mode === "view" ? (
+                <div className="text-[13px] text-slate-900 font-medium pl-3">
+                  {data.companyName}
+                </div>
               ) : (
                 <input
                   type="text"
                   placeholder="请输入公司名称（如：广东省某某公司）- 选填"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all"
                   value={data.companyName}
-                  onChange={(e) => setData(prev => ({ ...prev, companyName: e.target.value }))}
+                  onChange={(e) =>
+                    setData((prev) => ({
+                      ...prev,
+                      companyName: e.target.value,
+                    }))
+                  }
                 />
               )}
             </div>
@@ -749,11 +1012,13 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 有效期 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">有效期</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">
+              有效期
+            </div>
             <div className="flex-1">
-              {mode === 'view' ? (
+              {mode === "view" ? (
                 <div className="text-[13px] text-slate-900 font-medium tabular-nums pl-3">
-                  {data.duration?.replace(/-/g, ' 至 ').replace(/\./g, '/')}
+                  {data.duration?.replace(/-/g, " 至 ").replace(/\./g, "/")}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -761,22 +1026,47 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                     type="date"
                     required
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
-                    value={data.duration && data.duration.includes(' - ') ? data.duration.split(' - ')[0].replace(/\./g, '-') : ""}
-                    onChange={(e) => setData(prev => {
-                      const end = prev.duration && prev.duration.includes(' - ') ? prev.duration.split(' - ')[1] : '';
-                      return { ...prev, duration: `${e.target.value.replace(/-/g, '.')} - ${end}` };
-                    })}
+                    value={
+                      data.duration && data.duration.includes(" - ")
+                        ? data.duration.split(" - ")[0].replace(/\./g, "-")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setData((prev) => {
+                        const end =
+                          prev.duration && prev.duration.includes(" - ")
+                            ? prev.duration.split(" - ")[1]
+                            : "";
+                        return {
+                          ...prev,
+                          duration: `${e.target.value.replace(/-/g, ".")} - ${end}`,
+                        };
+                      })
+                    }
                   />
                   <span className="text-slate-300">/</span>
                   <input
                     type="date"
                     required
                     className="flex-1 bg-slate-50/50 px-2 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none tabular-nums"
-                    value={data.duration && data.duration.includes(' - ') ? (data.duration.split(' - ')[1]?.replace(/\./g, '-') || "") : ""}
-                    onChange={(e) => setData(prev => {
-                      const start = prev.duration && prev.duration.includes(' - ') ? prev.duration.split(' - ')[0] : '';
-                      return { ...prev, duration: `${start} - ${e.target.value.replace(/-/g, '.')}` };
-                    })}
+                    value={
+                      data.duration && data.duration.includes(" - ")
+                        ? data.duration.split(" - ")[1]?.replace(/\./g, "-") ||
+                          ""
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setData((prev) => {
+                        const start =
+                          prev.duration && prev.duration.includes(" - ")
+                            ? prev.duration.split(" - ")[0]
+                            : "";
+                        return {
+                          ...prev,
+                          duration: `${start} - ${e.target.value.replace(/-/g, ".")}`,
+                        };
+                      })
+                    }
                   />
                 </div>
               )}
@@ -785,16 +1075,27 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 联系电话 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">联系电话</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">
+              联系电话
+            </div>
             <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight pl-3">{data.phone || "未录入"}</div>
+              {mode === "view" ? (
+                <div className="text-[13px] text-slate-900 font-medium font-mono tracking-tight pl-3">
+                  {data.phone || "未录入"}
+                </div>
               ) : (
                 <input
                   type="tel"
                   className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all font-mono"
                   value={data.phone}
-                  onChange={(e) => setData(prev => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '').substring(0, 11) }))}
+                  onChange={(e) =>
+                    setData((prev) => ({
+                      ...prev,
+                      phone: e.target.value
+                        .replace(/[^\d]/g, "")
+                        .substring(0, 11),
+                    }))
+                  }
                 />
               )}
             </div>
@@ -802,28 +1103,40 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 授权方 */}
           <div className="flex items-center gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">授权方</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium">
+              授权方
+            </div>
             <div className="flex-1">
-              <div className="text-[13px] text-slate-900 font-medium pl-3">{data.authorizer}</div>
+              <div className="text-[13px] text-slate-900 font-medium pl-3">
+                {data.authorizer}
+              </div>
             </div>
           </div>
 
           {/* 签字盖章 */}
           <div className="flex items-start gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">签字盖章</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">
+              签字盖章
+            </div>
             <div className="flex-1 pl-3">
-              {mode === 'view' || userRole !== 'SUPER_ADMIN' ? (
+              {mode === "view" || userRole !== "SUPER_ADMIN" ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     <div className="text-[12px] text-slate-900 font-medium">
-                      {data.sealImage && data.sealImage !== "/default-seal.png" ? "自定义签章文件" : "使用系统默认公章"}
+                      {data.sealImage && data.sealImage !== "/default-seal.png"
+                        ? "自定义签章文件"
+                        : "使用系统默认公章"}
                     </div>
                   </div>
                   {data.sealImage && (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={data.sealImage} alt="预览签章" className="w-12 h-12 object-contain rounded border border-slate-100 bg-white" />
+                      <img
+                        src={data.sealImage}
+                        alt="预览签章"
+                        className="w-12 h-12 object-contain rounded border border-slate-100 bg-white"
+                      />
                     </>
                   )}
                 </div>
@@ -840,39 +1153,58 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+                          const ALLOWED_TYPES = [
+                            "image/jpeg",
+                            "image/png",
+                            "image/webp",
+                          ];
                           const MAX_SIZE = 2 * 1024 * 1024;
                           if (!ALLOWED_TYPES.includes(file.type)) {
-                            toast({ message: '仅支持 PNG/JPG/WebP 格式', type: 'error' });
+                            toast({
+                              message: "仅支持 PNG/JPG/WebP 格式",
+                              type: "error",
+                            });
                             return;
                           }
                           if (file.size > MAX_SIZE) {
-                            toast({ message: '图片大小不能超过 2MB', type: 'error' });
+                            toast({
+                              message: "图片大小不能超过 2MB",
+                              type: "error",
+                            });
                             return;
                           }
                           try {
                             const formData = new FormData();
-                            formData.append('file', file);
-                            const res = await fetchWithTimeout('/api/upload', {
-                              method: 'POST',
-                              body: formData
+                            formData.append("file", file);
+                            const res = await fetchWithTimeout("/api/upload", {
+                              method: "POST",
+                              body: formData,
                             });
                             if (!res.ok) {
                               const data = await res.json();
-                              throw new Error(data.error || '上传失败');
+                              throw new Error(data.error || "上传失败");
                             }
                             const { url } = await res.json();
-                            setData(prev => ({ ...prev, sealImage: url }));
-                            toast({ message: '签章上传成功', type: 'success' });
+                            setData((prev) => ({ ...prev, sealImage: url }));
+                            toast({ message: "签章上传成功", type: "success" });
                           } catch (err: unknown) {
-                            toast({ message: '签章上传失败：' + (err instanceof Error ? err.message : '未知错误'), type: 'error' });
+                            toast({
+                              message:
+                                "签章上传失败：" +
+                                (err instanceof Error
+                                  ? err.message
+                                  : "未知错误"),
+                              type: "error",
+                            });
                           }
                         }}
                       />
                     </label>
                     {data.sealImage && (
                       <button
-                        onClick={() => setData(prev => ({ ...prev, sealImage: "" }))}
+                        onClick={() =>
+                          setData((prev) => ({ ...prev, sealImage: "" }))
+                        }
                         className="text-[11px] text-slate-400 hover:text-rose-500 font-bold transition-colors"
                       >
                         恢复默认公章
@@ -882,11 +1214,17 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   {data.sealImage && (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={data.sealImage} alt="预览签章" className="w-12 h-12 object-contain rounded border border-slate-100 bg-white" />
+                      <img
+                        src={data.sealImage}
+                        alt="预览签章"
+                        className="w-12 h-12 object-contain rounded border border-slate-100 bg-white"
+                      />
                     </>
                   )}
                   <div className="text-[11px] text-slate-400">
-                    {data.sealImage && data.sealImage !== "/default-seal.png" ? "已使用自定义签章" : `使用系统默认公章（${BRAND_NAME_CN}官方公章）`}
+                    {data.sealImage && data.sealImage !== "/default-seal.png"
+                      ? "已使用自定义签章"
+                      : `使用系统默认公章（${BRAND_NAME_CN}官方公章）`}
                   </div>
                 </div>
               )}
@@ -895,15 +1233,21 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
 
           {/* 授权业务范围 */}
           <div className="flex items-start gap-3">
-            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">授权业务范围</div>
+            <div className="w-24 shrink-0 text-[13px] text-slate-500 font-medium pt-2">
+              授权业务范围
+            </div>
             <div className="flex-1">
-              {mode === 'view' ? (
-                <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2 pl-3">{data.scopeText}</div>
+              {mode === "view" ? (
+                <div className="text-[13px] text-slate-900 font-medium leading-relaxed whitespace-pre-wrap py-2 pl-3">
+                  {data.scopeText}
+                </div>
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2 mb-3 items-center">
-                    {CHANNELS.map(channel => {
-                      const isSelected = getChannelsFromScopeText(data.scopeText).includes(channel);
+                    {CHANNELS.map((channel) => {
+                      const isSelected = getChannelsFromScopeText(
+                        data.scopeText,
+                      ).includes(channel);
                       return (
                         <button
                           key={channel}
@@ -911,15 +1255,17 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                           onClick={() => toggleChannel(channel)}
                           className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-all ${
                             isSelected
-                              ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm'
-                              : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:text-slate-700 hover:ring-slate-300'
+                              ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 shadow-sm"
+                              : "bg-white text-slate-500 ring-1 ring-slate-200 hover:text-slate-700 hover:ring-slate-300"
                           }`}
                         >
                           {channel}
                         </button>
                       );
                     })}
-                    {getChannelsFromScopeText(data.scopeText).includes('其他') && (
+                    {getChannelsFromScopeText(data.scopeText).includes(
+                      "其他",
+                    ) && (
                       <input
                         type="text"
                         placeholder="请输入其他渠道"
@@ -927,9 +1273,15 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                         onChange={(e) => {
                           const val = e.target.value;
                           setCustomChannel(val);
-                          const current = getChannelsFromScopeText(data.scopeText);
-                          const newText = updateScopeTextChannels(data.scopeText, current, val);
-                          setData(prev => ({ ...prev, scopeText: newText }));
+                          const current = getChannelsFromScopeText(
+                            data.scopeText,
+                          );
+                          const newText = updateScopeTextChannels(
+                            data.scopeText,
+                            current,
+                            val,
+                          );
+                          setData((prev) => ({ ...prev, scopeText: newText }));
                         }}
                         className="flex-1 min-w-[120px] bg-white px-3 py-1.5 rounded-lg text-[12px] text-slate-900 font-medium border border-slate-200 outline-none focus:border-slate-400 transition-all"
                       />
@@ -941,7 +1293,12 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                         className="w-full bg-slate-50/50 px-3 py-2 rounded-lg text-[13px] text-slate-900 font-medium focus:bg-white border border-transparent outline-none focus:ring-1 focus:ring-slate-200 transition-all resize-none leading-relaxed"
                         rows={5}
                         value={data.scopeText}
-                        onChange={(e) => setData(prev => ({ ...prev, scopeText: e.target.value }))}
+                        onChange={(e) =>
+                          setData((prev) => ({
+                            ...prev,
+                            scopeText: e.target.value,
+                          }))
+                        }
                       />
                       <button
                         type="button"
@@ -982,22 +1339,38 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
             导出时包含验证二维码
           </label>
           {layoutError && (
-            <span role="alert" className="text-[12px] font-medium text-rose-600">
+            <span
+              role="alert"
+              className="text-[12px] font-medium text-rose-600"
+            >
               {layoutError}
             </span>
           )}
           {includeQrCode && qrCodeError && (
-            <span role="alert" className="text-[12px] font-medium text-rose-600">
+            <span
+              role="alert"
+              className="text-[12px] font-medium text-rose-600"
+            >
               二维码生成失败，请重试或关闭该选项
             </span>
           )}
-          {!isVoided && !isIssued && !isPending && mode !== 'create' && (
+          {!isVoided && !isIssued && !isPending && mode !== "create" && (
             <>
-              <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><Download size={16} /> PNG</button>
-              <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"><File size={16} /> PDF</button>
+              <button
+                onClick={handleDownload}
+                className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"
+              >
+                <Download size={16} /> PNG
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                className="text-slate-600 text-[13px] font-bold hover:text-slate-900 border-b border-transparent hover:border-slate-900 flex items-center gap-2"
+              >
+                <File size={16} /> PDF
+              </button>
             </>
           )}
-          {mode !== 'view' && !previewOnly && (
+          {mode !== "view" && !previewOnly && (
             <div className="flex items-center gap-3">
               {isPending && onReject && (
                 <button
@@ -1016,9 +1389,24 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <svg
+                      className="animate-spin h-3.5 w-3.5"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     正在提交...
                   </>
@@ -1026,8 +1414,14 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
                   <>
                     <CheckCircle2 size={15} />
                     {isPending
-                      ? (pendingAction === 'approve' ? "确认修改并核发" : "保存修改")
-                      : mode === 'edit' ? "确认修改" : userRole === 'SUPER_ADMIN' ? "签发授权" : "提报授权"}
+                      ? pendingAction === "approve"
+                        ? "确认修改并核发"
+                        : "保存修改"
+                      : mode === "edit"
+                        ? "确认修改"
+                        : userRole === "SUPER_ADMIN"
+                          ? "签发授权"
+                          : "提报授权"}
                   </>
                 )}
               </button>
@@ -1035,39 +1429,88 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
           )}
           {isIssued && !isVoided && (
             <div className="flex gap-4">
-              <button onClick={handleDownload} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><Download size={16} /> PNG</button>
-              <button onClick={handleDownloadPDF} className="text-slate-600 text-[13px] font-bold flex items-center gap-2"><File size={16} /> PDF</button>
+              <button
+                onClick={handleDownload}
+                className="text-slate-600 text-[13px] font-bold flex items-center gap-2"
+              >
+                <Download size={16} /> PNG
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                className="text-slate-600 text-[13px] font-bold flex items-center gap-2"
+              >
+                <File size={16} /> PDF
+              </button>
             </div>
           )}
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center h-fit">
-        <div onClick={handleImagePreview} className="w-full max-w-[460px] shadow-2xl rounded-sm bg-white overflow-hidden ring-1 ring-slate-900/5 cursor-zoom-in relative group min-h-[240px] md:min-h-[320px]">
-          <canvas ref={canvasRef} className={`w-full h-auto block ${isGenerating ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`} style={{ imageRendering: 'crisp-edges' }} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex justify-center h-fit"
+      >
+        <div
+          onClick={handleImagePreview}
+          className="w-full max-w-[460px] shadow-2xl rounded-sm bg-white overflow-hidden ring-1 ring-slate-900/5 cursor-zoom-in relative group min-h-[240px] md:min-h-[320px]"
+        >
+          <canvas
+            ref={canvasRef}
+            className={`w-full h-auto block ${isGenerating ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+            style={{ imageRendering: "crisp-edges" }}
+          />
           {isGenerating && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white z-10">
               <div className="relative w-10 h-10">
-                <svg className="animate-spin w-10 h-10 text-slate-200" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <svg
+                  className="animate-spin w-10 h-10 text-slate-200"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
               </div>
-              <p className="text-[12px] font-medium text-slate-400 tracking-widest uppercase">正在生成证书预览...</p>
+              <p className="text-[12px] font-medium text-slate-400 tracking-widest uppercase">
+                正在生成证书预览...
+              </p>
             </div>
           )}
-          <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white z-20"><ZoomIn className="w-6 h-6" /></div>
+          <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white z-20">
+            <ZoomIn className="w-6 h-6" />
+          </div>
         </div>
       </motion.div>
 
       <AnimatePresence>
         {showFullPreview && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-2xl">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowFullPreview(false); setZoomScale(1); }} className="absolute inset-0 cursor-zoom-out z-[201]" />
             <motion.div
-              initial={{ opacity: 0, y: -20, x: '-50%' }}
-              animate={{ opacity: 1, y: 0, x: '-50%' }}
-              exit={{ opacity: 0, y: -20, x: '-50%' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowFullPreview(false);
+                setZoomScale(1);
+              }}
+              className="absolute inset-0 cursor-zoom-out z-[201]"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -20, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: -20, x: "-50%" }}
               className="absolute top-10 left-1/2 z-[210] flex items-center h-12 px-2 bg-black/60 border border-white/5 rounded-full backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
@@ -1105,27 +1548,56 @@ export default function CertificateGenerator({ initialData, mode = 'create', isV
               {/* 操作组 */}
               <div className="flex items-center pl-3 pr-1 gap-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload();
+                  }}
                   className="flex items-center gap-2 px-4 h-8 bg-white text-black rounded-full text-[12px] font-bold hover:bg-slate-200 transition-all active:scale-95 whitespace-nowrap"
                 >
                   <Download size={14} strokeWidth={2.5} /> 保存图片
                 </button>
 
                 <button
-                  onClick={() => { setShowFullPreview(false); setZoomScale(1); }}
+                  onClick={() => {
+                    setShowFullPreview(false);
+                    setZoomScale(1);
+                  }}
                   className="w-8 h-8 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
                 >
                   <X size={16} />
                 </button>
               </div>
             </motion.div>
-            <div className="w-full h-full flex items-center justify-center overflow-hidden touch-none" onWheel={(e) => setZoomScale(prev => e.deltaY < 0 ? Math.min(5, prev + 0.1) : Math.max(0.2, prev - 0.1))}>
-              <motion.div drag dragConstraints={{ left: -1200, right: 1200, top: -1200, bottom: 1200 }} animate={{ scale: zoomScale }} transition={{ type: "spring", damping: 30, stiffness: 200 }} className="relative z-[205]">
+            <div
+              className="w-full h-full flex items-center justify-center overflow-hidden touch-none"
+              onWheel={(e) =>
+                setZoomScale((prev) =>
+                  e.deltaY < 0
+                    ? Math.min(5, prev + 0.1)
+                    : Math.max(0.2, prev - 0.1),
+                )
+              }
+            >
+              <motion.div
+                drag
+                dragConstraints={{
+                  left: -1200,
+                  right: 1200,
+                  top: -1200,
+                  bottom: 1200,
+                }}
+                animate={{ scale: zoomScale }}
+                transition={{ type: "spring", damping: 30, stiffness: 200 }}
+                className="relative z-[205]"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previewImageUrl} className="max-w-[85vw] max-h-[85vh] object-contain shadow-2xl rounded-sm pointer-events-none select-none ring-1 ring-white/10" alt="HD" />
+                <img
+                  src={previewImageUrl}
+                  className="max-w-[85vw] max-h-[85vh] object-contain shadow-2xl rounded-sm pointer-events-none select-none ring-1 ring-white/10"
+                  alt="HD"
+                />
               </motion.div>
             </div>
-
           </div>
         )}
       </AnimatePresence>

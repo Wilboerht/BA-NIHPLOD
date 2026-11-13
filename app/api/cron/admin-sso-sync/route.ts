@@ -18,13 +18,27 @@ function authorized(request: Request): boolean {
   return isCronRequestAuthorized(request);
 }
 
-function resolveStatusRole(status: MainAdminStatus): "SUPER_ADMIN" | "AUDITOR" | null {
-  const permissions = Array.isArray(status.permissions) ? status.permissions : [];
+function resolveStatusRole(
+  status: MainAdminStatus,
+): "SUPER_ADMIN" | "AUDITOR" | null {
+  const permissions = Array.isArray(status.permissions)
+    ? status.permissions
+    : [];
   const role = status.baRole || status.clientRole;
-  if (role === "super_admin" && (status.role === "owner" || permissions.includes("ba:admin"))) {
+  if (
+    role === "super_admin" &&
+    (status.role === "owner" || permissions.includes("ba:admin"))
+  ) {
     return "SUPER_ADMIN";
   }
   if (role === "auditor" && permissions.includes("ba:access")) {
+    return "AUDITOR";
+  }
+  // 仅持有证书权限的管理员通过主站 BFF 操作，不进入 BA 工作台；
+  // 保留 AUDITOR shadow profile，避免同步任务误封禁。
+  if (
+    permissions.some((permission) => permission.startsWith("ba:certificates:"))
+  ) {
     return "AUDITOR";
   }
   return null;
@@ -37,7 +51,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (process.env.ADMIN_SSO_ENABLED !== "true") {
-    return NextResponse.json({ success: true, skipped: true, reason: "sso_disabled" });
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: "sso_disabled",
+    });
   }
 
   let config: ReturnType<typeof getAdminSsoConfig>;
@@ -47,7 +65,7 @@ export async function GET(request: Request) {
     logger.error("[AdminSSOSync] 配置缺失", { error: String(error) });
     return NextResponse.json(
       { success: false, error: "Admin SSO is not configured" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -62,7 +80,12 @@ export async function GET(request: Request) {
   `;
 
   if (shadowAdmins.length === 0) {
-    return NextResponse.json({ success: true, checked: 0, updated: 0, revoked: 0 });
+    return NextResponse.json({
+      success: true,
+      checked: 0,
+      updated: 0,
+      revoked: 0,
+    });
   }
 
   let updated = 0;
@@ -82,7 +105,12 @@ export async function GET(request: Request) {
         const status = statusById.get(externalId);
         const localRole = status ? resolveStatusRole(status) : null;
 
-        if (!status || status.status !== "ACTIVE" || Boolean(status.deletedAt) || !localRole) {
+        if (
+          !status ||
+          status.status !== "ACTIVE" ||
+          Boolean(status.deletedAt) ||
+          !localRole
+        ) {
           if (!shadow.is_banned) {
             await sql`
               UPDATE profiles
@@ -116,10 +144,17 @@ export async function GET(request: Request) {
           Number(shadow.external_token_version) !== status.ver;
         const roleChanged = shadow.role !== localRole;
         const externalRoleChanged = shadow.external_role !== status.role;
-        const totpChanged = Boolean(shadow.main_totp_enabled) !== Boolean(status.totpEnabled);
+        const totpChanged =
+          Boolean(shadow.main_totp_enabled) !== Boolean(status.totpEnabled);
         const bannedChanged = Boolean(shadow.is_banned);
 
-        if (versionChanged || roleChanged || externalRoleChanged || totpChanged || bannedChanged) {
+        if (
+          versionChanged ||
+          roleChanged ||
+          externalRoleChanged ||
+          totpChanged ||
+          bannedChanged
+        ) {
           await sql`
             UPDATE profiles
             SET role = ${localRole},
@@ -165,11 +200,14 @@ export async function GET(request: Request) {
       });
       return NextResponse.json(
         { success: false, error: "主站状态同步失败", code: error.code },
-        { status: 502 }
+        { status: 502 },
       );
     }
     logger.error("[AdminSSOSync] sync failed", { error: String(error) });
-    return NextResponse.json({ success: false, error: "同步失败" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "同步失败" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({

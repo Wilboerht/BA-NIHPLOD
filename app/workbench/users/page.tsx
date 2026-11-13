@@ -3,8 +3,22 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, UserCog, Key, Trash2, Info,
-  ChevronDown, ChevronLeft, ChevronRight, X, Eye, EyeOff, Loader2, CheckCircle2, Plus, Ban, ShieldCheck
+  Search,
+  UserCog,
+  Key,
+  Trash2,
+  Info,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Eye,
+  EyeOff,
+  Loader2,
+  CheckCircle2,
+  Plus,
+  Ban,
+  ShieldCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -63,7 +77,12 @@ export default function AdminsManagementPage() {
 
   // 创建弹窗状态
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState<CreateForm>({ fullName: "", username: "", password: "", role: "AUDITOR" });
+  const [form, setForm] = useState<CreateForm>({
+    fullName: "",
+    username: "",
+    password: "",
+    role: "AUDITOR",
+  });
   const [showPwd, setShowPwd] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -79,14 +98,27 @@ export default function AdminsManagementPage() {
 
   const fullNameRef = useRef<HTMLInputElement>(null);
   const resetPwdRef = useRef<HTMLInputElement>(null);
-  const createSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const createSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  useEffect(() => () => {
-    if (createSuccessTimerRef.current) clearTimeout(createSuccessTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (createSuccessTimerRef.current)
+        clearTimeout(createSuccessTimerRef.current);
+    },
+    [],
+  );
 
-  useEscapeKey(() => { if (!isSubmitting) { closeCreate(); setCreateError(null); } }, showCreate);
-  useEscapeKey(() => { if (!isResetting) closeResetPassword(); }, showResetPwd);
+  useEscapeKey(() => {
+    if (!isSubmitting) {
+      closeCreate();
+      setCreateError(null);
+    }
+  }, showCreate);
+  useEscapeKey(() => {
+    if (!isResetting) closeResetPassword();
+  }, showResetPwd);
 
   useEffect(() => {
     fetchData();
@@ -115,19 +147,21 @@ export default function AdminsManagementPage() {
         page: String(page),
         pageSize: String(pageSize),
       });
-      if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
-      const res = await fetchWithTimeout(`/api/admin/list?${params.toString()}`);
+      if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
+      const res = await fetchWithTimeout(
+        `/api/admin/list?${params.toString()}`,
+      );
       const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.error || '获取管理员列表失败');
+      if (!res.ok) throw new Error(result.error || "获取管理员列表失败");
       if (requestId !== listRequestRef.current) return;
       setUsers(result.data || []);
       setTotal(Number(result.total) || 0);
     } catch (err: unknown) {
       if (requestId !== listRequestRef.current) return;
-      console.error('Fetch admin list error:', err);
+      console.error("Fetch admin list error:", err);
       setUsers([]);
       setTotal(0);
-      setLoadError(err instanceof Error ? err.message : '获取管理员列表失败');
+      setLoadError(err instanceof Error ? err.message : "获取管理员列表失败");
     } finally {
       if (requestId === listRequestRef.current) setIsLoading(false);
     }
@@ -169,7 +203,9 @@ export default function AdminsManagementPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
 
-      setCreateSuccess(`账户已创建！登录邮箱：${result.email}（首次登录必须修改密码）`);
+      setCreateSuccess(
+        `账户已创建！登录邮箱：${result.email}（首次登录必须修改密码）`,
+      );
       await fetchData(); // 刷新列表
       // 2 秒后自动关闭弹窗
       clearCreateSuccessTimer();
@@ -187,7 +223,8 @@ export default function AdminsManagementPage() {
 
   const updateUserRole = async (user: AdminUser, newRole: string) => {
     if (user.role === newRole || updatingRoleId) return;
-    const nextRoleLabel = ROLE_OPTIONS.find((role) => role.value === newRole)?.label || newRole;
+    const nextRoleLabel =
+      ROLE_OPTIONS.find((role) => role.value === newRole)?.label || newRole;
     const ok = await confirm({
       message: `确定将管理员 "${user.full_name}" 的角色改为“${nextRoleLabel}”吗？\n变更后该账号的现有登录状态将立即失效。`,
     });
@@ -195,51 +232,64 @@ export default function AdminsManagementPage() {
 
     setUpdatingRoleId(user.id);
     try {
-      const res = await fetchWithTimeout('/api/admin/update-user-role', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, newRole })
+      const res = await fetchWithTimeout("/api/admin/update-user-role", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, newRole }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '未知错误');
-      toast({ message: '角色已更新，该账号需要重新登录', type: 'success' });
+      if (!res.ok) throw new Error(data.error || "未知错误");
+      toast({ message: "角色已更新，该账号需要重新登录", type: "success" });
       await fetchData();
     } catch (err: unknown) {
-      toast({ message: "更新出错: " + (err instanceof Error ? err.message : "未知错误"), type: "error" });
+      toast({
+        message:
+          "更新出错: " + (err instanceof Error ? err.message : "未知错误"),
+        type: "error",
+      });
     } finally {
       setUpdatingRoleId(null);
     }
   };
 
   const toggleBanUser = async (user: AdminUser) => {
-    const nextAction = user.is_banned ? 'unban' : 'ban';
+    const nextAction = user.is_banned ? "unban" : "ban";
     const ok = await confirm({
-      message: nextAction === 'ban'
-        ? `确定要封禁管理员 "${user.full_name}" 吗？\n封禁后该账号将无法登录。`
-        : `确定要解封管理员 "${user.full_name}" 吗？`,
+      message:
+        nextAction === "ban"
+          ? `确定要封禁管理员 "${user.full_name}" 吗？\n封禁后该账号将无法登录。`
+          : `确定要解封管理员 "${user.full_name}" 吗？`,
     });
     if (!ok) return;
 
     try {
-      const res = await fetchWithTimeout('/api/admin/ban-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetchWithTimeout("/api/admin/ban-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId: user.id, action: nextAction }),
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        toast({ message: nextAction === 'ban' ? '账号已封禁' : '账号已解封', type: 'success' });
+        toast({
+          message: nextAction === "ban" ? "账号已封禁" : "账号已解封",
+          type: "success",
+        });
         fetchData();
       } else {
-        toast({ message: result.error || '操作失败', type: 'error' });
+        toast({ message: result.error || "操作失败", type: "error" });
       }
     } catch (err: unknown) {
-      toast({ message: `错误：${err instanceof Error ? err.message : '未知错误'}`, type: 'error' });
+      toast({
+        message: `错误：${err instanceof Error ? err.message : "未知错误"}`,
+        type: "error",
+      });
     }
   };
 
   const deleteUser = async (id: string, name: string) => {
-    const ok = await confirm({ message: `确定要移除管理员 "${name}" 吗？\n该账号将立即无法登录；关联业务数据与审计记录会保留。` });
+    const ok = await confirm({
+      message: `确定要移除管理员 "${name}" 吗？\n该账号将立即无法登录；关联业务数据与审计记录会保留。`,
+    });
     if (ok) {
       try {
         const res = await fetchWithTimeout("/api/admin/delete-user", {
@@ -247,9 +297,9 @@ export default function AdminsManagementPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: id }),
         });
-        
+
         const result = await res.json();
-        
+
         if (res.ok && result.success) {
           toast({ message: result.message, type: "success" });
           fetchData();
@@ -257,7 +307,10 @@ export default function AdminsManagementPage() {
           toast({ message: result.error || "删除失败", type: "error" });
         }
       } catch (err: unknown) {
-        toast({ message: `错误：${err instanceof Error ? err.message : "未知错误"}`, type: "error" });
+        toast({
+          message: `错误：${err instanceof Error ? err.message : "未知错误"}`,
+          type: "error",
+        });
       }
     }
   };
@@ -300,11 +353,17 @@ export default function AdminsManagementPage() {
       const res = await fetchWithTimeout("/api/admin/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: resetPwdTarget.id, newPassword: resetPwdValue }),
+        body: JSON.stringify({
+          userId: resetPwdTarget.id,
+          newPassword: resetPwdValue,
+        }),
       });
       const result = await res.json();
       if (result.success) {
-        toast({ message: "密码重置成功！该用户下次登录必须先修改密码。", type: "success" });
+        toast({
+          message: "密码重置成功！该用户下次登录必须先修改密码。",
+          type: "success",
+        });
         setShowResetPwd(false);
         setResetPwdTarget(null);
       } else {
@@ -324,7 +383,11 @@ export default function AdminsManagementPage() {
     <div className="px-8 md:px-12 py-8 md:pt-10 md:pb-12 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0">
       {/* 页头 */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-1"
+        >
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
               <UserCog className="w-7 h-7 text-slate-900" />
@@ -336,14 +399,22 @@ export default function AdminsManagementPage() {
                 <Info className="w-3.5 h-3.5" />
               </div>
               <div className="absolute left-0 top-full mt-2 w-72 p-4 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-100 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all translate-y-2 group-hover:translate-y-0 z-[100]">
-                <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-widest mb-3 border-b border-slate-50 pb-2">权限等级说明</h4>
+                <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-widest mb-3 border-b border-slate-50 pb-2">
+                  权限等级说明
+                </h4>
                 <div className="space-y-3">
-                  {ROLE_OPTIONS.map(r => (
+                  {ROLE_OPTIONS.map((r) => (
                     <div key={r.value} className="flex gap-2.5">
-                      <div className={`w-1.5 h-1.5 rounded-full ${r.dot} mt-1.5 shrink-0`} />
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${r.dot} mt-1.5 shrink-0`}
+                      />
                       <div className="flex flex-col">
-                        <span className="text-[11px] font-bold text-slate-800">{r.label} ({r.value})</span>
-                        <p className="text-[10px] text-slate-500 leading-relaxed">{r.desc}</p>
+                        <span className="text-[11px] font-bold text-slate-800">
+                          {r.label} ({r.value})
+                        </span>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">
+                          {r.desc}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -351,18 +422,27 @@ export default function AdminsManagementPage() {
               </div>
             </div>
           </div>
-          <p className="text-slate-500 text-[13px]">管理系统内部管理员及其对应的功能权限，请确保系统操作安全。</p>
+          <p className="text-slate-500 text-[13px]">
+            管理系统内部管理员及其对应的功能权限，请确保系统操作安全。
+          </p>
         </motion.div>
 
-        <motion.button
-          whileHover={{ scale: 1.01, y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={openCreate}
-          className="text-slate-900 border-b border-slate-900/20 px-0 pb-0.5 flex items-center gap-2 hover:text-slate-500 hover:border-slate-900 transition-all font-bold tracking-wide"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="font-bold tracking-wide">添加管理账号</span>
-        </motion.button>
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-[11px] font-semibold tracking-wide text-slate-500">
+            管理员由主站统一管理；本页默认只读
+          </div>
+          {currentUser.auth_source !== "sso" && (
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={openCreate}
+              className="text-slate-900 border-b border-slate-900/20 px-0 pb-0.5 flex items-center gap-2 hover:text-slate-500 hover:border-slate-900 transition-all font-bold tracking-wide"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="font-bold tracking-wide">添加应急账号</span>
+            </motion.button>
+          )}
+        </div>
       </div>
 
       {/* 用户列表 */}
@@ -384,9 +464,17 @@ export default function AdminsManagementPage() {
         </div>
 
         {loadError && (
-          <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          >
             <span>{loadError}</span>
-            <button onClick={fetchData} className="shrink-0 font-semibold hover:underline">重试</button>
+            <button
+              onClick={fetchData}
+              className="shrink-0 font-semibold hover:underline"
+            >
+              重试
+            </button>
           </div>
         )}
 
@@ -398,122 +486,186 @@ export default function AdminsManagementPage() {
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse delay-75" />
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse delay-150" />
               </div>
-              <span className="text-[12px] font-medium tracking-widest uppercase">校验权限加密链路...</span>
+              <span className="text-[12px] font-medium tracking-widest uppercase">
+                校验权限加密链路...
+              </span>
             </div>
           )}
           <table className="w-full text-left text-sm whitespace-nowrap table-auto border-separate border-spacing-0">
             <thead className="text-slate-500 font-semibold uppercase tracking-wider text-xs bg-slate-50/80">
               <tr>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">管理员主体</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">系统角色</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">唯一识别码</th>
-                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">账号状态</th>
-                <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">操作</th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">
+                  管理员主体
+                </th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">
+                  系统角色
+                </th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">
+                  唯一识别码
+                </th>
+                <th className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">
+                  账号状态
+                </th>
+                <th className="px-6 py-4 border-b border-slate-100 text-right sticky top-0 bg-slate-50/80 z-20 backdrop-blur-md">
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-              {!isLoading && filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-blue-50/20 transition-colors group">
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-slate-900 flex items-center gap-2 tracking-tight">
-                        {user.full_name}
-                        {user.auth_source === 'sso' && (
-                          <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">主站管理</span>
-                        )}
-                        {user.id === currentUser?.id && (
-                          <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">当前账号</span>
-                        )}
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-medium">{user.username}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="relative inline-flex items-center min-w-[100px] group/select">
-                      <span className={`text-[12px] font-extrabold transition-all tracking-tight ${
-                        user.role === "SUPER_ADMIN" ? "text-slate-900" : "text-slate-400"
-                      } ${user.id !== currentUser?.id ? "group-hover/select:underline group-hover/select:underline-offset-4 decoration-slate-300" : ""}`}>
-                        {ROLE_OPTIONS.find(r => r.value === user.role)?.label || user.role}
-                      </span>
-                      <select
-                        disabled={user.id === currentUser.id || updatingRoleId !== null || user.auth_source === 'sso'}
-                        value={user.role}
-                        onChange={(e) => updateUserRole(user, e.target.value)}
-                        className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser.id || updatingRoleId !== null || user.auth_source === 'sso' ? "cursor-not-allowed" : ""} z-20`}
-                        title={user.auth_source === 'sso' ? "该账号由主站统一管理" : user.id === currentUser.id ? "无法修改当前登录账号的角色" : updatingRoleId ? "正在更新角色" : "点击修改权限等级"}
-                      >
-                        {ROLE_OPTIONS.map(r => (
-                          <option key={r.value} value={r.value}>{r.label}</option>
-                        ))}
-                      </select>
-                      {user.id !== currentUser?.id && user.auth_source !== 'sso' && (
-                        <ChevronDown className="w-3 h-3 text-slate-300 ml-2 transition-transform group-hover/select:translate-y-0.5" />
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-slate-400 font-mono tracking-tighter uppercase tabular-nums">{user.id}</span>
-                      <span className="text-[10px] text-slate-300 font-medium">
-                        创建于 {user.created_at || user.updated_at ? new Date(user.created_at || user.updated_at || '').toLocaleDateString() : '-'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    {user.is_banned ? (
-                      <span className="inline-flex items-center gap-2 text-rose-600 text-[11px] font-bold tracking-tight">
-                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
-                        已封禁
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2 text-emerald-600 text-[11px] font-bold tracking-tight">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                        正常活跃
-                      </span>
-                    )}
-                  </td>
-                   <td className="px-6 py-4 text-right">
-                     {user.auth_source === 'sso' ? (
-                       <span className="text-[11px] text-slate-400 font-medium">主站统一管理</span>
-                     ) : (
-                     <div className="flex items-center justify-end gap-1">
-                      {user.id !== currentUser?.id && (
-                        <button
-                          onClick={() => openResetPassword(user)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-300 hover:text-slate-600 rounded-lg transition-all"
-                          title="重置登录密码"
+              {!isLoading &&
+                filteredUsers.map((user) => (
+                  <tr
+                    key={user.id}
+                    className="hover:bg-blue-50/20 transition-colors group"
+                  >
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+                          {user.full_name}
+                          {user.auth_source === "sso" && (
+                            <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">
+                              主站管理
+                            </span>
+                          )}
+                          {user.id === currentUser?.id && (
+                            <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">
+                              当前账号
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {user.username}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="relative inline-flex items-center min-w-[100px] group/select">
+                        <span
+                          className={`text-[12px] font-extrabold transition-all tracking-tight ${
+                            user.role === "SUPER_ADMIN"
+                              ? "text-slate-900"
+                              : "text-slate-400"
+                          } ${user.id !== currentUser?.id ? "group-hover/select:underline group-hover/select:underline-offset-4 decoration-slate-300" : ""}`}
                         >
-                          <Key className="w-3.5 h-3.5" />
-                          <span className="text-[11px] font-bold">重置密码</span>
-                        </button>
-                      )}
-                      {user.id !== currentUser?.id && user.role !== 'SUPER_ADMIN' && (
-                        <button
-                          onClick={() => toggleBanUser(user)}
-                          className={`p-2 rounded-lg transition-all ${
-                            user.is_banned
-                              ? 'text-slate-300 hover:text-emerald-500 hover:bg-emerald-50'
-                              : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'
-                          }`}
-                          title={user.is_banned ? '解除封禁' : '封禁账号'}
+                          {ROLE_OPTIONS.find((r) => r.value === user.role)
+                            ?.label || user.role}
+                        </span>
+                        <select
+                          disabled={
+                            user.id === currentUser.id ||
+                            updatingRoleId !== null ||
+                            user.auth_source === "sso"
+                          }
+                          value={user.role}
+                          onChange={(e) => updateUserRole(user, e.target.value)}
+                          className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${user.id === currentUser.id || updatingRoleId !== null || user.auth_source === "sso" ? "cursor-not-allowed" : ""} z-20`}
+                          title={
+                            user.auth_source === "sso"
+                              ? "该账号由主站统一管理"
+                              : user.id === currentUser.id
+                                ? "无法修改当前登录账号的角色"
+                                : updatingRoleId
+                                  ? "正在更新角色"
+                                  : "点击修改权限等级"
+                          }
                         >
-                          {user.is_banned ? <ShieldCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                        </button>
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                        {user.id !== currentUser?.id &&
+                          user.auth_source !== "sso" && (
+                            <ChevronDown className="w-3 h-3 text-slate-300 ml-2 transition-transform group-hover/select:translate-y-0.5" />
+                          )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] text-slate-400 font-mono tracking-tighter uppercase tabular-nums">
+                          {user.id}
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-medium">
+                          创建于{" "}
+                          {user.created_at || user.updated_at
+                            ? new Date(
+                                user.created_at || user.updated_at || "",
+                              ).toLocaleDateString()
+                            : "-"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      {user.is_banned ? (
+                        <span className="inline-flex items-center gap-2 text-rose-600 text-[11px] font-bold tracking-tight">
+                          <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                          已封禁
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 text-emerald-600 text-[11px] font-bold tracking-tight">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                          正常活跃
+                        </span>
                       )}
-                      {user.id !== currentUser.id && user.role !== 'SUPER_ADMIN' && (
-                        <button
-                          onClick={() => deleteUser(user.id, user.full_name)}
-                          className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
-                          title="移除此管理员"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {user.auth_source === "sso" ? (
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          主站统一管理
+                        </span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          {user.id !== currentUser?.id &&
+                            user.auth_source !== "sso" && (
+                              <button
+                                onClick={() => openResetPassword(user)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 text-slate-300 hover:text-slate-600 rounded-lg transition-all"
+                                title="重置登录密码"
+                              >
+                                <Key className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-bold">
+                                  重置密码
+                                </span>
+                              </button>
+                            )}
+                          {user.id !== currentUser?.id &&
+                            user.role !== "SUPER_ADMIN" &&
+                            user.auth_source !== "sso" && (
+                              <button
+                                onClick={() => toggleBanUser(user)}
+                                className={`p-2 rounded-lg transition-all ${
+                                  user.is_banned
+                                    ? "text-slate-300 hover:text-emerald-500 hover:bg-emerald-50"
+                                    : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"
+                                }`}
+                                title={user.is_banned ? "解除封禁" : "封禁账号"}
+                              >
+                                {user.is_banned ? (
+                                  <ShieldCheck className="w-4 h-4" />
+                                ) : (
+                                  <Ban className="w-4 h-4" />
+                                )}
+                              </button>
+                            )}
+                          {user.id !== currentUser.id &&
+                            user.role !== "SUPER_ADMIN" &&
+                            user.auth_source !== "sso" && (
+                              <button
+                                onClick={() =>
+                                  deleteUser(user.id, user.full_name)
+                                }
+                                className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
+                                title="移除此管理员"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                        </div>
                       )}
-                     </div>
-                     )}
-                   </td>
-                 </tr>
-              ))}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -525,14 +677,14 @@ export default function AdminsManagementPage() {
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
@@ -571,8 +723,15 @@ export default function AdminsManagementPage() {
               <div className="px-10 pt-12 pb-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 id="create-user-title" className="text-xl font-black text-slate-900 tracking-[0.05em]">开通管理权限</h2>
-                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">配置新成员的访问凭标与职裁范围</p>
+                    <h2
+                      id="create-user-title"
+                      className="text-xl font-black text-slate-900 tracking-[0.05em]"
+                    >
+                      开通管理权限
+                    </h2>
+                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">
+                      配置新成员的访问凭标与职裁范围
+                    </p>
                   </div>
                   <button
                     onClick={closeCreate}
@@ -591,7 +750,12 @@ export default function AdminsManagementPage() {
                 <div className="space-y-5">
                   {/* 姓名 */}
                   <div className="space-y-2">
-                    <label htmlFor="create-full-name" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">真实姓名</label>
+                    <label
+                      htmlFor="create-full-name"
+                      className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1"
+                    >
+                      真实姓名
+                    </label>
                     <input
                       id="create-full-name"
                       ref={fullNameRef}
@@ -599,7 +763,9 @@ export default function AdminsManagementPage() {
                       required
                       placeholder="后台识别名"
                       value={form.fullName}
-                      onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, fullName: e.target.value }))
+                      }
                       disabled={isSubmitting || !!createSuccess}
                       className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 placeholder:text-slate-200"
                     />
@@ -607,14 +773,21 @@ export default function AdminsManagementPage() {
 
                   {/* 用户名 */}
                   <div className="space-y-2">
-                    <label htmlFor="create-username" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">系统识别号 (USERNAME)</label>
+                    <label
+                      htmlFor="create-username"
+                      className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1"
+                    >
+                      系统识别号 (USERNAME)
+                    </label>
                     <input
                       id="create-username"
                       type="text"
                       required
                       placeholder="zhangsan@admin.nihplod.cn"
                       value={form.username}
-                      onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, username: e.target.value }))
+                      }
                       disabled={isSubmitting || !!createSuccess}
                       className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all font-mono text-slate-900 placeholder:text-slate-200"
                     />
@@ -622,7 +795,12 @@ export default function AdminsManagementPage() {
 
                   {/* 密码 */}
                   <div className="space-y-2">
-                    <label htmlFor="create-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">初始登录密码</label>
+                    <label
+                      htmlFor="create-password"
+                      className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1"
+                    >
+                      初始登录密码
+                    </label>
                     <div className="relative">
                       <input
                         id="create-password"
@@ -631,30 +809,47 @@ export default function AdminsManagementPage() {
                         minLength={8}
                         placeholder="设置初始安全密码"
                         value={form.password}
-                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, password: e.target.value }))
+                        }
                         disabled={isSubmitting || !!createSuccess}
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 font-mono placeholder:text-slate-200"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPwd(v => !v)}
+                        onClick={() => setShowPwd((v) => !v)}
                         aria-label={showPwd ? "隐藏密码" : "显示密码"}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
                       >
-                        {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPwd ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   {/* 角色 */}
                   <div className="space-y-2.5 pt-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1" id="create-role-label">角色权限分配</label>
-                    <div className="space-y-2.5" role="group" aria-labelledby="create-role-label">
-                      {ROLE_OPTIONS.map(opt => (
+                    <label
+                      className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1"
+                      id="create-role-label"
+                    >
+                      角色权限分配
+                    </label>
+                    <div
+                      className="space-y-2.5"
+                      role="group"
+                      aria-labelledby="create-role-label"
+                    >
+                      {ROLE_OPTIONS.map((opt) => (
                         <button
                           key={opt.value}
                           type="button"
-                          onClick={() => setForm(f => ({ ...f, role: opt.value }))}
+                          onClick={() =>
+                            setForm((f) => ({ ...f, role: opt.value }))
+                          }
                           disabled={isSubmitting || !!createSuccess}
                           aria-pressed={form.role === opt.value}
                           className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left ${
@@ -664,15 +859,25 @@ export default function AdminsManagementPage() {
                           }`}
                         >
                           <div className="space-y-1">
-                            <span className={`text-[13px] font-bold block ${form.role === opt.value ? "text-slate-900" : "text-slate-400"}`}>
+                            <span
+                              className={`text-[13px] font-bold block ${form.role === opt.value ? "text-slate-900" : "text-slate-400"}`}
+                            >
                               {opt.label}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-medium leading-relaxed block">{opt.desc}</span>
+                            <span className="text-[10px] text-slate-500 font-medium leading-relaxed block">
+                              {opt.desc}
+                            </span>
                           </div>
-                          <div className={`w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center ${
-                            form.role === opt.value ? "border-slate-900 bg-slate-900" : "border-slate-200 bg-white"
-                          }`}>
-                            {form.role === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center ${
+                              form.role === opt.value
+                                ? "border-slate-900 bg-slate-900"
+                                : "border-slate-200 bg-white"
+                            }`}
+                          >
+                            {form.role === opt.value && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                            )}
                           </div>
                         </button>
                       ))}
@@ -683,14 +888,26 @@ export default function AdminsManagementPage() {
                 {/* 状态反馈 */}
                 <AnimatePresence>
                   {createError && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-center pt-2">
-                       <p className="text-rose-500 text-[12px] font-bold bg-rose-50 py-3 rounded-xl border border-rose-100">{createError}</p>
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="text-center pt-2"
+                    >
+                      <p className="text-rose-500 text-[12px] font-bold bg-rose-50 py-3 rounded-xl border border-rose-100">
+                        {createError}
+                      </p>
                     </motion.div>
                   )}
                   {createSuccess && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="p-4 bg-emerald-50 rounded-2xl flex items-center gap-2 justify-center border border-emerald-100">
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="p-4 bg-emerald-50 rounded-2xl flex items-center gap-2 justify-center border border-emerald-100"
+                    >
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span className="text-[12px] text-emerald-600 font-bold tracking-widest">管理账号已成功部署</span>
+                      <span className="text-[12px] text-emerald-600 font-bold tracking-widest">
+                        管理账号已成功部署
+                      </span>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -707,11 +924,19 @@ export default function AdminsManagementPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || !!createSuccess || !form.fullName || !form.username || !form.password}
+                    disabled={
+                      isSubmitting ||
+                      !!createSuccess ||
+                      !form.fullName ||
+                      !form.username ||
+                      !form.password
+                    }
                     className="flex-[2.5] h-12 bg-[#2C2A29] text-white font-bold text-[13px] rounded-2xl hover:bg-black shadow-xl shadow-slate-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none active:scale-95 tracking-[0.1em]"
                   >
                     {isSubmitting ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> 处理中</>
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> 处理中
+                      </>
                     ) : (
                       "确认并创建账户"
                     )}
@@ -747,9 +972,18 @@ export default function AdminsManagementPage() {
               <div className="px-10 pt-12 pb-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 id="reset-password-title" className="text-xl font-black text-slate-900 tracking-[0.05em]">重置登录密码</h2>
+                    <h2
+                      id="reset-password-title"
+                      className="text-xl font-black text-slate-900 tracking-[0.05em]"
+                    >
+                      重置登录密码
+                    </h2>
                     <p className="text-[12px] text-slate-400 font-medium tracking-wide">
-                      为 <span className="text-slate-700 font-bold">{resetPwdTarget.full_name}</span> 强制设置新密码
+                      为{" "}
+                      <span className="text-slate-700 font-bold">
+                        {resetPwdTarget.full_name}
+                      </span>{" "}
+                      强制设置新密码
                     </p>
                   </div>
                   <button
@@ -767,7 +1001,12 @@ export default function AdminsManagementPage() {
               <div className="px-10 pb-12 space-y-7">
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label htmlFor="reset-password" className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">新密码</label>
+                    <label
+                      htmlFor="reset-password"
+                      className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1"
+                    >
+                      新密码
+                    </label>
                     <div className="relative">
                       <input
                         id="reset-password"
@@ -775,18 +1014,29 @@ export default function AdminsManagementPage() {
                         type={showResetPwdVisible ? "text" : "password"}
                         placeholder="至少 8 位，含大小写字母和数字"
                         value={resetPwdValue}
-                        onChange={e => { setResetPwdValue(e.target.value); setResetPwdError(null); }}
-                        onKeyDown={e => { if (e.key === 'Enter') submitResetPassword(); }}
+                        onChange={(e) => {
+                          setResetPwdValue(e.target.value);
+                          setResetPwdError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") submitResetPassword();
+                        }}
                         disabled={isResetting}
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3 text-[14px] outline-none focus:bg-white focus:border-slate-300 transition-all text-slate-900 font-mono placeholder:text-slate-200"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowResetPwdVisible(v => !v)}
-                        aria-label={showResetPwdVisible ? "隐藏密码" : "显示密码"}
+                        onClick={() => setShowResetPwdVisible((v) => !v)}
+                        aria-label={
+                          showResetPwdVisible ? "隐藏密码" : "显示密码"
+                        }
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
                       >
-                        {showResetPwdVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showResetPwdVisible ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -794,8 +1044,14 @@ export default function AdminsManagementPage() {
 
                 <AnimatePresence>
                   {resetPwdError && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-center">
-                      <p className="text-rose-500 text-[12px] font-bold bg-rose-50 py-3 rounded-xl border border-rose-100">{resetPwdError}</p>
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="text-center"
+                    >
+                      <p className="text-rose-500 text-[12px] font-bold bg-rose-50 py-3 rounded-xl border border-rose-100">
+                        {resetPwdError}
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -816,7 +1072,9 @@ export default function AdminsManagementPage() {
                     className="flex-[2.5] h-12 bg-[#2C2A29] text-white font-bold text-[13px] rounded-2xl hover:bg-black shadow-xl shadow-slate-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none active:scale-95 tracking-[0.1em]"
                   >
                     {isResetting ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> 处理中</>
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> 处理中
+                      </>
                     ) : (
                       "确认重置密码"
                     )}

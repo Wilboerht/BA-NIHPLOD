@@ -34,6 +34,7 @@ if (process.env.NODE_ENV === "production") {
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  serverExternalPackages: ["@napi-rs/canvas"],
 
   async headers() {
     return [

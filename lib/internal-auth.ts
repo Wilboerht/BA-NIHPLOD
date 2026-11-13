@@ -33,7 +33,8 @@ export async function authenticateInternalApi(
   request: Request,
   path: string,
   method: string,
-  allowedProjects: readonly string[]
+  allowedProjects: readonly string[],
+  maxBytes = 1024 * 1024
 ): Promise<AuthResult> {
   const key = request.headers.get("x-internal-api-key");
   const signature = request.headers.get("x-internal-api-signature");
@@ -51,7 +52,7 @@ export async function authenticateInternalApi(
   let bodyText = "";
   if (method !== "GET" && method !== "HEAD") {
     try {
-      bodyText = await readInternalApiBody(request);
+      bodyText = await readInternalApiBody(request, maxBytes);
     } catch {
       return { ok: false, response: error("INVALID_REQUEST", "请求体读取失败", 400) };
     }
