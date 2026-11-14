@@ -18,6 +18,7 @@ export interface UserSession {
   is_banned?: boolean;
   auth_source?: string;
   external_admin_id?: string | null;
+  permissions?: string[];
 }
 
 export interface AuthUser {
@@ -29,6 +30,7 @@ export interface AuthUser {
   is_banned?: boolean;
   is_first_login?: boolean;
   token_version?: number;
+  permissions?: string[];
 }
 
 export interface TokenPayload {
@@ -39,6 +41,7 @@ export interface TokenPayload {
   role: string;
   is_banned?: boolean;
   token_version?: number;
+  permissions?: string[];
   jti?: string;
 }
 

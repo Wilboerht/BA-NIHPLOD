@@ -31,6 +31,9 @@ export async function GET(request: Request) {
           is_banned: profile.is_banned,
           auth_source: profile.auth_source ?? "local",
           external_admin_id: profile.external_admin_id ?? null,
+          permissions: Array.isArray(profile.external_permissions)
+            ? profile.external_permissions
+            : [],
         },
       },
       { headers: { 'Cache-Control': 'no-store' } }

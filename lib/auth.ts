@@ -38,6 +38,7 @@ export interface AuthUser {
   token_version?: number;
   auth_source?: string;
   external_admin_id?: string;
+  permissions?: string[];
 }
 
 export interface TokenPayload extends JWTPayload {
@@ -51,6 +52,7 @@ export interface TokenPayload extends JWTPayload {
   token_version?: number;
   auth_source?: string;
   external_admin_id?: string;
+  permissions?: string[];
   jti?: string;
 }
 
@@ -76,6 +78,7 @@ export async function createToken(
     token_version: user.token_version ?? 0,
     auth_source: user.auth_source ?? 'local',
     external_admin_id: user.external_admin_id,
+    permissions: user.permissions ?? [],
     jti,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -168,7 +171,7 @@ export async function requireAuth(
   // 查询数据库确认用户存在、未被删除且未被禁用
   try {
     const rows = await sql`
-      SELECT id, username, full_name, phone, role, is_banned, is_first_login, token_version, auth_source, external_admin_id
+      SELECT id, username, full_name, phone, role, is_banned, is_first_login, token_version, auth_source, external_admin_id, external_permissions
       FROM profiles
       WHERE id = ${payload.id}
         AND deleted_at IS NULL
@@ -216,6 +219,9 @@ export async function requireAuth(
         is_first_login: Boolean(profile.is_first_login),
         auth_source: profile.auth_source ? String(profile.auth_source) : 'local',
         external_admin_id: profile.external_admin_id ? String(profile.external_admin_id) : undefined,
+        permissions: Array.isArray(profile.external_permissions)
+          ? (profile.external_permissions as string[])
+          : [],
       } as AuthUser,
       response: null,
     };

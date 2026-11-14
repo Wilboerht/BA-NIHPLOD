@@ -7,6 +7,15 @@ export interface IdempotentResponse<T> {
   replayed?: boolean;
 }
 
+function normalizeStoredBody<T>(value: unknown): T {
+  if (typeof value !== "string") return value as T;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return value as T;
+  }
+}
+
 function hashRequest(value: unknown): string {
   return crypto
     .createHash("sha256")
@@ -68,7 +77,7 @@ export async function runIdempotent<T>(
       }
       return {
         status: Number(row.response_code),
-        body: row.response_body as T,
+        body: normalizeStoredBody<T>(row.response_body),
         replayed: true,
       };
     }

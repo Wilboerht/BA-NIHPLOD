@@ -9,6 +9,7 @@ import { sql } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import { isCronRequestAuthorized } from "@/lib/cron-auth";
+import { normalizeBaPermissions } from "@/lib/certificate/access";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
 
   const shadowAdmins = await sql`
     SELECT id, external_admin_id, external_token_version, external_role, role,
-           is_banned, main_totp_enabled
+           is_banned, main_totp_enabled, external_permissions
     FROM profiles
     WHERE auth_source = 'sso'
       AND external_admin_id IS NOT NULL
@@ -104,6 +105,12 @@ export async function GET(request: Request) {
         const externalId = String(shadow.external_admin_id);
         const status = statusById.get(externalId);
         const localRole = status ? resolveStatusRole(status) : null;
+        const statusPermissions = normalizeBaPermissions(status?.permissions);
+        const shadowPermissions = normalizeBaPermissions(
+          shadow.external_permissions,
+        );
+        const permissionsChanged =
+          JSON.stringify(statusPermissions) !== JSON.stringify(shadowPermissions);
 
         if (
           !status ||
@@ -115,6 +122,7 @@ export async function GET(request: Request) {
             await sql`
               UPDATE profiles
               SET is_banned = TRUE,
+                  external_permissions = '{}',
                   token_version = token_version + 1,
                   last_synced_at = NOW(),
                   updated_at = NOW()
@@ -152,12 +160,14 @@ export async function GET(request: Request) {
           versionChanged ||
           roleChanged ||
           externalRoleChanged ||
+          permissionsChanged ||
           totpChanged ||
           bannedChanged
         ) {
           await sql`
             UPDATE profiles
             SET role = ${localRole},
+                external_permissions = ${statusPermissions},
                 is_banned = FALSE,
                 is_first_login = FALSE,
                 external_token_version = ${status.ver},
@@ -169,7 +179,13 @@ export async function GET(request: Request) {
             WHERE id = ${shadow.id} AND deleted_at IS NULL
           `;
           updated += 1;
-          if (versionChanged || roleChanged || bannedChanged) revoked += 1;
+          if (
+            versionChanged ||
+            roleChanged ||
+            permissionsChanged ||
+            bannedChanged
+          )
+            revoked += 1;
           await writeAudit(sql, {
             actor: { source: "system" },
             action: "ADMIN_SSO_SYNC_UPDATE",
@@ -180,6 +196,7 @@ export async function GET(request: Request) {
             after: {
               externalAdminId: externalId,
               role: localRole,
+              permissions: statusPermissions,
               externalRole: status.role,
               version: status.ver,
               totpEnabled: status.totpEnabled,

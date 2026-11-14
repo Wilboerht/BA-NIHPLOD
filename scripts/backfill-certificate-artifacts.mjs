@@ -66,4 +66,5 @@ for (let index = 0; index < rows.length; index += batchSize) {
 console.log(
   `[backfill] done: created=${created} exists=${exists} skipped=${skipped} failed=${failed}`,
 );
+if (failed > 0) process.exitCode = 1;
 await sql.end({ timeout: 5 }).catch(() => {});

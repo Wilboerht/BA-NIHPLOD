@@ -14,6 +14,7 @@ export interface ResolvedInternalActor {
   email: string | null;
   name: string | null;
   role: string;
+  source?: "main" | "ba";
   capabilities: Set<string>;
 }
 
@@ -137,6 +138,7 @@ export async function resolveInternalActor(
     email: profile.email ? String(profile.email) : (input.email ?? null),
     name: profile.full_name ? String(profile.full_name) : (input.name ?? null),
     role: isSuperAdminActorRole(input.baRole) ? "SUPER_ADMIN" : "AUDITOR",
+    source: "main",
     capabilities: new Set(input.capabilities ?? []),
   };
 }

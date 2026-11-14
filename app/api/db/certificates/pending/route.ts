@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getPendingCertificates } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import {
+  CERTIFICATE_PERMISSIONS,
+  hasCertificatePermission,
+} from '@/lib/certificate/access';
 
 export async function GET(req: Request) {
   try {
@@ -8,6 +12,10 @@ export async function GET(req: Request) {
     const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    if (!hasCertificatePermission(user!, CERTIFICATE_PERMISSIONS.read)) {
+      return NextResponse.json({ error: '无权限查看待核发证书' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -19,7 +27,10 @@ export async function GET(req: Request) {
 
     const { data, error } = await getPendingCertificates(
       limitNum,
-      user?.role === 'AUDITOR' ? user.id : undefined
+      user?.role === 'AUDITOR' &&
+      !hasCertificatePermission(user!, CERTIFICATE_PERMISSIONS.issue)
+        ? user.id
+        : undefined
     );
 
     if (error) {

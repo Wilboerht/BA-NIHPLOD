@@ -18,7 +18,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:migrate:apply": "node scripts/apply-migrations.mjs",
-    "test": "node --test tests/validation.test.ts tests/request-ip.test.ts tests/certificate-status.test.ts tests/admin-sso-security.test.ts",
+    "test": "node --test tests/validation.test.ts tests/request-ip.test.ts tests/certificate-status.test.ts tests/admin-sso-security.test.ts tests/certificate-access.test.ts",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "migrate:evidence-private": "node scripts/migrate-evidence-to-private.mjs",
     "cleanup:uploads": "node scripts/cleanupOrphanUploads.mjs",

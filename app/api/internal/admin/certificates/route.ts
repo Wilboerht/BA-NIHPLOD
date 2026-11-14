@@ -43,12 +43,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const path = "/api/internal/admin/certificates";
-  const auth = await authenticateCertificateRequest(
-    request,
-    path,
-    "POST",
-    "ba.certificates.submit",
-  );
+  const auth = await authenticateCertificateRequest(request, path, "POST");
   if (!auth.ok) return auth.response;
 
   const mode = auth.body.mode === "issue" ? "issue" : "submit";
@@ -62,14 +57,13 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  if (
-    mode === "issue" &&
-    !auth.actor.capabilities.has("ba.certificates.issue")
-  ) {
+  const requiredCapability =
+    mode === "issue" ? "ba.certificates.issue" : "ba.certificates.submit";
+  if (!auth.actor.capabilities.has(requiredCapability)) {
     return NextResponse.json(
       {
         success: false,
-        error: { code: "FORBIDDEN", message: "缺少证书核发权限" },
+        error: { code: "FORBIDDEN", message: "缺少证书操作权限" },
       },
       { status: 403 },
     );

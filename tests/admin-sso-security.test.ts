@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import { generateSync } from "otplib";
 import {
   canonicalizeQuery,
+  generateInternalActorSignature,
   generateInternalApiSignature,
   hashRequestBody,
+  verifyInternalActorSignature,
   verifyInternalApiSignature,
+  getInternalApiKeys,
 } from "../lib/internal-api.ts";
 import { canTransitionComplaintStatus } from "../lib/complaint-status.ts";
 import { verifyBreakGlassTotp } from "../lib/totp.ts";
@@ -60,6 +63,34 @@ test("internal API signature is query-bound and tamper-evident", () => {
       query
     ),
     null
+  );
+});
+
+test("internal actor header is HMAC-bound", () => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonce = "nonce-actor-1";
+  const actor = "eyJpZCI6ImFkbWluLTEifQ";
+  const signature = generateInternalActorSignature(
+    "0123456789abcdef0123456789abcdef",
+    timestamp,
+    nonce,
+    actor,
+  );
+  const config = getInternalApiKeys().keys.get("test-ba-key");
+  assert.ok(config);
+  assert.equal(
+    verifyInternalActorSignature(config!, timestamp, nonce, actor, signature),
+    true,
+  );
+  assert.equal(
+    verifyInternalActorSignature(
+      config!,
+      timestamp,
+      nonce,
+      `${actor}-tampered`,
+      signature,
+    ),
+    false,
   );
 });
 

@@ -122,7 +122,7 @@ export async function findProfileForLogin(identifier: string): Promise<{ data: S
  */
 export async function getProfileById(id: string): Promise<{ data: SqlRow | null; error: Error | null }> {
   const result = await sql`
-    SELECT id, username, full_name, phone, role, is_banned, is_first_login, created_at, updated_at, auth_source, external_admin_id, main_totp_enabled
+    SELECT id, username, full_name, phone, role, is_banned, is_first_login, created_at, updated_at, auth_source, external_admin_id, main_totp_enabled, external_permissions, external_permissions
     FROM profiles WHERE id = ${id} AND deleted_at IS NULL LIMIT 1
   `;
   return { data: result[0] || null, error: null };

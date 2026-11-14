@@ -7,6 +7,7 @@ import {
   isTimestampValid,
   readInternalApiBody,
   verifyInternalApiSignature,
+  verifyInternalActorSignature,
   type InternalApiKeyConfig,
 } from "@/lib/internal-api";
 
@@ -76,6 +77,36 @@ export async function authenticateInternalApi(
   }
   if (!checkAndRecordNonce(nonce)) {
     return { ok: false, response: error("REPLAY_ATTACK", "重复请求 nonce", 401) };
+  }
+
+  const actorHeader = request.headers.get("x-internal-actor");
+  const actorSignature = request.headers.get("x-internal-actor-signature");
+  if (actorHeader) {
+    if (!actorSignature) {
+      if (process.env.INTERNAL_API_ALLOW_UNSIGNED_ACTOR !== "true") {
+        return {
+          ok: false,
+          response: error(
+            "UNSIGNED_ACTOR",
+            "内部操作人身份未签名",
+            401
+          ),
+        };
+      }
+    } else if (
+      !verifyInternalActorSignature(
+        config,
+        timestamp,
+        nonce,
+        actorHeader,
+        actorSignature
+      )
+    ) {
+      return {
+        ok: false,
+        response: error("INVALID_ACTOR_SIGNATURE", "内部操作人身份签名无效", 401),
+      };
+    }
   }
 
   return { ok: true, config, bodyText };

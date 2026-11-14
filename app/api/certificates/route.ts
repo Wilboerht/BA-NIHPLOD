@@ -9,6 +9,13 @@ import { actorFromUser, writeAudit } from '@/lib/audit';
 import { getTodayISO, isRecord, isUuid, isValidEmail, parseDateOnly } from '@/lib/validation';
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
+import { ensureCertificateArtifact } from '@/lib/certificate/service';
+import type { ResolvedInternalActor } from '@/lib/internal-actor';
+import {
+  CERTIFICATE_PERMISSIONS,
+  hasCertificatePermission,
+  type CertificatePermission,
+} from '@/lib/certificate/access';
 
 // 客户端提交的证书数据（字段均需由调用方在运行时校验）
 interface CertDataInput {
@@ -117,14 +124,50 @@ async function getOrCreateDealer(phone: string | undefined | null, shopName: str
 }
 
 // 权限检查辅助函数
-function requireSuperAdmin(role: string | undefined) {
-  if (role !== 'SUPER_ADMIN') {
-    return NextResponse.json(
-      { error: '无权限执行此操作，仅超级管理员可操作' },
-      { status: 403 }
-    );
+const ACTION_PERMISSIONS: Record<string, CertificatePermission> = {
+  create_pending: CERTIFICATE_PERMISSIONS.submit,
+  approve_issue: CERTIFICATE_PERMISSIONS.issue,
+  reject_pending: CERTIFICATE_PERMISSIONS.issue,
+  update_certificate: CERTIFICATE_PERMISSIONS.update,
+  revoke_certificate: CERTIFICATE_PERMISSIONS.revoke,
+  delete_certificate: CERTIFICATE_PERMISSIONS.delete,
+};
+
+async function prewarmCertificateArtifacts(
+  certId: string,
+  user: {
+    id: string;
+    username?: string;
+    full_name?: string;
+    role: string;
+    auth_source?: string;
+    external_admin_id?: string;
+    permissions?: string[];
+  },
+  request: Request,
+): Promise<void> {
+  const actor: ResolvedInternalActor = {
+    profileId: user.id,
+    externalAdminId: user.external_admin_id || user.id,
+    email: user.username || null,
+    name: user.full_name || null,
+    role: user.role,
+    source: "ba",
+    capabilities: new Set([
+      "ba.certificates.download",
+      ...(user.permissions ?? []),
+    ]),
+  };
+  for (const format of ["png", "pdf"] as const) {
+    try {
+      await ensureCertificateArtifact({ actor, id: certId, format, request });
+    } catch (error) {
+      console.error(
+        `[certificates] 预生成服务端文件失败 ${certId} ${format}:`,
+        error,
+      );
+    }
   }
-  return null;
 }
 
 export async function POST(req: Request) {
@@ -158,6 +201,14 @@ export async function POST(req: Request) {
       return response;
     }
 
+    const requiredPermission = action ? ACTION_PERMISSIONS[action] : undefined;
+    if (requiredPermission && !hasCertificatePermission(adminUser!, requiredPermission)) {
+      return NextResponse.json(
+        { error: '无权限执行该证书操作' },
+        { status: 403 },
+      );
+    }
+
     // 敏感证书操作限流（按操作者 + 动作）
     const allowed = await checkActionRateLimit(
       `cert:${action || 'unknown'}:${adminUser!.id}`,
@@ -179,9 +230,10 @@ export async function POST(req: Request) {
     // 授权方由服务端固定，禁止客户端伪造；自定义印章仅超级管理员可用
     const effectiveAuthorizer = COMPANY_FULL_NAME;
     const requestedSeal = certData?.sealImage || null;
-    const effectiveSealImage = adminUser!.role === 'SUPER_ADMIN' && requestedSeal
-      ? requestedSeal
-      : null;
+    const effectiveSealImage =
+      hasCertificatePermission(adminUser!, CERTIFICATE_PERMISSIONS.issue) && requestedSeal
+        ? requestedSeal
+        : null;
 
     // 字段长度校验
     if (certData) {
@@ -305,9 +357,6 @@ export async function POST(req: Request) {
 
     // --- 流程 2: 核发证书 ---
     if (action === 'approve_issue') {
-      const forbidden = requireSuperAdmin(adminUser!.role);
-      if (forbidden) return forbidden;
-
       let certDataDb: Record<string, unknown> | undefined;
       let dealerPhone: string | undefined;
       let certNumber = '';
@@ -453,14 +502,15 @@ export async function POST(req: Request) {
         throw new ValidationError('缺少核发数据');
       }
 
+      if (auditCertId) {
+        await prewarmCertificateArtifacts(auditCertId, adminUser!, req);
+      }
+
       return NextResponse.json({ success: true, status: 'ISSUED', phone: dealerPhone, certNumber });
     }
 
     // --- 流程 3: 吊销证书 ---
     if (action === 'revoke_certificate') {
-      const forbidden = requireSuperAdmin(adminUser!.role);
-      if (forbidden) return forbidden;
-
       if (!certId) throw new ValidationError('缺少证书 ID');
 
       await sql.begin(async (tx) => {
@@ -509,9 +559,6 @@ export async function POST(req: Request) {
 
     // --- 流程 4: 退回/拒绝 ---
     if (action === 'reject_pending') {
-      const forbidden = requireSuperAdmin(adminUser!.role);
-      if (forbidden) return forbidden;
-
       if (!certId) throw new ValidationError('缺少证书 ID');
 
       await sql.begin(async (tx) => {
@@ -554,9 +601,6 @@ export async function POST(req: Request) {
     // --- 流程 5: 软删除 ---
     if (action === 'delete_certificate') {
       if (!certId) throw new ValidationError('缺少证书 ID');
-
-      const forbidden = requireSuperAdmin(adminUser!.role);
-      if (forbidden) return forbidden;
 
       let deletedCertNumber = '';
 

@@ -90,6 +90,17 @@ export function hashRequestBody(body: string): string {
   return createHash("sha256").update(body).digest("hex");
 }
 
+export function generateInternalActorSignature(
+  secret: string,
+  timestamp: number,
+  nonce: string,
+  actorHeader: string
+): string {
+  return createHmac("sha256", secret)
+    .update(`ACTOR|${timestamp}|${nonce}|${actorHeader}`)
+    .digest("hex");
+}
+
 export function generateInternalApiSignature(
   secret: string,
   method: string,
@@ -135,6 +146,35 @@ export function verifyInternalApiSignature(
     }
   }
   return null;
+}
+
+
+export function verifyInternalActorSignature(
+  config: InternalApiKeyConfig,
+  timestamp: number,
+  nonce: string,
+  actorHeader: string,
+  signature: string
+): boolean {
+  let provided: Buffer;
+  try {
+    provided = Buffer.from(signature, "hex");
+  } catch {
+    return false;
+  }
+  for (const secret of [config.secret, ...(config.previousSecrets ?? [])]) {
+    const expected = Buffer.from(
+      generateInternalActorSignature(secret, timestamp, nonce, actorHeader),
+      "hex"
+    );
+    if (
+      provided.length === expected.length &&
+      timingSafeEqual(provided, expected)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isTimestampValid(timestamp: number): boolean {

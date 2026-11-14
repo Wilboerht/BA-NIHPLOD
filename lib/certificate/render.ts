@@ -163,17 +163,20 @@ export async function renderCertificatePng(
 
   const templatePath = path.join(process.cwd(), "public", "cert-template.webp");
   const templateSha256 = await hashFile(templatePath);
-  const [background, seal] = await Promise.all([
+  const preferredSeal = input.sealImage || "/default-seal.png";
+  const [background, preferredSealImage] = await Promise.all([
     loadOptionalImage("/cert-template.webp").catch(() => null),
-    input.sealImage
-      ? loadOptionalImage(input.sealImage)
-      : loadOptionalImage("/default-seal.png"),
+    loadOptionalImage(preferredSeal).catch(() => null),
   ]);
-  const sealPath = await resolveAssetSource(
-    input.sealImage || "/default-seal.png",
-  );
+  const sealSource = preferredSealImage ? preferredSeal : "/default-seal.png";
+  const seal =
+    preferredSealImage ??
+    (await loadOptionalImage("/default-seal.png").catch(() => null));
+  const sealPath = await resolveAssetSource(sealSource);
   const sealSha256 =
-    sealPath && !sealPath.startsWith("data:") ? await hashFile(sealPath) : null;
+    sealPath && !sealPath.startsWith("data:")
+      ? await hashFile(sealPath).catch(() => null)
+      : null;
 
   if (background) {
     ctx.drawImage(background, 0, 0, width, height);

@@ -50,6 +50,7 @@ interface CertificateGeneratorProps {
   pendingAction?: "approve" | "update";
   previewOnly?: boolean;
   userRole?: string | null;
+  canDownload?: boolean;
   onSuccess?: () => void;
   onReject?: () => void;
 }
@@ -123,6 +124,7 @@ export default function CertificateGenerator({
   pendingAction = "approve",
   previewOnly = false,
   userRole,
+  canDownload = true,
   onSuccess,
   onReject,
 }: CertificateGeneratorProps) {
@@ -1354,7 +1356,7 @@ export default function CertificateGenerator({
               二维码生成失败，请重试或关闭该选项
             </span>
           )}
-          {!isVoided && !isIssued && !isPending && mode !== "create" && (
+          {canDownload && !isVoided && !isIssued && !isPending && mode !== "create" && (
             <>
               <button
                 onClick={handleDownload}
@@ -1427,7 +1429,7 @@ export default function CertificateGenerator({
               </button>
             </div>
           )}
-          {isIssued && !isVoided && (
+          {canDownload && isIssued && !isVoided && (
             <div className="flex gap-4">
               <button
                 onClick={handleDownload}
@@ -1547,6 +1549,7 @@ export default function CertificateGenerator({
 
               {/* 操作组 */}
               <div className="flex items-center pl-3 pr-1 gap-2">
+                {canDownload && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1556,6 +1559,7 @@ export default function CertificateGenerator({
                 >
                   <Download size={14} strokeWidth={2.5} /> 保存图片
                 </button>
+                )}
 
                 <button
                   onClick={() => {

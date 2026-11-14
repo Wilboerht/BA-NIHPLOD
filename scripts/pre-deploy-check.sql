@@ -33,7 +33,7 @@ WHERE conrelid = 'audit_logs'::regclass AND contype = 'f' AND confrelid = 'compl
 SELECT table_name, column_name, data_type, column_default
 FROM information_schema.columns
 WHERE (table_name = 'audit_logs' AND column_name = 'complaint_ref')
-   OR (table_name = 'profiles' AND column_name IN ('token_version', 'email', 'deleted_at'));
+   OR (table_name = 'profiles' AND column_name IN ('token_version', 'email', 'deleted_at', 'external_permissions'));
 
 \echo '== 3b. 审计 v2 / 软删除列（迁移后应存在） =='
 SELECT table_name, column_name, data_type

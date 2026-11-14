@@ -167,6 +167,7 @@ npm run backup:uploads
 40 3 * * * cd /var/www/BA-NIHPLOD && npm run backup:db >> /var/log/ba-db-backup.log 2>&1
 50 3 * * * cd /var/www/BA-NIHPLOD && npm run backup:uploads >> /var/log/ba-uploads-backup.log 2>&1
 10 4 * * * cd /var/www/BA-NIHPLOD && npm run cleanup:uploads -- --delete --purge-closed-days=180 >> /var/log/ba-cleanup.log 2>&1
+15 4 * * * cd /var/www/BA-NIHPLOD && node scripts/run-cron.mjs /api/cron/cleanup-internal-idempotency >> /var/log/ba-idempotency-cleanup.log 2>&1
 ```
 
 注意：
@@ -206,15 +207,17 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 - 账号管理类接口仅限 `SUPER_ADMIN`（`lib/auth.ts#requireSuperAdmin`）
 - 证书/投诉删除为软删除：列表移除，业务数据、证据与审计链保留
 - 投诉删除（软删除）仅 `SUPER_ADMIN`；审核员只能流转状态
-- 待审核证书：审核员可修改本人提交的待审核申请且只能看到本人待审记录；`SUPER_ADMIN` 可修改任意待审核证书并终审/直接签发
+- 待审核证书：审核员可修改本人提交的待审核申请；持有 `ba:certificates:issue` 的管理员可查看全部待审并终审/直接签发；持有 `ba:certificates:update` 的 `SUPER_ADMIN` 可修改任意待审核证书
 - 已签发证书内容不可编辑；修正必须吊销后重新签发
-- 证书授权方由服务端固定为 `COMPANY_FULL_NAME`；自定义印章仅 `SUPER_ADMIN` 可提交
+- 证书授权方由服务端固定为 `COMPANY_FULL_NAME`；自定义印章需持有 `ba:certificates:issue`
 - 修改密码后当前设备自动续签新 Token，其他设备的旧 Token 立即失效
 - `audit_logs` 为 append-only：数据库 trigger 禁止 UPDATE/DELETE；删除证书改为 `SET NULL` + `certificate_ref`
 - 审计日志可通过 `npm run archive:audit` 归档到 JSONL 后再按保留策略清理；归档历史不参与在线查询
 - 生产环境 `.env.local` 权限必须为 `600`；不要保留可读的重复 `.env` 配置（`DATABASE_URL` 会泄露数据库密码）
 - 上传文件魔数校验 + 路径遍历防护；投诉证据写入 `private/uploads`，仅管理员可通过 `/api/files/complaints/...` 访问
 - Nginx 应增加 `location ^~ /uploads/public-uploads/ { return 410; }`，防止旧证据路径继续被公开访问
+- 证书签章上传：主站和 BA 的 `server`/`location` 均需 `client_max_body_size 12m;`。主站接收 5MB 文件后会以 base64 转发（约 6.7MB），BA internal 上限 10MB；默认 1m 会返回 413。部署后用 `sudo nginx -T | grep -nE "server_name|client_max_body_size"` 确认两个站点均生效
+- 证书 internal 请求的 `x-internal-actor` 必须携带 `x-internal-actor-signature`（绑定 timestamp/nonce/actor）。升级顺序必须是先主站、后 BA；回滚窗口可临时设置 `INTERNAL_API_ALLOW_UNSIGNED_ACTOR=true`
 - 匿名证据默认全局上限 2GB、已关闭/软删除工单证据默认保留 180 天，均可通过环境变量调整
 - CSP nonce / HSTS / X-Frame-Options 等安全响应头见 `proxy.ts` 与 `next.config.ts`；生产 `script-src` 不含 `unsafe-inline`
 

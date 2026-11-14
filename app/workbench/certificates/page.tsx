@@ -10,6 +10,10 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDebounce } from "@/hooks/useDebounce";
 import { parseAuthScope } from "@/lib/utils";
 import { getTodayISO } from "@/lib/validation";
+import {
+  CERTIFICATE_PERMISSIONS,
+  hasCertificatePermission,
+} from "@/lib/certificate/access";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
@@ -33,6 +37,11 @@ export default function CertificatesPage() {
   const user = useWorkbenchUser();
   const userRole = user.role ?? null;
   const userId = user.id;
+  const canIssue = hasCertificatePermission(user, CERTIFICATE_PERMISSIONS.issue);
+  const canSubmit = hasCertificatePermission(user, CERTIFICATE_PERMISSIONS.submit);
+  const canUpdate = hasCertificatePermission(user, CERTIFICATE_PERMISSIONS.update);
+  const canRevoke = hasCertificatePermission(user, CERTIFICATE_PERMISSIONS.revoke);
+  const canDelete = hasCertificatePermission(user, CERTIFICATE_PERMISSIONS.delete);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +77,7 @@ export default function CertificatesPage() {
     { key: 'PENDING' as const, label: '待审核', desc: '待审核' },
     { key: 'invalid' as const, label: '无效', desc: '已失效、已吊销、已拒绝' },
   ];
-  const filterItems = userRole === 'AUDITOR' ? auditorFilterItems : adminFilterItems;
+  const filterItems = canIssue ? adminFilterItems : auditorFilterItems;
 
   const closeIssueModal = () => {
     setShowIssueModal(false);
@@ -246,6 +255,7 @@ export default function CertificatesPage() {
           <p className="text-slate-500 text-[13px] font-medium tracking-wide">管理与监控品牌官方合作授权书，一键生成防伪溯源大图。</p>
         </motion.div>
         
+        {(canIssue || canSubmit) && (
         <motion.button
           whileHover={{ scale: 1.01, y: -1 }}
           whileTap={{ scale: 0.98 }}
@@ -260,9 +270,10 @@ export default function CertificatesPage() {
         >
           <Award className="w-3.5 h-3.5" />
           <span className="font-bold tracking-wide">
-            {userRole === 'SUPER_ADMIN' ? "核发新证书" : "提报新授权"}
+            {canIssue ? "核发新证书" : "提报新授权"}
           </span>
         </motion.button>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-0">
@@ -391,7 +402,7 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap align-middle">
                       <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        {cert.status === 'PENDING' && userRole === 'SUPER_ADMIN' && (
+                        {cert.status === 'PENDING' && canIssue && (
                           <button 
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -421,7 +432,9 @@ export default function CertificatesPage() {
                             核查准入
                           </button>
                         )}
-                        {cert.status === 'PENDING' && userRole === 'AUDITOR' && cert.auditor_id === userId && (
+                        {cert.status === 'PENDING' && canUpdate &&
+                          (userRole === 'SUPER_ADMIN' ||
+                            cert.auditor_id === userId) && (
                           <button
                             onClick={() => {
                               const parsed = parseAuthScope(cert.auth_scope);
@@ -507,7 +520,7 @@ export default function CertificatesPage() {
                             调阅档案
                           </button>
                         )}
-                        {(displayStatus === 'EXPIRED' || displayStatus === 'REVOKED' || displayStatus === 'REJECTED') && userRole === 'SUPER_ADMIN' && (
+                        {(displayStatus === 'EXPIRED' || displayStatus === 'REVOKED' || displayStatus === 'REJECTED') && canDelete && (
                           <button
                             onClick={() => deleteCertificate(cert.id)}
                             className="text-slate-400 hover:text-rose-500 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all font-bold text-[11px] leading-none"
@@ -516,7 +529,7 @@ export default function CertificatesPage() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {(displayStatus === 'ISSUED' || displayStatus === 'UPCOMING') && userRole === 'SUPER_ADMIN' && (
+                        {(displayStatus === 'ISSUED' || displayStatus === 'UPCOMING') && canRevoke && (
                           <button
                             onClick={() => revokeCertificate(cert.id, cert.status)}
                             disabled={revokingId === cert.id}
@@ -633,7 +646,11 @@ export default function CertificatesPage() {
                     isVoided={isViewVoided}
                     isPending={!!pendingApproveId}
                     pendingAction={pendingAction}
-                    userRole={userRole}
+                    userRole={canIssue ? 'SUPER_ADMIN' : userRole}
+                    canDownload={hasCertificatePermission(
+                      user,
+                      CERTIFICATE_PERMISSIONS.download,
+                    )}
                     onSuccess={() => {
                       setShowIssueModal(false);
                       setSelectedCertData(undefined);

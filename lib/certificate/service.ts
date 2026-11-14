@@ -91,7 +91,7 @@ function actorAudit(actor: ResolvedInternalActor) {
     id: actor.profileId,
     role: actor.role,
     name: actor.name,
-    source: "main" as const,
+    source: actor.source ?? ("main" as const),
     externalId: actor.externalAdminId,
   };
 }
@@ -120,7 +120,10 @@ function isAllowedSealUrl(url: string | null | undefined): boolean {
   );
 }
 
-function parseDraft(input: CertificateDraft): {
+function parseDraft(
+  input: CertificateDraft,
+  options: { allowPastEnd?: boolean } = {},
+): {
   companyName: string;
   shopName: string;
   phone: string | null;
@@ -154,7 +157,8 @@ function parseDraft(input: CertificateDraft): {
   const end = parseDateOnly(endDate);
   if (!start || !end) fail("INVALID_DURATION", "有效期日期无效");
   if (start.iso > end.iso) fail("INVALID_DURATION", "结束日期不能早于开始日期");
-  if (end.iso < getTodayISO()) fail("INVALID_DURATION", "不能签发已过期的证书");
+  if (!options.allowPastEnd && end.iso < getTodayISO())
+    fail("INVALID_DURATION", "不能签发已过期的证书");
 
   return {
     companyName,
@@ -362,7 +366,19 @@ export async function listCertificates(options: {
   const pageSize = Number.isFinite(rawPageSize)
     ? Math.min(100, Math.max(1, Math.floor(rawPageSize)))
     : 20;
-  const status = options.status || "ALL";
+  const requestedStatus = options.status || "ALL";
+  const status = [
+    "ALL",
+    "PENDING",
+    "ISSUED",
+    "UPCOMING",
+    "EXPIRED",
+    "REVOKED",
+    "REJECTED",
+    "invalid",
+  ].includes(requestedStatus)
+    ? requestedStatus
+    : "ALL";
   const statusCondition =
     status === "invalid"
       ? sql` AND (c.status IN ('EXPIRED', 'REVOKED', 'REJECTED') OR (c.status = 'ISSUED' AND c.end_date < CURRENT_DATE))`
@@ -373,14 +389,14 @@ export async function listCertificates(options: {
           : status !== "ALL"
             ? sql` AND c.status = ${status}`
             : sql``;
-  const pattern = options.query?.trim()
-    ? buildContainsPattern(options.query.trim())
-    : null;
+  const query = options.query?.trim().slice(0, 100);
+  const pattern = query ? buildContainsPattern(query) : null;
   const searchCondition = pattern
     ? sql` AND (c.cert_number ILIKE ${pattern} OR d.company_name ILIKE ${pattern} OR split_part(c.auth_scope, ' | ', 1) ILIKE ${pattern})`
     : sql``;
   const auditorCondition =
-    options.actor.role === "AUDITOR"
+    options.actor.role === "AUDITOR" &&
+    !hasCapability(options.actor, "ba.certificates.issue")
       ? sql` AND (c.status <> 'PENDING' OR c.auditor_id = ${options.actor.profileId})`
       : sql``;
   const where = sql`WHERE c.deleted_at IS NULL ${statusCondition} ${auditorCondition} ${searchCondition}`;
@@ -675,6 +691,12 @@ export async function issuePendingCertificate(options: {
         phone:
           options.draft.phone?.trim() ||
           (row.phone ? String(row.phone) : undefined),
+        sealImage:
+          options.draft.sealImage === undefined
+            ? row.seal_url
+              ? String(row.seal_url)
+              : null
+            : options.draft.sealImage,
       })
     : {
         companyName: parsed.companyName || String(row.company_name ?? ""),
@@ -685,6 +707,12 @@ export async function issuePendingCertificate(options: {
         endDate: formatDateISO(row.end_date as string | Date),
         sealImage: row.seal_url ? String(row.seal_url) : null,
       };
+  if (draft.startDate > draft.endDate) {
+    fail("INVALID_DURATION", "结束日期不能早于开始日期");
+  }
+  if (draft.endDate < getTodayISO()) {
+    fail("INVALID_DURATION", "不能核发已过期的证书");
+  }
   const variant = certificateVariantForStatus("ISSUED");
   const renderInput = {
     certNumber: String(row.cert_number),
@@ -791,7 +819,8 @@ export async function rejectCertificate(options: {
 }): Promise<CertificateListItem> {
   requireCapability(options.actor, "ba.certificates.issue");
   if (!isUuid(options.id)) fail("INVALID_ID", "证书 ID 无效");
-  if (!options.reason.trim()) fail("REASON_REQUIRED", "请填写拒绝原因");
+  const reason = options.reason.trim().slice(0, 1000);
+  if (!reason) fail("REASON_REQUIRED", "请填写拒绝原因");
   await sql.begin(async (tx) => {
     const updated = await tx`
       UPDATE certificates
@@ -808,7 +837,7 @@ export async function rejectCertificate(options: {
       certificateId: options.id,
       certificateRef: options.id,
       comment: `主站拒绝证书 ${String(updated[0].cert_number)}`,
-      reason: options.reason,
+      reason,
       request: options.request,
     });
   });
@@ -827,12 +856,14 @@ export async function revokeCertificate(options: {
 }): Promise<CertificateListItem> {
   requireCapability(options.actor, "ba.certificates.revoke");
   if (!isUuid(options.id)) fail("INVALID_ID", "证书 ID 无效");
-  if (!options.reason.trim()) fail("REASON_REQUIRED", "请填写吊销原因");
+  const reason = options.reason.trim().slice(0, 1000);
+  if (!reason) fail("REASON_REQUIRED", "请填写吊销原因");
   await sql.begin(async (tx) => {
     const updated = await tx`
       UPDATE certificates
       SET status = 'REVOKED', updated_at = NOW()
-      WHERE id = ${options.id} AND status = 'ISSUED' AND deleted_at IS NULL
+      WHERE id = ${options.id} AND status = 'ISSUED'
+        AND end_date >= CURRENT_DATE AND deleted_at IS NULL
       RETURNING cert_number
     `;
     if (updated.length === 0) fail("INVALID_STATE", "只能吊销已核发证书");
@@ -844,7 +875,7 @@ export async function revokeCertificate(options: {
       certificateId: options.id,
       certificateRef: options.id,
       comment: `主站吊销证书 ${String(updated[0].cert_number)}`,
-      reason: options.reason,
+      reason,
       request: options.request,
     });
   });
@@ -884,7 +915,7 @@ export async function deleteCertificate(options: {
       certificateId: options.id,
       certificateRef: options.id,
       comment: `主站软删除证书 ${String(updated[0].cert_number)}`,
-      reason: options.reason || "soft_delete",
+      reason: options.reason.trim().slice(0, 1000) || "soft_delete",
       request: options.request,
     });
   });
@@ -895,7 +926,7 @@ export async function previewCertificate(options: {
   draft: CertificateDraft;
 }): Promise<{ buffer: Buffer; contentType: string }> {
   requireCapability(options.actor, "ba.certificates.read");
-  const draft = parseDraft(options.draft);
+  const draft = parseDraft(options.draft, { allowPastEnd: true });
   const { renderCertificatePng } = await import("./render");
   const result = await renderCertificatePng({
     certNumber: "PREVIEW",

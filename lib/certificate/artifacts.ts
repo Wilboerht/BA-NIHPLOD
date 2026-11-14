@@ -24,9 +24,18 @@ export interface StoredCertificateArtifact {
 
 function artifactRoot(): string {
   const configured = process.env.CERTIFICATE_ARTIFACT_ROOT;
-  return configured
+  const root = configured
     ? path.resolve(configured)
     : path.join(process.cwd(), "private", "certificates");
+  const publicRoot = path.resolve(process.cwd(), "public");
+  const relative = path.relative(publicRoot, root);
+  if (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  ) {
+    throw new Error("CERTIFICATE_ARTIFACT_ROOT_MUST_BE_PRIVATE");
+  }
+  return root;
 }
 
 function ensureInside(root: string, target: string): boolean {

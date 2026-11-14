@@ -5,6 +5,10 @@ import { requireAdmin } from '@/lib/auth';
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { readFormDataWithLimit } from '@/lib/api-utils';
+import {
+  CERTIFICATE_PERMISSIONS,
+  hasCertificatePermission,
+} from '@/lib/certificate/access';
 
 const ALLOWED_TYPES = [
   'image/jpeg',
@@ -31,6 +35,10 @@ export async function POST(req: Request) {
     const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+
+    if (!hasCertificatePermission(user!, CERTIFICATE_PERMISSIONS.issue)) {
+      return NextResponse.json({ error: '无权限上传证书签章' }, { status: 403 });
     }
 
     const allowed = await checkActionRateLimit(`upload:auth:${user!.id}`, 50, 5 * 60 * 1000);

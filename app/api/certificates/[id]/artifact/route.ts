@@ -5,6 +5,10 @@ import { sql } from "@/lib/db";
 import { certificateErrorResponse } from "@/lib/internal-certificate-request";
 import { ensureCertificateArtifact } from "@/lib/certificate/service";
 import type { ResolvedInternalActor } from "@/lib/internal-actor";
+import {
+  CERTIFICATE_PERMISSIONS,
+  hasCertificatePermission,
+} from "@/lib/certificate/access";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +18,9 @@ export async function GET(
 ) {
   const { user, response } = await requireAdmin(request);
   if (response || !user) return response!;
+  if (!hasCertificatePermission(user, CERTIFICATE_PERMISSIONS.download)) {
+    return NextResponse.json({ error: "无权限下载证书" }, { status: 403 });
+  }
   const { id } = await params;
   const format =
     new URL(request.url).searchParams.get("format") === "pdf" ? "pdf" : "png";
@@ -24,6 +31,7 @@ export async function GET(
     email: user.username || null,
     name: user.full_name || null,
     role: user.role,
+    source: "ba",
     capabilities: new Set(["ba.certificates.download"]),
   };
 

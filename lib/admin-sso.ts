@@ -9,6 +9,7 @@ import { createHash, randomBytes } from "crypto";
 import { createRemoteJWKSet, importSPKI, jwtVerify } from "jose";
 import { sql } from "@/lib/db";
 import { createToken, setAuthCookie } from "@/lib/auth";
+import { normalizeBaPermissions } from "@/lib/certificate/access";
 import { logger } from "@/lib/logger";
 
 export const ADMIN_SSO_AUDIENCE = "ba-admin";
@@ -432,6 +433,7 @@ export async function upsertShadowAdmin(
           external_admin_id = ${claims.sub},
           external_role = ${claims.role},
           external_token_version = ${claims.ver},
+          external_permissions = ${normalizeBaPermissions(claims.permissions)},
           main_totp_enabled = ${claims.totp},
           last_login_at = NOW(),
           last_synced_at = NOW(),
@@ -476,6 +478,7 @@ export async function upsertShadowAdmin(
           external_admin_id = ${claims.sub},
           external_role = ${claims.role},
           external_token_version = ${claims.ver},
+          external_permissions = ${normalizeBaPermissions(claims.permissions)},
           main_totp_enabled = ${claims.totp},
           last_login_at = NOW(),
           last_synced_at = NOW(),
@@ -494,10 +497,10 @@ export async function upsertShadowAdmin(
     INSERT INTO profiles (
       username, full_name, email, password_hash, role, is_first_login, is_banned,
       token_version, auth_source, external_admin_id, external_role,
-      external_token_version, main_totp_enabled, last_login_at, last_synced_at
+      external_token_version, external_permissions, main_totp_enabled, last_login_at, last_synced_at
     ) VALUES (
       ${username}, ${claims.name}, ${claims.email}, NULL, ${localRole}, FALSE, FALSE,
-      0, 'sso', ${claims.sub}, ${claims.role}, ${claims.ver}, ${claims.totp}, NOW(), NOW()
+      0, 'sso', ${claims.sub}, ${claims.role}, ${claims.ver}, ${normalizeBaPermissions(claims.permissions)}, ${claims.totp}, NOW(), NOW()
     )
     RETURNING id, username, email, full_name, role, token_version
   `;
@@ -533,6 +536,7 @@ export async function createSsoAdminSession(
       token_version: shadow.token_version,
       auth_source: "sso",
       external_admin_id: claims.sub,
+      permissions: normalizeBaPermissions(claims.permissions),
     },
     { expiresInSeconds: maxAgeSeconds }
   );
