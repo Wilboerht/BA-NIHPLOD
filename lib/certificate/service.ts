@@ -62,6 +62,7 @@ export interface CertificateListItem {
   scopeText: string;
   authorizer: string;
   phoneMasked: string | null;
+  phone: string | null;
   startDate: string;
   endDate: string;
   auditorName: string | null;
@@ -306,11 +307,8 @@ function mapCertificate(
     shopName: String(row.company_name ?? ""),
     scopeText: parsed.scopeText,
     authorizer: parsed.authorizer || COMPANY_FULL_NAME,
-    phoneMasked: canSensitive
-      ? row.phone
-        ? String(row.phone)
-        : null
-      : maskPhone(row.phone),
+    phoneMasked: maskPhone(row.phone),
+    phone: canSensitive && row.phone ? String(row.phone) : null,
     startDate: formatDateISO(row.start_date as string | Date),
     endDate: formatDateISO(row.end_date as string | Date),
     auditorName: row.auditor_name ? String(row.auditor_name) : null,

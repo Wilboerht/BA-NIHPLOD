@@ -37,8 +37,9 @@ export async function GET(request: Request) {
   );
   if (!auth.ok) return auth.response;
 
-  const includeComplaints =
-    new URL(request.url).searchParams.get("includeComplaints") === "true";
+  const searchParams = new URL(request.url).searchParams;
+  const includeComplaints = searchParams.get("includeComplaints") === "true";
+  const includeEmergency = searchParams.get("includeEmergency") === "true";
 
   try {
     const [
@@ -106,12 +107,14 @@ export async function GET(request: Request) {
     const breakGlassUsername = (
       process.env.BA_BREAK_GLASS_USERNAME || "ba-emergency"
     ).trim();
-    const emergencyRows = await sql`
-      SELECT id, username, role, auth_source, is_banned, token_version, last_login_at
-      FROM profiles
-      WHERE username = ${breakGlassUsername} AND deleted_at IS NULL
-      LIMIT 1
-    `;
+    const emergencyRows = includeEmergency
+      ? await sql`
+          SELECT id, username, role, auth_source, is_banned, token_version, last_login_at
+          FROM profiles
+          WHERE username = ${breakGlassUsername} AND deleted_at IS NULL
+          LIMIT 1
+        `
+      : [];
     const emergencyRow = emergencyRows[0];
 
     return NextResponse.json(
@@ -125,9 +128,13 @@ export async function GET(request: Request) {
             expiring30d: Number(certExpiring[0]?.count ?? 0),
           },
           complaints: {
-            pending: Number(complaintPending[0]?.count ?? 0),
-            investigating: Number(complaintInvestigating[0]?.count ?? 0),
-            resolvedThisMonth: Number(complaintResolvedMonth[0]?.count ?? 0),
+            pending: includeComplaints ? Number(complaintPending[0]?.count ?? 0) : 0,
+            investigating: includeComplaints
+              ? Number(complaintInvestigating[0]?.count ?? 0)
+              : 0,
+            resolvedThisMonth: includeComplaints
+              ? Number(complaintResolvedMonth[0]?.count ?? 0)
+              : 0,
             recent: recentComplaints.map((row: Record<string, unknown>) => ({
               id: String(row.id),
               channel: row.channel ? String(row.channel) : null,
@@ -152,8 +159,10 @@ export async function GET(request: Request) {
             actorName: row.actor_name ? String(row.actor_name) : null,
             createdAt: iso(row.created_at),
           })),
-          emergencyAccount: {
-            username: breakGlassUsername,
+          emergencyAccount: !includeEmergency
+            ? null
+            : {
+                username: breakGlassUsername,
             exists: emergencyRows.length > 0,
             enabled: process.env.BA_BREAK_GLASS_ENABLED === "true",
             totpConfigured: Boolean(process.env.BA_BREAK_GLASS_TOTP_SECRET?.trim()),

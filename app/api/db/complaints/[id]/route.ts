@@ -5,6 +5,11 @@ import { readJsonBody } from '@/lib/api-utils';
 import { actorFromUser, writeAudit } from '@/lib/audit';
 import { isUuid } from '@/lib/validation';
 import { canTransitionComplaintStatus } from '@/lib/complaint-status';
+import {
+  canReadComplaints,
+  canReadSensitiveComplaints,
+  canWriteComplaints,
+} from '@/lib/complaint-access';
 
 export async function GET(
   req: Request,
@@ -16,8 +21,11 @@ export async function GET(
       return NextResponse.json({ error: '工单 ID 格式无效' }, { status: 400 });
     }
 
-    const { response } = await requireAdmin(req);
+    const { user, response } = await requireAdmin(req);
     if (response) return response;
+    if (!user || !canReadComplaints(user)) {
+      return NextResponse.json({ error: '无权限查看举报' }, { status: 403 });
+    }
 
     const rows = await sql`
       SELECT *
@@ -27,9 +35,15 @@ export async function GET(
       LIMIT 1
     `;
     if (rows.length === 0) {
-      return NextResponse.json({ error: '工单不存在' }, { status: 404 });
+      return NextResponse.json({ error: '举报不存在' }, { status: 404 });
     }
-    return NextResponse.json({ data: rows[0] });
+    const complaint = { ...rows[0] };
+    if (!canReadSensitiveComplaints(user)) {
+      complaint.contact_info = null;
+      complaint.evidence_image_url = null;
+      complaint.evidence_image_urls = [];
+    }
+    return NextResponse.json({ data: complaint });
   } catch (err: unknown) {
     console.error('[complaints-get] API 错误:', err);
     return NextResponse.json({ error: '获取工单失败' }, { status: 500 });
@@ -79,6 +93,9 @@ export async function PUT(
     const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+    if (!user || !canWriteComplaints(user)) {
+      return NextResponse.json({ error: '无权限处理举报' }, { status: 403 });
     }
 
     // 查询当前状态（软删除工单不可再流转）

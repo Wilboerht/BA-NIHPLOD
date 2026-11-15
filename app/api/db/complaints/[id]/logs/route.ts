@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getComplaintAuditLogs } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { canReadComplaints } from '@/lib/complaint-access';
 import { isUuid } from '@/lib/validation';
 
 export async function GET(
@@ -15,9 +16,12 @@ export async function GET(
     }
 
     // 权限检查
-    const { response } = await requireAdmin(req);
+    const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+    if (!user || !canReadComplaints(user)) {
+      return NextResponse.json({ error: '无权限查看举报日志' }, { status: 403 });
     }
 
     const { data, error } = await getComplaintAuditLogs(id);

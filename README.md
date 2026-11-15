@@ -1,4 +1,4 @@
-﻿# NIHPLOD Brand Authorization & Verification Platform
+# NIHPLOD Brand Authorization & Verification Platform
 
 品牌授权及验证平台：经销商授权管理、提报与终审流程、证书合成与公开防伪查询。
 
@@ -24,12 +24,13 @@ npm run dev
 > 使用 `docker-compose.yml` 时，数据库名为 `ba_nihplod_db`，宿主机端口为 **5433**；
 > 本地直装 PostgreSQL 默认端口为 5432，请按实际环境修改 `DATABASE_URL`。
 
-初始化管理员（可选）：
+管理员账号统一由主站 SSO 管理，BA 不再创建本地管理员。仅保留 break-glass 应急账号：
 
 ```bash
-# 在 .env.local 中配置 DEFAULT_ADMINS 后执行
-npm run init:admins
+npm run init:break-glass
 ```
+
+如数据库里仍有历史本地管理员，先用 `npm run audit:local-admins` 检查，映射到主站 SSO 后再执行 `npm run audit:local-admins -- --apply` 禁用。
 
 ---
 
@@ -237,9 +238,9 @@ rsync -av /var/backups/ba/ user@backup-host:/backup/ba/files/
 | `npm run backup:uploads` | 备份 BA public/uploads + private 文件 |
 | `npm run cleanup:uploads` | 清理未引用文件；加 `-- --delete` 执行。默认保留最近 7 天；`UPLOAD_RETENTION_DAYS`（未设置=0）控制已关闭工单证据保留期；清理证据会写审计日志 |
 | `npm run archive:audit -- --before=YYYY-MM-DD` | 归档指定日期前的审计日志；默认 dry-run，加 `--apply` 写入 JSONL 并删除数据库记录 |
-| `npm run list:admins` | 列出管理员账号 |
-| `npm run init:admins` | 初始化管理员账号（已存在账号默认跳过，不会重复重置密码/角色） |
-| `npm run init:admins -- --reset` | 明确重置 `DEFAULT_ADMINS` 中已存在账号的密码/角色，并写审计日志 |
+| `npm run list:admins` | 列出管理员账号（只读） |
+| `npm run init:break-glass` | 创建/重置唯一 break-glass 应急账号（强制 TOTP） |
+| `npm run audit:local-admins` | 列出历史本地管理员；`-- --apply` 禁用非 break-glass 本地账号 |
 
 ### 冒烟测试示例
 

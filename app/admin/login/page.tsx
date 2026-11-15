@@ -222,7 +222,7 @@ function AdminLoginForm() {
               <div className="flex items-center gap-2">
                 <span className="text-slate-300 select-none">/</span>
                 <a
-                  href="https://advisor.nihplod.cn/admin"
+                  href={`${process.env.NEXT_PUBLIC_ADVISOR_URL || "https://smart.nihplod.cn"}/admin`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-medium text-slate-600 transition-colors hover:text-slate-800"
@@ -297,7 +297,7 @@ function AdminLoginForm() {
                     onClick={() => setShowLocalForm(true)}
                     className="w-full text-center text-xs text-slate-400 underline underline-offset-4 transition-colors hover:text-slate-600"
                   >
-                    使用本地应急账号登录
+                    使用 break-glass 应急账号登录
                   </button>
                 ) : (
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -392,7 +392,7 @@ function AdminLoginForm() {
                         setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
                       }
                       disabled={isLoading}
-                      placeholder="应急账号 TOTP（普通账号留空）"
+                      placeholder="应急账号 TOTP（必填）"
                       aria-label="应急账号 TOTP 验证码"
                       className="block w-full rounded-xl border border-slate-100 bg-slate-50 py-3.5 px-5 text-[13px] text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-300 focus:border-[#C6A87C]/40 focus:bg-white focus:ring-4 focus:ring-[#C6A87C]/15 disabled:opacity-50"
                     />

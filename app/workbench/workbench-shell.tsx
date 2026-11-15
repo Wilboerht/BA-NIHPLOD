@@ -13,7 +13,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/workbench': '工作台首页',
   '/workbench/certificates': '授权核发中心',
   '/workbench/complaints': '打假投诉审核',
-  '/workbench/users': '管理员管理',
   '/workbench/audit-logs': '系统操作日志',
 };
 

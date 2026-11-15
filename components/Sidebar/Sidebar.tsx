@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, UserCog, Globe, AlertCircle, ScrollText } from "lucide-react";
+import { Home, ShieldCheck, Megaphone, PanelLeftClose, PanelLeftOpen, LogOut, Globe, AlertCircle, ScrollText, ExternalLink } from "lucide-react";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useWorkbenchUser } from "@/components/auth/WorkbenchAuthContext";
@@ -74,11 +74,7 @@ export default function Sidebar({
 
         {userRole === 'SUPER_ADMIN' && (
           <div className={styles.group}>
-            {!isCollapsed && <div className={styles.groupLabel}>权限与系统管理</div>}
-            <Link href="/workbench/users" className={`${styles.menuLink} ${pathname === "/workbench/users" ? styles.active : ""}`}>
-              <span className={styles.icon}><UserCog size={17} /></span>
-              {!isCollapsed && "管理员管理"}
-            </Link>
+            {!isCollapsed && <div className={styles.groupLabel}>系统管理</div>}
             <Link href="/workbench/audit-logs" className={`${styles.menuLink} ${pathname === "/workbench/audit-logs" ? styles.active : ""}`}>
               <span className={styles.icon}><ScrollText size={17} /></span>
               {!isCollapsed && "系统操作日志"}
@@ -91,6 +87,15 @@ export default function Sidebar({
         <a href="/" target="_blank" rel="noopener noreferrer" className={styles.menuLink}>
           <span className={styles.icon}><Globe size={17} /></span>
           {!isCollapsed && "前往核验大厅"}
+        </a>
+        <a
+          href={process.env.NEXT_PUBLIC_MAIN_ADMIN_URL || "https://nihplod.cn/admin"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.menuLink}
+        >
+          <span className={styles.icon}><ExternalLink size={17} /></span>
+          {!isCollapsed && "返回主站后台"}
         </a>
         <button className={styles.toggleBtn} onClick={onToggle} aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}>
           {isCollapsed ? <PanelLeftOpen size={18} /> : (

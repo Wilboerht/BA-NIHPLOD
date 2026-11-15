@@ -1,24 +1,15 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { sql } from "@/lib/db";
-import { authenticateInternalApi, isMainSiteSuperAdminRole } from "@/lib/internal-auth";
+import { authenticateInternalApi } from "@/lib/internal-auth";
+import { resolveRequestActor } from "@/lib/internal-actor-request";
 import { writeAudit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 const RESET_PATH = "/api/internal/admin/emergency-account/reset-password";
-
-const bodySchema = z.object({
-  actor: z.object({
-    id: z.string().min(1).max(64),
-    email: z.string().max(255).optional().default(""),
-    name: z.string().max(100).optional().default(""),
-    role: z.string().max(50).optional().default(""),
-  }),
-});
 
 interface ResetOk {
   kind: "ok";
@@ -43,22 +34,14 @@ function jsonError(code: string, message: string, status: number): NextResponse 
 // POST /api/internal/admin/emergency-account/reset-password
 // 主站超级管理员重置 BA 应急账号密码；新密码只返回一次，不落库明文。
 export async function POST(request: Request) {
-  const auth = await authenticateInternalApi(request, RESET_PATH, "POST", ["ba"]);
+  const auth = await authenticateInternalApi(request, RESET_PATH, "POST", ["ba"], 1024 * 1024, {
+    requireActor: true,
+  });
   if (!auth.ok) return auth.response;
+  const actorResult = await resolveRequestActor(request, "ba.admin");
+  if (!actorResult.ok) return actorResult.response;
+  const actor = actorResult.actor;
 
-  let parsed: z.infer<typeof bodySchema>;
-  try {
-    const result = bodySchema.safeParse(JSON.parse(auth.bodyText));
-    if (!result.success) return jsonError("INVALID_PARAMS", "请求参数无效", 400);
-    parsed = result.data;
-  } catch {
-    return jsonError("INVALID_JSON", "请求体不是合法 JSON", 400);
-  }
-
-  const { actor } = parsed;
-  if (!isMainSiteSuperAdminRole(actor.role)) {
-    return jsonError("FORBIDDEN", "仅主站超级管理员可重置应急账号密码", 403);
-  }
   const username = (process.env.BA_BREAK_GLASS_USERNAME || "ba-emergency").trim();
   const password = crypto.randomBytes(18).toString("base64url");
 
@@ -98,7 +81,7 @@ export async function POST(request: Request) {
           role: actor.role || null,
           name: actor.name || actor.email || "主站管理员",
           source: "main",
-          externalId: actor.id,
+          externalId: actor.externalAdminId,
         },
         action: "RESET_EMERGENCY_PASSWORD",
         targetType: "profile",

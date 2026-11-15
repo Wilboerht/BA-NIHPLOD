@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import postgres from 'postgres';
@@ -222,42 +222,12 @@ assert('非法证书 UUID 返回 400', badCertId.status === 400, `status=${badCe
 const badComplaintId = await req('/api/db/complaints/not-a-uuid/logs', { token: superToken });
 assert('非法工单 UUID 返回 400', badComplaintId.status === 400, `status=${badComplaintId.status}`);
 
-const listAsAuditor = await req('/api/admin/list', { token: auditorToken });
-assert('AUDITOR 访问账号列表 403', listAsAuditor.status === 403, `status=${listAsAuditor.status}`);
-const stealReset = await req('/api/admin/reset-password', {
-  method: 'POST', token: auditorToken, body: { userId: superAdmin.id, newPassword: 'HackedPass123' },
+const removedAdminList = await req('/api/admin/list', { token: superToken });
+assert('BA 本地管理员列表已下线', removedAdminList.status === 404, `status=${removedAdminList.status}`);
+const removedAdminCreate = await req('/api/admin/create-admin', {
+  method: 'POST', token: superToken, body: { fullName: 'x', username: 'x@test.local', password: 'NewAudit123', role: 'AUDITOR' },
 });
-assert('AUDITOR 重置超管密码 403', stealReset.status === 403, `status=${stealReset.status}`);
-const superOldPwd = await login('super@test.local', 'SuperPass123');
-assert('超管密码未被越权修改', superOldPwd.status === 200);
-
-const listAsSuper = await req('/api/admin/list', { token: superToken });
-assert('SUPER 获取账号列表', listAsSuper.status === 200 && Array.isArray(listAsSuper.json?.data));
-const badAdminPage = await req('/api/admin/list?page=abc', { token: superToken });
-assert('非法分页参数回退到默认页', badAdminPage.status === 200, `status=${badAdminPage.status}`);
-const created = await req('/api/admin/create-admin', {
-  method: 'POST', token: superToken,
-  body: { fullName: '新审核员', username: 'newauditor@test.local', password: 'NewAudit123', role: 'AUDITOR' },
-});
-assert('SUPER 创建审核员', created.status === 200, `status=${created.status}`);
-const [newAuditorRow] = await db`SELECT id FROM profiles WHERE username = 'newauditor@test.local'`;
-const newAuditorLogin1 = await login('newauditor@test.local', 'NewAudit123');
-const resetBySuper = await req('/api/admin/reset-password', {
-  method: 'POST', token: superToken, body: { userId: newAuditorRow.id, newPassword: 'ResetPass123' },
-});
-assert('SUPER 重置审核员密码', resetBySuper.status === 200);
-const meWithOldToken = await req('/api/auth/me', { token: newAuditorLogin1.token });
-assert('被重置用户旧 token 立即失效', meWithOldToken.status === 401, `status=${meWithOldToken.status}`);
-const newAuditorLogin2 = await login('newauditor@test.local', 'ResetPass123');
-assert('重置后新密码可登录', newAuditorLogin2.status === 200);
-const firstLoginStats = await req('/api/db/stats', { token: newAuditorLogin2.token });
-assert(
-  '首登未改密访问业务接口 403',
-  firstLoginStats.status === 403 && firstLoginStats.json?.code === 'PASSWORD_CHANGE_REQUIRED',
-  `status=${firstLoginStats.status} code=${firstLoginStats.json?.code}`
-);
-const firstLoginMe = await req('/api/auth/me', { token: newAuditorLogin2.token });
-assert('首登仍可访问 /api/auth/me', firstLoginMe.status === 200, `status=${firstLoginMe.status}`);
+assert('BA 本地管理员创建已下线', removedAdminCreate.status === 404, `status=${removedAdminCreate.status}`);
 
 const changePwd = await req('/api/auth/change-password', {
   method: 'POST', token: auditorToken,
@@ -645,3 +615,4 @@ assert(
 console.log(`\n===== RESULT: ${failures === 0 ? 'ALL PASS' : failures + ' FAILURE(S)'} =====`);
 await db.end({ timeout: 3 });
 process.exit(failures === 0 ? 0 : 1);
+

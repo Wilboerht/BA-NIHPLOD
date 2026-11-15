@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getAllComplaints } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { canReadComplaints, canReadSensitiveComplaints } from '@/lib/complaint-access';
 
 export async function GET(req: Request) {
   try {
-    const { response } = await requireAdmin(req);
+    const { user, response } = await requireAdmin(req);
     if (response) {
       return response;
+    }
+    if (!user || !canReadComplaints(user)) {
+      return NextResponse.json({ error: '无权限查看举报' }, { status: 403 });
     }
     const { searchParams } = new URL(req.url);
     const page = Math.min(Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1), 10000);
@@ -24,7 +28,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: '获取投诉列表失败' }, { status: 500 });
     }
 
-    return NextResponse.json({ data: data || [], total: total || 0 });
+    const sensitive = canReadSensitiveComplaints(user);
+    const sanitized = (data || []).map((row) => {
+      if (sensitive) return row;
+      return {
+        ...row,
+        contact_info: null,
+        evidence_image_url: null,
+        evidence_image_urls: [],
+      };
+    });
+    return NextResponse.json({ data: sanitized, total: total || 0 });
   } catch (err: unknown) {
     console.error('[API /complaints] 异常:', err);
     return NextResponse.json(

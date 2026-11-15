@@ -198,21 +198,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const ssoEnabled = process.env.ADMIN_SSO_ENABLED === 'true';
-    const localMode = parseLocalLoginMode(process.env.ADMIN_SSO_LOCAL_LOGIN_MODE);
+        const localMode = parseLocalLoginMode(process.env.ADMIN_SSO_LOCAL_LOGIN_MODE);
     const breakGlassUsername = process.env.BA_BREAK_GLASS_USERNAME || 'ba-emergency';
     const breakGlassEnabled = process.env.BA_BREAK_GLASS_ENABLED === 'true';
     const isBreakGlassAccount = profile.username === breakGlassUsername;
 
-    if (ssoEnabled && localMode === 'disabled') {
+    if (localMode === 'disabled') {
       return NextResponse.json(
         { error: '本地密码登录已关闭，请使用主站管理员账号登录', code: 'SSO_REQUIRED' },
         { status: 403 }
       );
     }
     if (
-      ssoEnabled &&
-      localMode === 'break-glass' &&
+  localMode === 'break-glass' &&
       (!breakGlassEnabled || !isBreakGlassAccount)
     ) {
       return NextResponse.json(

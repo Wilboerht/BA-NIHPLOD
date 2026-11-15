@@ -35,7 +35,8 @@ export async function authenticateInternalApi(
   path: string,
   method: string,
   allowedProjects: readonly string[],
-  maxBytes = 1024 * 1024
+  maxBytes = 1024 * 1024,
+  options: { requireActor?: boolean } = {}
 ): Promise<AuthResult> {
   const key = request.headers.get("x-internal-api-key");
   const signature = request.headers.get("x-internal-api-signature");
@@ -81,6 +82,9 @@ export async function authenticateInternalApi(
 
   const actorHeader = request.headers.get("x-internal-actor");
   const actorSignature = request.headers.get("x-internal-actor-signature");
+  if (options.requireActor && !actorHeader) {
+    return { ok: false, response: error("ACTOR_REQUIRED", "缺少内部操作人身份", 401) };
+  }
   if (actorHeader) {
     if (!actorSignature) {
       if (process.env.INTERNAL_API_ALLOW_UNSIGNED_ACTOR !== "true") {

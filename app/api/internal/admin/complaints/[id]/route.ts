@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { authenticateInternalApi } from "@/lib/internal-auth";
+import { resolveRequestActor } from "@/lib/internal-actor-request";
 import { buildEvidenceUrl } from "@/lib/evidence-token";
 import { logger } from "@/lib/logger";
 import { isUuid } from "@/lib/validation";
@@ -18,8 +19,13 @@ export async function GET(
 ) {
   const { id } = await params;
   const path = `/api/internal/admin/complaints/${id}`;
-  const auth = await authenticateInternalApi(request, path, "GET", ["ba"]);
+  const auth = await authenticateInternalApi(request, path, "GET", ["ba"], 1024 * 1024, {
+    requireActor: true,
+  });
   if (!auth.ok) return auth.response;
+  const actorResult = await resolveRequestActor(request);
+  if (!actorResult.ok) return actorResult.response;
+  const actor = actorResult.actor;
 
   if (!isUuid(id)) {
     return NextResponse.json(
@@ -29,7 +35,8 @@ export async function GET(
   }
 
   const includeSensitive =
-    new URL(request.url).searchParams.get("includeSensitive") === "true";
+    new URL(request.url).searchParams.get("includeSensitive") === "true" &&
+    actor.capabilities.has("ba.complaints.sensitive");
 
   try {
     const rows = await sql`

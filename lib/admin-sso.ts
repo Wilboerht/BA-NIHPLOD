@@ -79,7 +79,7 @@ function assertHttpsOrLoopback(name: string, value: string): void {
 
 export function parseLocalLoginMode(raw: string | undefined): LocalLoginMode {
   const value = raw?.trim();
-  if (!value) return "all";
+  if (!value) return process.env.NODE_ENV === "production" ? "break-glass" : "all";
   if (value === "break-glass" || value === "disabled" || value === "all") return value;
   // 安全开关不允许 fail-open：拼写错误时按最严格的 disabled 处理
   console.error(

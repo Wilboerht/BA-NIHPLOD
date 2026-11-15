@@ -50,7 +50,7 @@ async function main() {
     if (!admins || admins.length === 0) {
       console.log("⚠️  数据库中未找到任何管理员账户！");
       console.log("\n💡 可以运行以下命令创建默认管理员：");
-      console.log("   npm run init:admins");
+      console.log("   npm run init:break-glass（仅应急账号；日常管理员由主站创建）");
       await sql.end();
       return;
     }

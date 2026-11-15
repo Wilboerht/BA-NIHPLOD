@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { authenticateInternalApi } from "@/lib/internal-auth";
 import {
   InternalActorError,
-  parseInternalActorPayload,
   readInternalActorFromRequest,
   resolveInternalActor,
   type ResolvedInternalActor,
@@ -29,6 +28,7 @@ export async function authenticateCertificateRequest(
     method,
     ["ba"],
     maxBytes,
+    { requireActor: true },
   );
   if (!auth.ok) return auth;
 
@@ -53,9 +53,7 @@ export async function authenticateCertificateRequest(
     }
   }
 
-  const actorInput =
-    parseInternalActorPayload(body.actor) ??
-    readInternalActorFromRequest(request);
+  const actorInput = readInternalActorFromRequest(request);
   try {
     const actor = await resolveInternalActor(actorInput, requiredCapability);
     return { ok: true, actor, body, bodyText: auth.bodyText };

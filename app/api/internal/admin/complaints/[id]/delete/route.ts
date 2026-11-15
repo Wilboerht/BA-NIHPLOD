@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { sql } from "@/lib/db";
-import { authenticateInternalApi, isMainSiteSuperAdminRole } from "@/lib/internal-auth";
+import { authenticateInternalApi } from "@/lib/internal-auth";
+import { resolveRequestActor } from "@/lib/internal-actor-request";
 import { writeAudit } from "@/lib/audit";
 import { isUuid } from "@/lib/validation";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
-
-const bodySchema = z.object({
-  actor: z.object({
-    id: z.string().min(1).max(64),
-    email: z.string().max(255).optional().default(""),
-    name: z.string().max(100).optional().default(""),
-    role: z.string().max(50).optional().default(""),
-  }),
-});
 
 // POST /api/internal/admin/complaints/[id]/delete
 // 主站 BFF 软删除举报；证据与审计保留。
@@ -25,38 +16,18 @@ export async function POST(
 ) {
   const { id } = await params;
   const path = `/api/internal/admin/complaints/${id}/delete`;
-  const auth = await authenticateInternalApi(request, path, "POST", ["ba"]);
+  const auth = await authenticateInternalApi(request, path, "POST", ["ba"], 1024 * 1024, {
+    requireActor: true,
+  });
   if (!auth.ok) return auth.response;
+  const actorResult = await resolveRequestActor(request, "ba.complaints.delete");
+  if (!actorResult.ok) return actorResult.response;
+  const actor = actorResult.actor;
 
   if (!isUuid(id)) {
     return NextResponse.json(
       { success: false, error: { code: "INVALID_ID", message: "举报 ID 无效" } },
       { status: 400 }
-    );
-  }
-
-  let parsed;
-  try {
-    parsed = bodySchema.safeParse(JSON.parse(auth.bodyText));
-  } catch {
-    return NextResponse.json(
-      { success: false, error: { code: "INVALID_JSON", message: "请求体不是合法 JSON" } },
-      { status: 400 }
-    );
-  }
-  if (!parsed.success) {
-    return NextResponse.json(
-      { success: false, error: { code: "INVALID_PARAMS", message: "操作人信息无效" } },
-      { status: 400 }
-    );
-  }
-
-  const { actor } = parsed.data;
-
-  if (!isMainSiteSuperAdminRole(actor.role)) {
-    return NextResponse.json(
-      { success: false, error: { code: "FORBIDDEN", message: "仅主站超级管理员可删除举报" } },
-      { status: 403 }
     );
   }
 
@@ -75,7 +46,7 @@ export async function POST(
       const shadowRows = await tx`
         SELECT id, full_name, username
         FROM profiles
-        WHERE external_admin_id = ${actor.id} AND deleted_at IS NULL
+        WHERE external_admin_id = ${actor.externalAdminId} AND deleted_at IS NULL
         LIMIT 1
       `;
       const deletedBy = shadowRows[0]?.id ?? null;
@@ -87,7 +58,7 @@ export async function POST(
         SET deleted_at = NOW(),
             deleted_by = ${deletedBy},
             handler_id = COALESCE(${deletedBy}, handler_id),
-            handled_by_external_admin_id = ${actor.id},
+            handled_by_external_admin_id = ${actor.externalAdminId},
             handled_by_name = ${actorName},
             handled_by_email = ${actor.email || null},
             updated_at = NOW()
@@ -104,7 +75,7 @@ export async function POST(
           role: actor.role || null,
           name: actorName,
           source: "main",
-          externalId: actor.id,
+          externalId: actor.externalAdminId,
         },
         action: "DELETE_COMPLAINT",
         targetType: "complaint",

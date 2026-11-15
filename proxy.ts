@@ -16,7 +16,6 @@ const PROTECTED_PATHS = [
 
 // 仅超级管理员可访问的路径前缀
 const SUPER_ADMIN_PATHS = [
-  '/workbench/users',
   '/workbench/audit-logs',
   '/api/admin',
 ];

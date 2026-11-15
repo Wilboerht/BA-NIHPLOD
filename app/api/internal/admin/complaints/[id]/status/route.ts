@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@/lib/db";
 import { authenticateInternalApi } from "@/lib/internal-auth";
+import { resolveRequestActor } from "@/lib/internal-actor-request";
 import { writeAudit } from "@/lib/audit";
 import { canTransitionComplaintStatus } from "@/lib/complaint-status";
 import { isUuid } from "@/lib/validation";
@@ -13,12 +14,6 @@ const bodySchema = z
   .object({
     status: z.enum(["INVESTIGATING", "RESOLVED", "REJECTED"]).optional(),
     review_note: z.string().max(2000).optional(),
-    actor: z.object({
-      id: z.string().min(1).max(64),
-      email: z.string().max(255).optional().default(""),
-      name: z.string().max(100).optional().default(""),
-      role: z.string().max(50).optional().default(""),
-    }),
   })
   .refine((data) => data.status !== undefined || data.review_note !== undefined, {
     message: "至少提供 status 或 review_note",
@@ -32,8 +27,13 @@ export async function POST(
 ) {
   const { id } = await params;
   const path = `/api/internal/admin/complaints/${id}/status`;
-  const auth = await authenticateInternalApi(request, path, "POST", ["ba"]);
+  const auth = await authenticateInternalApi(request, path, "POST", ["ba"], 1024 * 1024, {
+    requireActor: true,
+  });
   if (!auth.ok) return auth.response;
+  const actorResult = await resolveRequestActor(request);
+  if (!actorResult.ok) return actorResult.response;
+  const actor = actorResult.actor;
 
   if (!isUuid(id)) {
     return NextResponse.json(
@@ -58,7 +58,7 @@ export async function POST(
     );
   }
 
-  const { status, review_note, actor } = parsed.data;
+  const { status, review_note } = parsed.data;
   const hasReviewNote = review_note !== undefined;
 
   try {
@@ -93,7 +93,7 @@ export async function POST(
       const shadowRows = await tx`
         SELECT id, full_name, username
         FROM profiles
-        WHERE external_admin_id = ${actor.id} AND deleted_at IS NULL
+        WHERE external_admin_id = ${actor.externalAdminId} AND deleted_at IS NULL
         LIMIT 1
       `;
       const handlerId = shadowRows[0]?.id ?? null;
@@ -105,7 +105,7 @@ export async function POST(
         SET status = ${nextStatus},
             review_note = ${nextReviewNote},
             handler_id = ${handlerId},
-            handled_by_external_admin_id = ${actor.id},
+            handled_by_external_admin_id = ${actor.externalAdminId},
             handled_by_name = ${handlerName},
             handled_by_email = ${actor.email || null},
             updated_at = NOW()
@@ -125,7 +125,7 @@ export async function POST(
           role: actor.role || null,
           name: handlerName,
           source: "main",
-          externalId: actor.id,
+          externalId: actor.externalAdminId,
         },
         action: statusChanged
           ? `STATUS_CHANGE:${currentStatus}->${nextStatus}`
