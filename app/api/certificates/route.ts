@@ -10,6 +10,7 @@ import { getTodayISO, isRecord, isUuid, isValidEmail, parseDateOnly } from '@/li
 import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 import { ensureCertificateArtifact } from '@/lib/certificate/service';
+import { consumeAdminStepUpGrant } from '@/lib/admin-step-up';
 import type { ResolvedInternalActor } from '@/lib/internal-actor';
 import {
   CERTIFICATE_PERMISSIONS,
@@ -124,6 +125,12 @@ async function getOrCreateDealer(phone: string | undefined | null, shopName: str
 }
 
 // 权限检查辅助函数
+const STEP_UP_ACTION_BY_ACTION: Record<string, string> = {
+  approve_issue: "ba.certificates.issue",
+  revoke_certificate: "ba.certificates.revoke",
+  delete_certificate: "ba.certificates.delete",
+};
+
 const ACTION_PERMISSIONS: Record<string, CertificatePermission> = {
   create_pending: CERTIFICATE_PERMISSIONS.submit,
   approve_issue: CERTIFICATE_PERMISSIONS.issue,
@@ -224,6 +231,57 @@ export async function POST(req: Request) {
     //   approve_issue / reject_pending / update_certificate（超级管理员）→ 作为 manager_id
     //   update_certificate（审核员本人）→ 保留原 auditor_id / manager_id
     //   revoke_certificate / delete_certificate → 作为审计日志的 actor_id
+    const stepUpAction = action ? STEP_UP_ACTION_BY_ACTION[action] : undefined;
+    const stepUpMode = process.env.BA_STEP_UP_ENFORCEMENT?.trim().toLowerCase();
+    const stepUpEnforcement =
+      !stepUpMode || stepUpMode === 'off'
+        ? 'off'
+        : stepUpMode === 'warn'
+          ? 'warn'
+          : 'enforce';
+    if (stepUpMode && stepUpMode !== 'off' && stepUpMode !== 'warn' && stepUpMode !== 'enforce') {
+      console.warn('[Certificates] Unknown BA_STEP_UP_ENFORCEMENT, fail-closed:', stepUpMode);
+    }
+    if (
+      stepUpAction &&
+      adminUser!.auth_source === 'sso' &&
+      stepUpEnforcement !== 'off'
+    ) {
+      const stepUpResourceId =
+        certId && isUuid(certId)
+          ? certId
+          : action === 'approve_issue'
+            ? 'new'
+            : '';
+      if (!stepUpResourceId) {
+        return NextResponse.json({ error: '缺少有效证书 ID' }, { status: 400 });
+      }
+      const stepUpOk = await consumeAdminStepUpGrant(req, {
+        profileId: adminUser!.id,
+        action: stepUpAction,
+        resourceId: stepUpResourceId,
+      });
+      if (!stepUpOk) {
+        if (stepUpEnforcement === 'warn') {
+          console.warn('[Certificates] STEP_UP_MISSING', {
+            action: stepUpAction,
+            resourceId: stepUpResourceId,
+            adminId: adminUser!.id,
+          });
+        } else {
+          return NextResponse.json(
+            {
+              error: '该操作需要主站二次验证',
+              code: 'STEP_UP_REQUIRED',
+              action: stepUpAction,
+              resourceId: stepUpResourceId,
+            },
+            { status: 428, headers: { 'Cache-Control': 'no-store' } }
+          );
+        }
+      }
+    }
+
     const operatorId = adminUser!.id;
     const actor = actorFromUser(adminUser);
 

@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { fetchWithTimeout } from "@/lib/fetch";
+import { withBaCertificateStepUp } from "@/lib/ba-step-up-client";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 import { getDateISOInBusinessTimeZone } from "@/lib/date";
 
@@ -846,19 +847,27 @@ export default function CertificateGenerator({
         isManager;
 
       if (mode === "edit" && isPending) {
-        const response = await fetchWithTimeout("/api/certificates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: shouldApprove ? "approve_issue" : "update_certificate",
-            certId: initialData?.id,
-            certData: {
-              ...data,
-              cert_number:
-                initialData?.cert_number || tempCertNumberRef.current,
-            },
-          }),
-        });
+        const request = () =>
+          fetchWithTimeout("/api/certificates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: shouldApprove ? "approve_issue" : "update_certificate",
+              certId: initialData?.id,
+              certData: {
+                ...data,
+                cert_number:
+                  initialData?.cert_number || tempCertNumberRef.current,
+              },
+            }),
+          });
+        const response = shouldApprove
+          ? await withBaCertificateStepUp(
+              "ba.certificates.issue",
+              initialData?.id || "new",
+              request,
+            )
+          : await request();
         const result = await response.json().catch(() => ({}));
         if (!response.ok)
           throw new Error(
@@ -878,19 +887,28 @@ export default function CertificateGenerator({
             : isManager
               ? "approve_issue"
               : "create_pending";
-        const response = await fetchWithTimeout("/api/certificates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action,
-            certId: initialData?.id,
-            certData: {
-              ...data,
-              cert_number:
-                initialData?.cert_number || tempCertNumberRef.current,
-            },
-          }),
-        });
+        const request = () =>
+          fetchWithTimeout("/api/certificates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action,
+              certId: initialData?.id,
+              certData: {
+                ...data,
+                cert_number:
+                  initialData?.cert_number || tempCertNumberRef.current,
+              },
+            }),
+          });
+        const response =
+          action === "approve_issue"
+            ? await withBaCertificateStepUp(
+                "ba.certificates.issue",
+                initialData?.id || "new",
+                request,
+              )
+            : await request();
 
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || "操作失败");

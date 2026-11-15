@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { isCronRequestAuthorized } from "@/lib/cron-auth";
+import { cleanupExpiredAdminStepUp } from "@/lib/admin-step-up";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,10 @@ export async function GET(request: Request) {
       batches += 1;
       if (rows.length < BATCH_SIZE) break;
     }
+
+    await cleanupExpiredAdminStepUp().catch((error) => {
+      console.error("[cron] cleanup admin step-up failed", error);
+    });
 
     if (deleted > 0) {
       await writeAudit(sql, {

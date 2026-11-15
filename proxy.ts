@@ -26,8 +26,10 @@ function isPublicPath(pathname: string): boolean {
     pathname === '/api/auth/login'
     || pathname === '/api/auth/logout'
     || pathname === '/admin/login'
+    || pathname === '/admin/step-up/complete'
     || pathname === '/api/admin/auth/sso'
     || pathname.startsWith('/api/admin/auth/sso/')
+    || pathname === '/api/admin/auth/step-up/callback'
   );
 }
 

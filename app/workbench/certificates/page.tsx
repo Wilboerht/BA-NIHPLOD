@@ -15,6 +15,7 @@ import {
   hasCertificatePermission,
 } from "@/lib/certificate/access";
 import { fetchWithTimeout } from "@/lib/fetch";
+import { withBaCertificateStepUp } from "@/lib/ba-step-up-client";
 import { COMPANY_FULL_NAME } from "@/lib/config";
 
 interface Certificate {
@@ -163,11 +164,16 @@ export default function CertificatesPage() {
     
     setRevokingId(id);
     try {
-      const response = await fetchWithTimeout('/api/certificates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'revoke_certificate', certId: id })
-      });
+      const response = await withBaCertificateStepUp(
+        'ba.certificates.revoke',
+        id,
+        () =>
+          fetchWithTimeout('/api/certificates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'revoke_certificate', certId: id }),
+          })
+      );
       
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
@@ -208,11 +214,16 @@ export default function CertificatesPage() {
     if (!ok) return;
 
     try {
-      const response = await fetchWithTimeout('/api/certificates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete_certificate', certId: id })
-      });
+      const response = await withBaCertificateStepUp(
+        'ba.certificates.delete',
+        id,
+        () =>
+          fetchWithTimeout('/api/certificates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_certificate', certId: id }),
+          })
+      );
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
