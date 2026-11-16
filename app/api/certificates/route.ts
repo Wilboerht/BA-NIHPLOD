@@ -11,6 +11,8 @@ import crypto from 'crypto';
 import type { TransactionSql } from 'postgres';
 import { ensureCertificateArtifact } from '@/lib/certificate/service';
 import { consumeAdminStepUpGrant } from '@/lib/admin-step-up';
+import { normalizeBaStepUpMode, isKnownBaStepUpMode } from '@/lib/admin-step-up-policy';
+import { stepUpAuditTarget } from '@/lib/certificate/step-up-actions';
 import type { ResolvedInternalActor } from '@/lib/internal-actor';
 import {
   CERTIFICATE_PERMISSIONS,
@@ -131,6 +133,80 @@ const STEP_UP_ACTION_BY_ACTION: Record<string, string> = {
   delete_certificate: "ba.certificates.delete",
 };
 
+async function preflightHighRiskCertificateAction(
+  action: string,
+  certId: string | undefined,
+  certData: CertDataInput | undefined,
+): Promise<NextResponse | null> {
+  if (action === 'approve_issue') {
+    if (!certId) {
+      if (!certData) {
+        return NextResponse.json({ error: '缺少核发数据' }, { status: 400 });
+      }
+      parseDuration(certData.duration);
+      return null;
+    }
+    if (certData) {
+      parseDuration(certData.duration);
+    }
+    const rows = await sql`
+      SELECT status
+      FROM certificates
+      WHERE id = ${certId} AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ error: '未找到对应证书' }, { status: 404 });
+    }
+    if (String(rows[0].status) !== 'PENDING') {
+      return NextResponse.json({ error: '该证书不是待核发状态，无法核发' }, { status: 409 });
+    }
+    return null;
+  }
+
+  if (!certId) {
+    return NextResponse.json({ error: '缺少有效证书 ID' }, { status: 400 });
+  }
+
+  if (action === 'revoke_certificate') {
+    const rows = await sql`
+      SELECT status, (end_date >= CURRENT_DATE) AS active
+      FROM certificates
+      WHERE id = ${certId} AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ error: '未找到对应证书' }, { status: 404 });
+    }
+    if (String(rows[0].status) !== 'ISSUED' || rows[0].active !== true) {
+      return NextResponse.json({ error: '只能吊销有效期内已核发的证书' }, { status: 409 });
+    }
+    return null;
+  }
+
+  if (action === 'delete_certificate') {
+    const rows = await sql`
+      SELECT status,
+        (
+          status IN ('EXPIRED', 'REVOKED', 'REJECTED')
+          OR (status = 'ISSUED' AND end_date < CURRENT_DATE)
+        ) AS deletable
+      FROM certificates
+      WHERE id = ${certId} AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ error: '未找到对应证书' }, { status: 404 });
+    }
+    if (rows[0].deletable !== true) {
+      return NextResponse.json({ error: '该证书当前不可删除' }, { status: 409 });
+    }
+    return null;
+  }
+
+  return null;
+}
+
 const ACTION_PERMISSIONS: Record<string, CertificatePermission> = {
   create_pending: CERTIFICATE_PERMISSIONS.submit,
   approve_issue: CERTIFICATE_PERMISSIONS.issue,
@@ -231,57 +307,6 @@ export async function POST(req: Request) {
     //   approve_issue / reject_pending / update_certificate（超级管理员）→ 作为 manager_id
     //   update_certificate（审核员本人）→ 保留原 auditor_id / manager_id
     //   revoke_certificate / delete_certificate → 作为审计日志的 actor_id
-    const stepUpAction = action ? STEP_UP_ACTION_BY_ACTION[action] : undefined;
-    const stepUpMode = process.env.BA_STEP_UP_ENFORCEMENT?.trim().toLowerCase();
-    const stepUpEnforcement =
-      !stepUpMode || stepUpMode === 'off'
-        ? 'off'
-        : stepUpMode === 'warn'
-          ? 'warn'
-          : 'enforce';
-    if (stepUpMode && stepUpMode !== 'off' && stepUpMode !== 'warn' && stepUpMode !== 'enforce') {
-      console.warn('[Certificates] Unknown BA_STEP_UP_ENFORCEMENT, fail-closed:', stepUpMode);
-    }
-    if (
-      stepUpAction &&
-      adminUser!.auth_source === 'sso' &&
-      stepUpEnforcement !== 'off'
-    ) {
-      const stepUpResourceId =
-        certId && isUuid(certId)
-          ? certId
-          : action === 'approve_issue'
-            ? 'new'
-            : '';
-      if (!stepUpResourceId) {
-        return NextResponse.json({ error: '缺少有效证书 ID' }, { status: 400 });
-      }
-      const stepUpOk = await consumeAdminStepUpGrant(req, {
-        profileId: adminUser!.id,
-        action: stepUpAction,
-        resourceId: stepUpResourceId,
-      });
-      if (!stepUpOk) {
-        if (stepUpEnforcement === 'warn') {
-          console.warn('[Certificates] STEP_UP_MISSING', {
-            action: stepUpAction,
-            resourceId: stepUpResourceId,
-            adminId: adminUser!.id,
-          });
-        } else {
-          return NextResponse.json(
-            {
-              error: '该操作需要主站二次验证',
-              code: 'STEP_UP_REQUIRED',
-              action: stepUpAction,
-              resourceId: stepUpResourceId,
-            },
-            { status: 428, headers: { 'Cache-Control': 'no-store' } }
-          );
-        }
-      }
-    }
-
     const operatorId = adminUser!.id;
     const actor = actorFromUser(adminUser);
 
@@ -330,6 +355,73 @@ export async function POST(req: Request) {
       }
       if (!isAllowedSealUrl(certData.sealImage)) {
         return NextResponse.json({ error: '签章图片来源不合法' }, { status: 400 });
+      }
+    }
+
+    const stepUpAction = action ? STEP_UP_ACTION_BY_ACTION[action] : undefined;
+    const stepUpModeRaw = process.env.BA_STEP_UP_ENFORCEMENT;
+    const stepUpEnforcement = normalizeBaStepUpMode(stepUpModeRaw);
+    if (!isKnownBaStepUpMode(stepUpModeRaw)) {
+      console.warn('[Certificates] Unknown BA_STEP_UP_ENFORCEMENT, fail-closed:', stepUpModeRaw);
+    }
+    if (
+      stepUpAction &&
+      adminUser!.auth_source === 'sso' &&
+      stepUpEnforcement !== 'off'
+    ) {
+      const preflightError = await preflightHighRiskCertificateAction(
+        action!,
+        certId,
+        certData,
+      );
+      if (preflightError) return preflightError;
+
+      const stepUpResourceId =
+        certId && isUuid(certId)
+          ? certId
+          : action === 'approve_issue'
+            ? 'new'
+            : '';
+      if (!stepUpResourceId) {
+        return NextResponse.json({ error: '缺少有效证书 ID' }, { status: 400 });
+      }
+
+      const stepUpOk = await consumeAdminStepUpGrant(req, {
+        profileId: adminUser!.id,
+        action: stepUpAction,
+        resourceId: stepUpResourceId,
+      });
+      if (!stepUpOk) {
+        await writeAudit(sql, {
+          actor,
+          action: 'ADMIN_STEP_UP_MISSING',
+          targetType: 'certificate',
+          ...stepUpAuditTarget(stepUpResourceId),
+          comment: 'BA 高风险操作缺少主站二次验证',
+          reason: 'step_up_missing',
+          after: { action, mode: stepUpEnforcement },
+          request: req,
+        }).catch((error) => {
+          console.error('[Certificates] step-up missing audit failed', error);
+        });
+
+        if (stepUpEnforcement === 'warn') {
+          console.warn('[Certificates] STEP_UP_MISSING', {
+            action: stepUpAction,
+            resourceId: stepUpResourceId,
+            adminId: adminUser!.id,
+          });
+        } else {
+          return NextResponse.json(
+            {
+              error: '该操作需要主站二次验证',
+              code: 'STEP_UP_REQUIRED',
+              action: stepUpAction,
+              resourceId: stepUpResourceId,
+            },
+            { status: 428, headers: { 'Cache-Control': 'no-store' } }
+          );
+        }
       }
     }
 

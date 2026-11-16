@@ -7,7 +7,11 @@ import {
   issueAdminStepUpGrant,
 } from "@/lib/admin-step-up";
 import { stepUpAuditTarget } from "@/lib/certificate/step-up-actions";
-import { verifyAdminStepUpTicket, AdminStepUpTicketError } from "@/lib/admin-step-up-ticket";
+import {
+  verifyAdminStepUpTicket,
+  AdminStepUpTicketError,
+  stepUpClaimMismatch,
+} from "@/lib/admin-step-up-ticket";
 import { getAdminSsoConfig } from "@/lib/admin-sso";
 import { writeAudit } from "@/lib/audit";
 import { getClientIpFromRequest } from "@/lib/request-ip";
@@ -120,20 +124,20 @@ async function handleCallback(params: {
     throw error;
   }
 
-  if (
-    claims.sub !== requestRow.externalAdminId ||
-    claims.client_id !== getAdminSsoConfig().clientId ||
-    claims.state !== state ||
-    claims.action !== requestRow.action ||
-    claims.resource_id !== requestRow.resourceId
-  ) {
+  const claimMismatch = stepUpClaimMismatch(
+    claims,
+    requestRow,
+    getAdminSsoConfig().clientId,
+    state
+  );
+  if (claimMismatch) {
     await writeAudit(sql, {
       actor: { source: "system" },
       action: "ADMIN_STEP_UP_REJECTED",
       targetType: "certificate",
       ...stepUpAuditTarget(requestRow.resourceId),
       comment: "BA 高风险操作二次验证绑定信息不匹配",
-      reason: "claim_mismatch",
+      reason: `claim_mismatch:${claimMismatch}`,
       request,
     }).catch(() => {});
     return NextResponse.redirect(

@@ -6,6 +6,10 @@ import {
   isBaStepUpAction,
   stepUpAuditTarget,
 } from "../lib/certificate/step-up-actions.ts";
+import {
+  isKnownBaStepUpMode,
+  normalizeBaStepUpMode,
+} from "../lib/admin-step-up-policy.ts";
 
 test("BA step-up only covers high-risk certificate actions", () => {
   assert.deepEqual(Object.keys(BA_STEP_UP_ACTIONS), [
@@ -39,4 +43,16 @@ test("new certificate step-up audit target is not written as a UUID", () => {
     targetId: id,
     targetRef: id,
   });
+});
+
+test("BA step-up enforcement mode defaults to off and fails closed on unknown values", () => {
+  assert.equal(normalizeBaStepUpMode(undefined), "off");
+  assert.equal(normalizeBaStepUpMode(""), "off");
+  assert.equal(normalizeBaStepUpMode(" OFF "), "off");
+  assert.equal(normalizeBaStepUpMode("warn"), "warn");
+  assert.equal(normalizeBaStepUpMode("ENFORCE"), "enforce");
+  assert.equal(normalizeBaStepUpMode("typo"), "enforce");
+  assert.equal(isKnownBaStepUpMode(undefined), true);
+  assert.equal(isKnownBaStepUpMode("enforce"), true);
+  assert.equal(isKnownBaStepUpMode("typo"), false);
 });

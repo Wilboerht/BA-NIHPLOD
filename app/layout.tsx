@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import ToastProvider from "@/components/ui/ToastProvider";
 import { WebsiteLayoutClient } from "@/components/website/WebsiteLayoutClient";
+import { resolveBaStepUpMode } from "@/lib/admin-step-up-policy";
 import { BRAND_NAME, BRAND_NAME_CN, COMPANY_FULL_NAME } from "@/lib/config";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://ba.nihplod.cn";
@@ -73,11 +74,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const stepUpMode = resolveBaStepUpMode();
 
   return (
     <html
       lang="zh-CN"
       className="h-full antialiased"
+      data-ba-step-up-mode={stepUpMode}
     >
       <head>
         {/* JSON-LD 结构化数据：Organization */}

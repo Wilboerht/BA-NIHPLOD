@@ -6,6 +6,9 @@ interface StepUpRequiredBody {
   resourceId?: string;
 }
 
+const STEP_UP_WINDOW_NAME = "ba-certificate-step-up";
+const STEP_UP_WINDOW_FEATURES = "popup=yes,width=560,height=720";
+
 function newFlowId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -21,28 +24,31 @@ function currentReturnTo(): string {
   return path.startsWith("/workbench") ? path : "/workbench/certificates";
 }
 
-async function openStepUpWindow(
-  action: string,
-  resourceId: string,
-  flowId: string
-): Promise<boolean> {
+function currentStepUpMode(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  return document.documentElement.dataset.baStepUpMode;
+}
+
+function openStepUpPopup(): Window | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.open("about:blank", STEP_UP_WINDOW_NAME, STEP_UP_WINDOW_FEATURES);
+  } catch {
+    return null;
+  }
+}
+
+function stepUpStartUrl(action: string, resourceId: string, flowId: string): URL {
   const startUrl = new URL("/api/admin/auth/step-up/start", window.location.origin);
   startUrl.searchParams.set("action", action);
   startUrl.searchParams.set("resource_id", resourceId);
   startUrl.searchParams.set("return_to", currentReturnTo());
   startUrl.searchParams.set("flow", flowId);
+  return startUrl;
+}
 
-  const popup = window.open(
-    startUrl.toString(),
-    "ba-certificate-step-up",
-    "popup=yes,width=560,height=720"
-  );
-  if (!popup) {
-    window.location.href = startUrl.toString();
-    return false;
-  }
-
-  return new Promise<boolean>((resolve, reject) => {
+function waitForStepUp(popup: Window, flowId: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     let settled = false;
     const finish = (ok: boolean, message?: string) => {
       if (settled) return;
@@ -50,7 +56,7 @@ async function openStepUpWindow(
       window.removeEventListener("message", onMessage);
       window.clearInterval(closedTimer);
       window.clearTimeout(timeout);
-      if (ok) resolve(true);
+      if (ok) resolve();
       else reject(new Error(message || "二次验证失败"));
     };
     const onMessage = (event: MessageEvent) => {
@@ -78,32 +84,55 @@ async function openStepUpWindow(
   });
 }
 
-/**
- * 执行证书高风险操作；遇到 428 STEP_UP_REQUIRED 时打开主站 TOTP 弹窗，
- * 验证完成后自动重试原请求。popup 被拦截时回退整页跳转。
- */
 export async function withBaCertificateStepUp(
   action: string,
   resourceId: string,
   run: () => Promise<Response>
 ): Promise<Response> {
-  const response = await run();
-  if (response.status !== 428) return response;
+  const preopened =
+    currentStepUpMode() === "enforce" ? openStepUpPopup() : null;
+
+  let response: Response;
+  try {
+    response = await run();
+  } catch (error) {
+    preopened?.close();
+    throw error;
+  }
+
+  if (response.status !== 428) {
+    preopened?.close();
+    return response;
+  }
 
   let body: StepUpRequiredBody | null = null;
   try {
     body = (await response.clone().json()) as StepUpRequiredBody;
   } catch {
-    // fall through
+    body = null;
   }
-  if (body?.code !== "STEP_UP_REQUIRED") return response;
+  if (body?.code !== "STEP_UP_REQUIRED") {
+    preopened?.close();
+    return response;
+  }
 
   const effectiveAction = body.action || action;
   const effectiveResource = body.resourceId || resourceId;
   const flowId = newFlowId();
-  const completed = await openStepUpWindow(effectiveAction, effectiveResource, flowId);
-  if (!completed) {
-    throw new Error("请在二次验证完成后重新执行该操作");
+  const startUrl = stepUpStartUrl(effectiveAction, effectiveResource, flowId);
+
+  const popup = preopened && !preopened.closed ? preopened : openStepUpPopup();
+  if (!popup) {
+    preopened?.close();
+    throw new Error("浏览器拦截了二次验证窗口，请允许本站弹窗后重试");
+  }
+
+  popup.location.href = startUrl.toString();
+  try {
+    await waitForStepUp(popup, flowId);
+  } catch (error) {
+    if (!popup.closed) popup.close();
+    throw error;
   }
   return run();
 }
