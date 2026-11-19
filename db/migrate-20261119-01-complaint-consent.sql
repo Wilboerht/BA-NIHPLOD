@@ -1,0 +1,8 @@
+-- 投诉隐私同意记录
+BEGIN;
+
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS consent_at TIMESTAMPTZ;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS consent_version TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS ip_hash TEXT;
+
+COMMIT;

@@ -137,6 +137,9 @@ CREATE TABLE IF NOT EXISTS complaints (
     handler_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     review_note TEXT,
     contact_info TEXT,
+    consent_at TIMESTAMPTZ,
+    consent_version TEXT,
+    ip_hash TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     -- 2026-10-27: 软删除，保留证据与审计链

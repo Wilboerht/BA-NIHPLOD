@@ -5,6 +5,7 @@ import { writeAudit } from '@/lib/audit';
 import { readFormDataWithLimit } from '@/lib/api-utils';
 import { invalidateStorageUsageCache, wouldExceedPrivateQuota } from '@/lib/storage-quota';
 import { getClientIpFromRequest } from '@/lib/request-ip';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import crypto from 'crypto';
 
 const ALLOWED_TYPES = [
@@ -16,6 +17,33 @@ const ALLOWED_TYPES = [
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB（匿名上传限制更严格）
 const MAX_BODY_SIZE = MAX_FILE_SIZE + 1024 * 1024;
+
+/**
+ * 重新编码 JPEG/PNG，去掉 EXIF/GPS/设备等元数据，降低投诉证据中的隐私泄露风险。
+ * 失败时退回原图，不阻断正常投诉。
+ */
+async function stripImageMetadata(
+  buffer: Buffer,
+  contentType: string
+): Promise<{ buffer: Buffer; contentType: string }> {
+  if (contentType !== 'image/jpeg' && contentType !== 'image/png') {
+    return { buffer, contentType };
+  }
+  try {
+    const image = await loadImage(buffer);
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    const encoded =
+      contentType === 'image/jpeg'
+        ? await canvas.encode('jpeg', 90)
+        : await canvas.encode('png');
+    return { buffer: Buffer.from(encoded), contentType };
+  } catch (error) {
+    console.warn('[Upload] Failed to strip image metadata, fallback to original:', error);
+    return { buffer, contentType };
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -57,7 +85,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    const { buffer, contentType } = await stripImageMetadata(rawBuffer, file.type);
 
     // 生成安全文件名
     const fileExt = file.name.split('.').pop()?.toLowerCase();
@@ -74,7 +103,7 @@ export async function POST(req: Request) {
         'complaints',
         fileName,
         buffer,
-        file.type || 'application/octet-stream',
+        contentType || 'application/octet-stream',
         'private'
       );
       invalidateStorageUsageCache();

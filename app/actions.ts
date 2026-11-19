@@ -3,6 +3,7 @@
 import { sql, checkActionRateLimit } from '@/lib/db';
 import { parseAuthScope, formatDateISO } from '@/lib/utils';
 import { headers } from 'next/headers';
+import crypto from 'crypto';
 import { writeAudit } from '@/lib/audit';
 import { notifyMainSiteComplaint } from '@/lib/complaint-notify';
 import {
@@ -234,6 +235,7 @@ export async function submitComplaintAction(formData: {
   channel?: string;
   contact_info?: string;
   evidence_image_urls?: string[];
+  privacy_consent?: boolean;
 }): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     // 限流检查：每个 IP 5 分钟内最多提交 3 次投诉
@@ -259,6 +261,9 @@ export async function submitComplaintAction(formData: {
     if (formData.contact_info && formData.contact_info.length > 200) {
       return { success: false, error: "联系方式不能超过 200 字" };
     }
+    if (formData.privacy_consent !== true) {
+      return { success: false, error: "请先阅读并同意隐私政策与投诉信息处理规则" };
+    }
 
     // 证据图片 URL 安全校验
     if (!isInternalUploadUrls(formData.evidence_image_urls)) {
@@ -270,11 +275,25 @@ export async function submitComplaintAction(formData: {
     const cleanChannel = formData.channel ? sanitizeInput(formData.channel.trim()) : null;
     const cleanContact = formData.contact_info ? sanitizeInput(formData.contact_info.trim()) : null;
 
-    // 提交投诉
+    // 提交投诉（记录隐私政策同意时间/版本/IP 哈希）
+    let consentIpHash: string | null = null;
+    try {
+      const clientIP = await getClientIP();
+      consentIpHash = crypto.createHash('sha256').update(clientIP || 'unknown').digest('hex');
+    } catch {
+      consentIpHash = null;
+    }
+
     try {
       const insertResult = await sql`
-        INSERT INTO complaints (description, channel, contact_info, evidence_image_urls, status, created_at)
-        VALUES (${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_urls || []}, 'PENDING', NOW())
+        INSERT INTO complaints (
+          description, channel, contact_info, evidence_image_urls, status, created_at,
+          consent_at, consent_version, ip_hash
+        )
+        VALUES (
+          ${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_urls || []}, 'PENDING', NOW(),
+          NOW(), '2026-11-19', ${consentIpHash}
+        )
         RETURNING id
       `;
       const insertedId = insertResult[0]?.id;

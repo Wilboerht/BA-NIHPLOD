@@ -121,6 +121,7 @@ export default function HomeClient() {
   const [reportDesc, setReportDesc] = useState("");
   const [reportChannel, setReportChannel] = useState("");
   const [reportContact, setReportContact] = useState("");
+  const [reportConsent, setReportConsent] = useState(false);
 
   const resetReportForm = () => {
     setReportSuccess(false);
@@ -128,6 +129,7 @@ export default function HomeClient() {
     setReportDesc("");
     setReportChannel("");
     setReportContact("");
+    setReportConsent(false);
   };
 
   const reportCloseTimerRef = useRef<number | null>(null);
@@ -152,6 +154,10 @@ export default function HomeClient() {
     }
     if (!reportContact.trim()) {
       toast({ message: "请填写联系方式", type: "warning" });
+      return;
+    }
+    if (!reportConsent) {
+      toast({ message: "请先阅读并同意隐私政策与投诉信息处理规则", type: "warning" });
       return;
     }
     
@@ -204,7 +210,8 @@ export default function HomeClient() {
         description: reportDesc,
         channel: reportChannel || undefined,
         contact_info: reportContact || undefined,
-        evidence_image_urls: evidence_urls.length > 0 ? evidence_urls : undefined
+        evidence_image_urls: evidence_urls.length > 0 ? evidence_urls : undefined,
+        privacy_consent: reportConsent,
       });
       
       if (!res.success) throw new Error(res.error);
@@ -998,6 +1005,26 @@ export default function HomeClient() {
                       </div>
                     )}
                  </div>
+                 <div className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-slate-500">
+                   <input
+                     id="report-consent"
+                     type="checkbox"
+                     checked={reportConsent}
+                     onChange={(e) => setReportConsent(e.target.checked)}
+                     className="mt-0.5 h-4 w-4 shrink-0 accent-[#8B7355]"
+                   />
+                   <label htmlFor="report-consent">
+                     我已阅读并同意
+                     <a href="https://nihplod.cn/privacy" target="_blank" rel="noopener noreferrer" className="mx-1 underline underline-offset-2">
+                       《隐私政策》
+                     </a>
+                     与
+                     <a href="https://nihplod.cn/terms" target="_blank" rel="noopener noreferrer" className="mx-1 underline underline-offset-2">
+                       《服务条款》
+                     </a>
+                     ，并理解投诉内容与证据可能包含个人信息。
+                   </label>
+                 </div>
                  <button 
                    onClick={handleReportSubmit}
                    disabled={isSubmittingReport || reportSuccess}
@@ -1196,6 +1223,16 @@ export default function HomeClient() {
               className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-[#8B7355]/10 hover:text-[#1A1A1A]"
             >
               隐私声明
+              <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+            </a>
+            <span className="h-3 w-px bg-[#8B7355]/25" />
+            <a
+              href="https://nihplod.cn/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-[#8B7355]/10 hover:text-[#1A1A1A]"
+            >
+              服务条款
               <ExternalLink className="h-2.5 w-2.5 opacity-50" />
             </a>
           </div>
