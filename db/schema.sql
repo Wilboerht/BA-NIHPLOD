@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     contact_info TEXT,
     consent_at TIMESTAMPTZ,
     consent_version TEXT,
+    consent_content_hash TEXT,
     ip_hash TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),

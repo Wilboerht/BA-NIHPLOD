@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
   try {
     const rows = await sql`
-      SELECT consent_at, consent_version, created_at
+      SELECT consent_at, consent_version, consent_content_hash, created_at
       FROM complaints
       WHERE deleted_at IS NULL
         AND ${phoneMatch}
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       | {
           consent_at: Date | string | null;
           consent_version: string | null;
+          consent_content_hash: string | null;
           created_at: Date | string;
         }
       | undefined;
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
                     ? latest.consent_at.toISOString()
                     : latest.consent_at,
                 consentVersion: latest.consent_version,
+                consentContentHash: latest.consent_content_hash,
                 createdAt:
                   latest.created_at instanceof Date
                     ? latest.created_at.toISOString()

@@ -15,6 +15,10 @@ import {
 } from '@/lib/validation';
 import { getClientIp } from '@/lib/request-ip';
 import { getEffectiveCertificateStatus } from '@/lib/certificate-status';
+import {
+  PRIVACY_CONSENT_VERSION,
+  fetchCurrentPrivacyContentHash,
+} from '@/lib/legal';
 
 export interface CertificateVerifyResult {
   id: string;
@@ -283,16 +287,17 @@ export async function submitComplaintAction(formData: {
     } catch {
       consentIpHash = null;
     }
+    const consentContentHash = await fetchCurrentPrivacyContentHash();
 
     try {
       const insertResult = await sql`
         INSERT INTO complaints (
           description, channel, contact_info, evidence_image_urls, status, created_at,
-          consent_at, consent_version, ip_hash
+          consent_at, consent_version, consent_content_hash, ip_hash
         )
         VALUES (
           ${cleanDescription}, ${cleanChannel}, ${cleanContact}, ${formData.evidence_image_urls || []}, 'PENDING', NOW(),
-          NOW(), '2026-11-19', ${consentIpHash}
+          NOW(), ${PRIVACY_CONSENT_VERSION}, ${consentContentHash}, ${consentIpHash}
         )
         RETURNING id
       `;
